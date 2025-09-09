@@ -1,0 +1,139 @@
+{% extends 'pages_base.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const countrySelect = document.getElementById("country");
+      const visaTypeSelect = document.getElementById("visaType");
+      const requirementsList = document.getElementById("requirements");
+
+      // Load countries on page load
+      fetch("/api/countries/")
+        .then(res => res.json())
+        .then(data => {
+          data.forEach(country => {
+            let option = document.createElement("option");
+            option.value = country.code;   // e.g. "UK", "USA"
+            option.textContent = country.name; // e.g. "United Kingdom"
+            countrySelect.appendChild(option);
+          });
+        });
+
+      // When country changes → load visa types
+      countrySelect.addEventListener("change", () => {
+        visaTypeSelect.innerHTML = "<option value=''>Select Visa Type</option>";
+        requirementsList.innerHTML = "";
+
+        if (!countrySelect.value) return;
+
+        fetch(`/api/visa-types/?country=${countrySelect.value}`)
+          .then(res => res.json())
+          .then(data => {
+            data.forEach(visa => {
+              let option = document.createElement("option");
+              option.value = visa.code;  // e.g. "STUDENT"
+              option.textContent = visa.name; // e.g. "Student Visa"
+              visaTypeSelect.appendChild(option);
+            });
+          });
+      });
+
+      // When visa type changes → load requirements
+      visaTypeSelect.addEventListener("change", () => {
+        requirementsList.innerHTML = "";
+
+        if (!visaTypeSelect.value || !countrySelect.value) return;
+
+        fetch(`/api/requirements/?country=${countrySelect.value}&visa_type=${visaTypeSelect.value}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.length === 0) {
+              requirementsList.innerHTML = "<li>No requirements found.</li>";
+              return;
+            }
+            data.forEach(req => {
+              let li = document.createElement("li");
+              li.textContent = `${req.name} (${req.category}) ${req.is_mandatory ? "✅ Required" : "⚪ Optional"}`;
+              requirementsList.appendChild(li);
+            });
+          });
+      });
+    });
+</script>
+
+
+{% endblock %}
+
+
+
+{% block content %}
+
+<main class="main">
+<div class="container">
+
+<div class="row mt-0 pt-2">
+<div class="col text-left p-0 ml-3 mt-3">
+<h3 class="text-success">UK Visa Application - Requirements Guide</h3>
+<hr>
+</div>
+</div>      
+
+
+<!-- <section> -->
+    
+<div class="row rounded justify-content-center align-items-center pt-4" style="background-color: #fffed6;">
+            
+<div class="col-md-1 col-sm-2 col-xs-4 pb-4">
+<i class="fas fa-info-circle fa-3x" style="color: #05567b;"></i> 
+</div>
+<div class="col-md-11 col-sm-10 col-xs-8">
+<p class="lead" style="color: #05567b;">
+Select your visa type to view requirments and application process flow</p>
+<span style="float:right;"> </span> 
+</div>
+</div>
+
+<!-- </section> -->
+
+
+<div class="row py-2 my-2">
+<div class="col-lg-7 col-md-7 col-sm-7 col-sm-12 col-xs-12 pb-3 mb-3" style="border-right:1px solid #ddd"> 
+  <p class="lead text-success">Select Visa Type to view requirements <span class="text-info" style="font-size:12px"> [Download]</a> </span> </p> 
+
+<!-- <label for="country">Select Country</label>
+    <select id="country">
+      <option value="">Select Country</option>
+    </select> -->
+
+    <label for="visaType">Select Visa Type</label>
+    <select id="visaType">
+      <option value="">Select Visa Type</option>
+    </select>
+
+
+    <p class="lead text-success pt-1 mt-1">Requirements <span class="text-info" style="font-size:12px"></p> 
+      <ul id="requirements"></ul>
+</div>
+
+
+<!-- process flow --> 
+<div class="col-lg-5 col-md-5 col-sm-5 col-sm-12 col-xs-12" > <p class="lead text-success">Application Process Flow</p> <ol class="unstyled" style="font-size:1.2em; text-align:justify"> <li><b>STAGE 1:</b> Hospital Practice Manager Profile Creation</li> <li><b>STAGE 2:</b> Submission of basic hospital/centre details, certificate of incorporation, form C07, radiographer practicing Licence and evidence of payment of N200,000 registration fee plus cost of available modalities.</li> <li><b>STAGE 3:</b> Verification of submitted documents and  registration fee details. <li><b>STAGE 4:</b> Facility Inspection. </li> <li><b>STAGE 5:</b> Radiography Practice License Issuance</li> </ol>
+</div>
+</div>
+
+
+
+<hr>
+<div class="d-flex justify-content-end">   
+    
+<a href="#" class="btn btn-warning text-white py-2 px-3 mr-3 mt-2 mb-4 "><i class="fa fa-angle-double-left" aria-hidden="true"></i> Go Back</a>
+  
+<a href="#" class="text-white p-2 mt-2 mb-4 btn btn-success"><i class="fas fa-check"></i>Agree & Proceed</a>
+    
+</div>
+</div>
+  </main>
+
+{% endblock %}

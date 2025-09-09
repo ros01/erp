@@ -1,0 +1,414 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"mi",
+				"mixins"
+			],
+			[
+				"re",
+				"requisition_item"
+			],
+			[
+				"req",
+				"requisition_item"
+			],
+			[
+				"item",
+				"item_instance"
+			],
+			[
+				"Re",
+				"Requisition"
+			],
+			[
+				"qu",
+				"quantity"
+			],
+			[
+				"ite",
+				"item_added"
+			],
+			[
+				"c",
+				"core"
+			],
+			[
+				"fir",
+				"first"
+			],
+			[
+				"Requisition",
+				"RequisitionItem"
+			],
+			[
+				"requ",
+				"requisition"
+			],
+			[
+				"i",
+				"is_authenticated"
+			],
+			[
+				"del",
+				"delete"
+			],
+			[
+				"obje",
+				"object_list"
+			],
+			[
+				"q",
+				"queryset"
+			],
+			[
+				"P",
+				"PasswordChangeDoneView"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "erp/settings.py",
+			"settings":
+			{
+				"buffer_size": 3213,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"Preferences: Settings"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/chigozieokaro/Downloads/dev/suaveerp",
+		"/Users/chigozieokaro/Downloads/dev/suaveerp/src"
+	],
+	"file_history":
+	[
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/admin.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/constants.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/forms.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/models.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/templates/job_application/job_application.html",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/views.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/requirements.txt",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/multipage_form_demo/urls.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/urls.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/static/job_application/css/job_application.css",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/templates/job_application/thank_you.html",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/migrations/0002_auto_20190904_1539.py",
+		"/Users/chigozieokaro/Downloads/dev2/mulit_step_form/job_application/migrations/0001_initial.py",
+		"/Users/chigozieokaro/Downloads/dev/mfp/multi_step/.gitignore.exclude",
+		"/Users/chigozieokaro/Downloads/dev/mfp/manage.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/store/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_detail2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/fleet/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/item_update2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/item_delete2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_delete.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/items_list2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/item_detail2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/item_list_detail.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/vendors_list2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnstaff/admin.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/store/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/base2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnstaff/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_create_list.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/base12.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/hr/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/hr/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/hr/urls.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/hr/views.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/vendor_list.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/vendor_detail.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/base11.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/accounts/views.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/course_detail.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/add_training.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisitions_list2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_checkout.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_summary.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnstaff/urls.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnstaff/views.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/rrbnstaff/requisition_list2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/static/js/custom.js",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/emptylist.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/store/admin.py",
+		"/Users/chigozieokaro/Desktop/requisition_summary.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/item_results.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/vendor_detail2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/settings.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/static/css/custom.css",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/static/css/styles2.css",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/static/css/styles.css",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnisp/static/css/mycustomcss.css",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/requisition_list.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/fleet/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/rrbnstaff/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/procurement/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/rrbnstaff/create_requisition.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/retrieve_item2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/rrbnstaff/item_results.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/add_job_title.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/store_dashboard2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/restock_item.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/restock_list.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/store/create_item2.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/accounts/models.py",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/rrbnstaff/retrieve_item.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/base1.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/templates/hr/training_list.html",
+		"/Users/chigozieokaro/Downloads/dev/onestop/src/fleet/views.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/sysadmin/models.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/sysadmin/views.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/rrbnecms/static/css/styles_reg.css",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/accounts/register.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/pages/views.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/pages/urls.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/admin.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/sysadmin/sysadmin_dashboard2.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/accounts/login.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/views.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/urls.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/sysadmin/sysadmin_dashboard.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/sysadmin/urls.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/ict/views.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/pages/index.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/models.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/rrbnecms/static/css/styles-reg.css",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/base_dash.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/base_dashboard.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/pages/index2.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/rrbnecms/static/css/styles.css",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/base_reg.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/base.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/choices.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/ict/models.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/accounts/tests.py",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/templates/partials/_alerts.html",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/static/css/styles.css",
+		"/Users/chigozieokaro/Downloads/dev/workdrive/src/static/css/styles2.css",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/hospitals_reg_confirmation.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/license_issuance.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/renewal_payment_details.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/payment_details_submission.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/license_application_summary.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/accreditation_issued2.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/practice_permit_issued.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/license_issued2.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/issue_license.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/licenses_detail.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/license_issue_list.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/monitoring/view-applications2.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/accounts/models.py",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/start_hospital_radiography_license_renewal_details.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/my_applications_table.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/hospitals/forms.py",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/register_radiography_practice.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/start_new_application.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/hospitals/hospital_base.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/pages/index.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/registrars_office/views.py",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/registrars_office/license_approved.html",
+		"/Users/chigozieokaro/Downloads/dev/xreg2/src/templates/registrars_office/license_detail.html"
+	],
+	"find":
+	{
+		"height": 27.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "erp/settings.py",
+					"selected": true,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 3213,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 1648.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"stack_multiselect": false,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 27.0
+	},
+	"input":
+	{
+		"height": 42.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"pinned_build_system": "",
+	"project": "erp.sublime-project",
+	"replace":
+	{
+		"height": 50.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"src/rrbnisp/static/js/tempusdominus-bootstrap-4.js"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 278.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

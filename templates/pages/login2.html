@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Client Login</title>
+  <style>
+    body { font-family: system-ui, Arial; background: #f8fafc; margin: 0 }
+    .wrap { max-width: 400px; margin: 60px auto; padding: 20px; background: #fff; border-radius: 10px; border: 1px solid #ddd }
+    label { display: block; margin: 10px 0 5px }
+    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px }
+    button { margin-top: 15px; background: #2563eb; color: #fff; padding: 10px 16px; border: 0; border-radius: 6px; cursor: pointer }
+    .muted { color: #6b7280; font-size: 14px; margin-top: 10px }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Client Login</h2>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="email" required>
+      <label>Password</label>
+      <input type="password" id="password" required>
+      <button type="submit">Login</button>
+    </form>
+    <div class="muted">Don't have an account? <a href="{% url 'Clients:client-register' %}">Register</a></div>
+  </div>
+
+  <script>
+    const API_BASE = "/api";
+
+    document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch(`${API_BASE}/token/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.detail || "Login failed");
+
+        // Save JWT token in localStorage
+        localStorage.setItem("access", data.access);
+        localStorage.setItem("refresh", data.refresh);
+
+        window.location.href = "/clients/dashboard/";
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  </script>
+</body>
+</html>

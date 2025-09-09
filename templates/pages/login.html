@@ -1,0 +1,31 @@
+{% extends 'pages_base.html'%}
+{% load static %}
+
+  
+{% block content %}
+  <style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial;background:#f8fafc;margin:0}
+    .wrap{max-width:400px;margin:50px auto;padding:20px;background:#fff;border:1px solid #ddd;border-radius:10px}
+    h2{margin-top:0}
+    label{display:block;margin:10px 0 5px}
+    input{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px}
+    button{margin-top:15px;background:#2563eb;color:#fff;padding:10px 16px;border:0;border-radius:6px;cursor:pointer}
+    .muted{margin-top:12px;color:#6b7280;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h3 class="text-success">User Login</h3>
+    <form method="post">
+      {% csrf_token %}
+      <label>Email</label>
+      <input type="email" name="email" required>
+      <label>Password</label>
+      <input type="password" name="password" required>
+      <button type="submit">Login</button>
+    </form>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </div>
+
+
+{% endblock %}

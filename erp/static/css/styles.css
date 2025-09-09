@@ -1,0 +1,382 @@
+{% load static %} 
+
+main{
+    margin: 5rem 0 0 0;
+}
+
+
+@font-face {
+  font-family: 'Conv_HelveticaNeue';
+  src: url('/static/fonts/HelveticaNeue.eot');
+  src: local('☺'), url('/static/fonts/HelveticaNeue.woff') format('woff'), url('/static/fonts/HelveticaNeue.ttf') format('truetype'), url('/static/fonts/HelveticaNeue.svg') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'helveticaneuethin';
+    src: url('/static/fonts/helveticaneue_thin-webfont.woff2') format('woff2'),
+         url('/static/fonts/helveticaneue_thin-webfont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+
+}
+
+
+@font-face {
+    font-family: 'helveticaneuelight';
+    src: url('/static/fonts/helveticaneue_light-webfont.woff2') format('woff2'),
+         url('/static/fonts/helveticaneue_light-webfont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+
+
+
+p {
+  font-family: "helveticaneuelight";
+
+}
+
+.paragraph {
+  font-size: 2.5rem;
+
+}
+.paragraph2 {
+  font-size: 2.0rem;
+
+}
+.paragraph3 {
+  font-size: 1.5rem;
+
+}
+
+h1 {
+  font-family: "helveticaneuelight";
+}
+h3 {
+  font-family: "helveticaneuelight";
+}
+
+
+.footer_nav{
+    margin: 3rem 0;
+}
+.footer_nav button{
+    margin-right: .5rem;
+
+}
+.dropdown-item{
+    color: #000;
+}
+
+.dropdown-item:hover{
+    background: #fff;
+    color: #01A372;
+}
+
+.dropdown-menu{
+    margin-top: 8px;
+    border-top: none;
+    border-radius: 1px;
+
+}
+
+
+
+
+/* Nav Bar CSS Begins Here */
+
+.navbar-brand{
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 24px;
+}
+
+.nav-item{
+  margin : 0 15px !important;
+}
+
+.nav-link{
+  color:green !important;
+}
+.nav-link:hover{
+  color: rgb(78, 228, 78) !important;
+}
+/* Nav Bar CSS Ends Here */
+
+.xpand{
+  width: 100px !important;
+}
+
+.logo{
+  width: 80%;
+}
+
+.card-img-top {
+     
+    
+    object-fit: cover;
+
+  } 
+
+
+
+
+.btn-info:hover {
+color: #000;
+background-color: #fff;
+border-color: #fff;
+}
+
+.green-image{
+  background: url('../img/green3.jpeg') ;
+  width: 100%;
+  height: 44vh;
+}
+
+.input-recaptcha{
+ width:172px;   
+}
+
+
+.bg-image{
+  background: url('../img/sec.jpg') ;
+  width: 100%;
+  height: 88vh;
+}
+
+.form-container{
+  padding: 20px 60px;
+  margin-top: 50px;
+  -webkit-box-shadow: -1px 4px 26px 11px rgba(0,0,0,0.75);
+  -moz-box-shadow: -1px 4px 26px 11px rgba(0,0,0,0.75);
+  box-shadow: -1px 4px 26px 11px rgba(0,0,0,0.75);
+  border-radius: 10px;
+  color: #000000;
+  background: #fff;
+}
+
+
+.page-holder {
+  min-height: 100vh;
+}
+
+.bg-cover {
+  background-size: cover !important;
+}
+
+
+.a-content{
+
+  font-size: 28px;
+}
+
+
+
+
+
+ body{
+     overflow-x: hidden;
+ }
+
+ .progress{
+     width: 100%;
+     height: auto;
+ }
+
+ .gcolor{
+     background: #41963f;
+ }
+
+ .ft{
+     font-size: 16px;
+     line-height: 1;
+     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ }
+
+ .frbg{
+     background: #000;
+ }
+
+ .ml{
+     margin-left: 120px;
+ }
+
+ .flink:hover{
+    color: rgb(32, 189, 45) !important;
+ }
+
+ .copyright{
+    width: 100%;
+    background-color: #000;
+    height: 50px;
+    clear: both;
+    overflow: hidden;
+  }
+  .copyright .copyright-container{
+    width: 80%;
+    margin: 0 auto;
+  }
+
+  .copyright .copyright-container p{
+    color: #fff;
+    padding-top: 10px;
+  }
+
+
+footer{
+    border-top: 2px solid rgb(75, 201, 75);
+    padding-top: 5px;
+}
+
+.prog-ul{
+  align-items: center;
+  justify-content: space-end;
+  counter-reset: step;
+}
+
+
+.prog{
+  display: inline-block;
+  position: relative;
+  width: 33.33%;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.prog:before{
+  display: block;
+  height: 45px;
+  width: 45px;
+  border-radius: 20%;
+  background: #e2dfdf;
+  line-height: 45px;
+  text-align: center;
+  content: counter(step);
+  counter-increment: step;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  font-size: 20px;
+}
+
+.prog.active{
+  color:green;
+  font-weight: bolder;
+}
+
+.prog:after{
+  content: "";
+  width: 100%;
+  height: 3px;
+  position: absolute;
+  background: #e2dfdf;
+  top: 25px;
+  left: -50%;
+  z-index: 1;
+}
+
+.prog:first-child:after{
+  content: none;
+}
+
+.prog.active + .prog:after{
+  background: green;
+}
+
+.prog.active:before{
+  background: green;
+  color: #fff;
+}
+
+.label-as-badge {
+    border-radius: 1em;
+}
+
+.light-gold {
+
+  background: #f4efe1;
+}
+
+ul li a{
+  background: #fff;
+  color: #000;
+}
+
+ul li a:hover{
+  
+  color: #FF0000 !important;
+}
+/* MEDIA QUERY 
+the codes below will fix the image size and the 
+border on the last box on all screen sizes 
+*/
+
+@media screen and (max-width: 992px) {
+  .tanker {
+    width: 100%;
+  }
+}
+
+
+@media screen and (max-width: 985px) {
+  .tanker {
+    width: 200%;
+  }
+
+
+
+
+@media screen and (max-width: 970px) {
+  .tanker {
+    width: 200%;
+  }
+
+  .push-down{
+    padding-bottom: 0px;
+  }
+}
+
+
+@media screen and (max-width: 768px) {
+  .tanker {
+    width: 40%;
+  }
+
+  .push-down{
+    padding-bottom: 0px;
+  }
+}
+
+@media screen and (max-width: 414px) {
+  .tanker {
+    width: 25%;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  .tanker {
+    width: 25%;
+  }
+}
+
+@media screen and (max-width: 320px) {
+  .tanker {
+    width: 25%;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
