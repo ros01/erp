@@ -5,7 +5,7 @@ from django.views.generic import TemplateView, ListView
 
 
 class HomepageTemplateView(TemplateView):
-    template_name = "Pages/index.html"
+    template_name = "pages/index.html"
 
 
 def get_object_or_404(request):
@@ -13,7 +13,7 @@ def get_object_or_404(request):
 
 
 class StartApplication(TemplateView):
-    template_name = "Pages/display_requirements.html"
+    template_name = "pages/display_requirements.html"
 
 class StartUKVisaApplication(TemplateView):
-    template_name = "Pages/start_uk_application.html"
+    template_name = "pages/start_uk_application.html"
