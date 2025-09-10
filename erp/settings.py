@@ -26,7 +26,7 @@ environ.Env.read_env()
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-h&_c4@)s*=tn!y7w!5nxcpg6gcje5u1ouwqktl8p-hczs7b^!5'
+SECRET_KEY = 'hczs7b^!5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -53,6 +53,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
