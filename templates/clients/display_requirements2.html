@@ -1,0 +1,216 @@
+{% extends 'clients/clients_dashboard_base.html' %}
+{% block content %}
+
+<div class="col-xl-9">
+  <div class="card">
+    <div class="card-body border-bottom">
+      <div class="d-flex">
+        <h5 class="fw-semibold">Start Your Visa Application</h5>
+      </div>
+    </div>
+    <div class="card-body">
+      <h5 class="fw-semibold mb-3">Description</h5>
+      <p class="text-muted">
+        Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements.
+        Then confirm to start your application.
+      </p>
+      
+      <div class="row2">
+        <div>
+          <label for="country">Country of Interest</label>
+          <select id="country">
+            <option value="">— Select country —</option>
+          </select>
+        </div>
+        <div>
+          <label for="visaType">Visa Type</label>
+          <select id="visaType" disabled>
+            <option value="">— Select visa type —</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+        <button id="showBtn" type="button" disabled>Show Requirements</button>
+        <span id="status" class="muted" aria-live="polite"></span>
+      </div>
+
+      <div class="reqs" id="requirements" aria-live="polite"></div>
+
+      <!-- Confirm Application button -->
+      <div class="d-flex justify-content-end pr-4" style="margin-top:20px">
+        <button id="confirmBtn" type="button" disabled>✅ Confirm & Start Application</button>
+      </div>
+
+      <div id="appResult" class="reqs"></div>
+    </div>
+  </div>
+</div><!--end col-->
+</div><!--end row-->
+
+</div> <!-- container-fluid -->
+</div> 
+<!-- End Page-content -->
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+</script>
+
+<script>
+  const API_BASE = "/api";
+  const countrySel = document.getElementById("country");
+  const visaSel = document.getElementById("visaType");
+  const showBtn = document.getElementById("showBtn");
+  const confirmBtn = document.getElementById("confirmBtn");
+  const statusEl = document.getElementById("status");
+  const reqsEl = document.getElementById("requirements");
+  const appResultEl = document.getElementById("appResult");
+
+  async function fetchJSON(url, opts={}) {
+    const res = await fetch(url, {
+      headers: { 
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+        ...opts.headers
+      },
+      credentials: "include",
+      method: opts.method || "GET",
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  function resetVisaTypes(disabled=true){
+    visaSel.innerHTML = `<option value="">— Select visa type —</option>`;
+    visaSel.disabled = disabled;
+  }
+
+  function resetRequirements(){
+    reqsEl.innerHTML = "";
+    confirmBtn.disabled = true;
+  }
+
+  // Load countries
+  (async function loadCountries(){
+    try{
+      const countries = await fetchJSON(`${API_BASE}/countries/`);
+      countries.forEach(c=>{
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = c.name;
+        countrySel.appendChild(opt);
+      });
+    }catch(e){ console.error("Countries load failed", e); }
+  })();
+
+  // Country → visa types
+  countrySel.addEventListener("change", async ()=>{
+    resetVisaTypes();
+    resetRequirements();
+    const country = countrySel.value;
+    if(!country){ resetVisaTypes(true); return; }
+    try{
+      const visaTypes = await fetchJSON(`${API_BASE}/visa-types/?country=${encodeURIComponent(country)}`);
+      visaTypes.forEach(v=>{
+        const opt = document.createElement("option");
+        opt.value = v.code;
+        opt.textContent = v.name;
+        visaSel.appendChild(opt);
+      });
+      visaSel.disabled = false;
+    }catch(e){ console.error("Visa types load failed", e); }
+  });
+
+  visaSel.addEventListener("change", ()=>{
+    showBtn.disabled = !(countrySel.value && visaSel.value);
+    resetRequirements();
+  });
+
+  // Show requirements
+  showBtn.addEventListener("click", async ()=>{
+    resetRequirements();
+    const country = countrySel.value;
+    const visa = visaSel.value;
+    if(!country || !visa) return;
+    try{
+      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+      if(!reqs.length){ reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>"; return; }
+      reqs.forEach(r=>{
+        const row = document.createElement("div");
+        row.className = "req";
+        row.innerHTML = `<div><strong>${r.name}</strong><br/><small class="muted">${r.category || "—"}</small></div>
+                         <span class="tag ${r.is_mandatory ? "req" : "opt"}">${r.is_mandatory ? "Required" : "Optional"}</span>`;
+        reqsEl.appendChild(row);
+      });
+      confirmBtn.disabled = false;
+    }catch(e){ console.error("Requirements fetch failed", e); }
+  });
+
+  const applicationDocumentsUrl = "{{ application_documents_url }}";
+
+  // Confirm application
+  confirmBtn.addEventListener("click", async () => {
+    const country = countrySel.value;
+    const visa = visaSel.value;
+
+    const sure = confirm(
+      `Are you sure you want to start a ${visa} visa application for ${country}?`
+    );
+
+    if (!sure) return;
+
+    try {
+      const app = await fetchJSON(`${API_BASE}/applications/new/`, {
+        method: "POST",
+        body: { country, visa_type: visa }
+      });
+
+      appResultEl.innerHTML = `<div class="alert alert-success">
+        Application submitted successfully!<br/>
+        Reference: <strong>${app.reference_no}</strong>
+      </div>`;
+
+      // Redirect after short delay
+      setTimeout(() => {
+        const redirectUrl = applicationDocumentsUrl.replace("{pk}", app.id);
+        window.location.href = redirectUrl;
+      }, 1500);
+
+    } catch (e) {
+      alert("Failed to create application. Are you logged in?");
+      console.error("Application create failed", e);
+    }
+  });
+</script>
+
+<!-- 🚫 Prevent DataTables auto-initialization -->
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    if (window.jQuery && jQuery.fn.dataTable) {
+      jQuery.fn.dataTable = function() {
+        console.warn("DataTables initialization blocked on this page.");
+        return this; // noop
+      };
+    }
+  });
+</script>
+{% endblock %}

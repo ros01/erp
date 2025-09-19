@@ -68,6 +68,7 @@ class DocumentRequirement(BaseModel):
 #     def __str__(self):
 #         return f"{self.doc_type} - {self.application.reference_no}"
 
+
 class Document(BaseModel):
     """
     Represents a client’s actual uploaded file for a given requirement.
@@ -75,9 +76,9 @@ class Document(BaseModel):
     """
     STATUS_CHOICES = [
         ("MISSING", "Missing"),
-        ("UPLODED", "Uploaded"),
+        ("UPLOADED", "Uploaded"),
         ("PENDING", "Pending Review"),
-        ("VERIFIED", "Verified"),
+        ("REVIEWED", "Reviewed"),
         ("REJECTED", "Rejected"),
     ]
 
@@ -103,8 +104,19 @@ class Document(BaseModel):
     )
     review_comments = models.TextField(blank=True, null=True)
 
-    class Meta:
-        unique_together = ("application", "requirement")  # 1 requirement per app → 1 doc slot
+    # class Meta:
+    #     unique_together = ("application", "requirement")  # 1 requirement per app → 1 doc slot
+    @property
+    def get_status_badge(self):
+        """Return (badge_class, label_with_icon) for status."""
+        mapping = {
+            "MISSING": ("badge-soft-secondary", "⬜ Missing"),
+            "UPLODED": ("badge-soft-info", "📤 Uploaded"),
+            "PENDING": ("badge-soft-warning", "⏳ Pending"),
+            "VERIFIED": ("badge-soft-success", "✅ Verified"),
+            "REJECTED": ("badge-soft-danger", "❌ Rejected"),
+        }
+        return mapping.get(self.status, ("badge-soft-success", self.status))
 
     def __str__(self):
         return f"{self.application} - {self.requirement.name} ({self.status})"

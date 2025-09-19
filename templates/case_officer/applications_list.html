@@ -1,0 +1,324 @@
+{% extends 'case_officer/case_officer_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+
+
+
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<!-- <h2>Visa Application Documents</h2> -->
+<h4 class="text-info">View/Review Applications</h4>
+<!-- <button id="refreshBtn" class="btn btn-outline-secondary btn-sm">🔄 Refresh Checklist</button> -->
+</div>
+
+<table class="table table-striped" id="applicationsTable">
+    <thead>
+      <tr>
+        <th>Ref No</th>
+        <th>Client</th>
+        <th>Email</th>
+        <th>Visa Type</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+
+<!-- <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+</tbody>
+</table> -->
+
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'CaseManagement:case_officer_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-1"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+<!--end col-->
+</div><!--end row-->
+
+
+</div> <!-- container-fluid -->
+</div>
+
+
+
+
+
+<!-- Application Detail Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="application-detail-content">
+        <p class="text-muted">Select an application to view details.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    fetch("/api/applications/")
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector("#applicationsTable tbody");
+        tbody.innerHTML = "";
+        data.forEach(app => {
+          const row = `
+            <tr>
+              <td>${app.reference_no}</td>
+              <td>${app.client_name}</td>
+              <td>${app.client_email}</td>
+              <td>${app.visa_type_display}</td>
+              <td>
+                <span class="badge ${app.status_badge}" id="application-status-badge-${app.id}">
+                  ${app.status_display}
+                </span>
+              </td>
+              <td>
+                ${new Date(app.submission_date || app.created_at).toLocaleDateString("en-GB", {
+                  day: "2-digit", month: "short", year: "numeric"
+                })}
+              </td>
+              <td>
+                <button type="button"
+                  class="btn btn-primary btn-sm btn-rounded waves-effect waves-light view-details-btn"
+                  data-id="${app.id}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#applicationDetailModal">
+                  View Details
+                </button>
+              </td>
+            </tr>`;
+          tbody.insertAdjacentHTML("beforeend", row);
+        });
+      });
+});
+
+
+
+
+// function statusBadge(status) {
+//   switch(status) {
+//     case "APPROVED": return "badge-soft-success";
+//     case "REJECTED": return "badge-soft-danger";
+//     case "ADMIN REVIEW": return "badge-soft-warning";
+//     default: return "badge-soft-secondary";
+//   }
+// }
+
+document.body.addEventListener("click", function (e) {
+    if (e.target.closest(".view-details-btn")) {
+        let appId = e.target.closest(".view-details-btn").dataset.id;
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+            // Application details
+            let detailsHtml = `
+              <h5 class="text-info">Application Info</h5>
+              <table class="table table-bordered">
+                <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                <tr><th>Client</th><td>${app.client_name}</td></tr>
+                 <tr><th>Email</th><td>${app.client_email}</td></tr>
+                <tr><th>Country</th><td>${app.country_display}</td></tr>
+                <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                <tr><th>Status</th><td><span id="application-status-badge" class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
+                <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+                <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+              </table>
+            `;
+                // === Documents ===
+                let docsHtml = `
+                  <h5 class="mt-4 text-info">Documents</h5>
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Comments</th>
+                        <th>Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                if (app.documents.length === 0) {
+                    docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+                } else {
+                  app.documents.forEach(doc => {
+                    docsHtml += `
+                      <tr>
+                        <td>${doc.requirement_name}</td>
+                        <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+                        <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+                        <td>
+                          <input type="text" class="form-control form-control-sm review-comment-input"
+                                 data-doc-id="${doc.id}"
+                                 value="${doc.review_comments ?? ''}"
+                                 placeholder="Add comment"
+                                 ${doc.status === "REVIEWED" ? "readonly" : ""}>
+                        </td>
+                        <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+                        <td>
+                          ${doc.status === "REVIEWED"
+                            ? `<span class="text-success">✅ Reviewed</span>`
+                            : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+                        </td>
+                      </tr>
+                    `;
+                });
+
+
+                }
+
+                docsHtml += "</tbody></table>";
+                modalBody.innerHTML = detailsHtml + docsHtml;
+            });
+    }
+});
+
+
+document.body.addEventListener("click", function (e) {
+    if (e.target.closest(".review-btn")) {
+        let btn = e.target.closest(".review-btn");
+        let docId = btn.dataset.id;
+        let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
+        let comments = commentInput ? commentInput.value : "";
+
+        fetch(`/api/documents/${docId}/review/`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify({ review_comments: comments })
+        })
+        .then(res => res.json())
+        .then(updatedDoc => {
+            // 🔹 Update status badge in the same row
+            let row = btn.closest("tr");
+            let statusCell = row.querySelector("td:nth-child(2) span"); 
+            if (statusCell) {
+                statusCell.textContent = updatedDoc.status_display;
+                statusCell.className = "badge " + updatedDoc.status_badge;
+            }
+
+            // 🔹 Replace button with ✅ Reviewed
+            btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
+
+            // 🔹 Lock comments input
+            if (commentInput) {
+                commentInput.value = updatedDoc.review_comments ?? "";
+                commentInput.setAttribute("readonly", "readonly");
+            }
+
+            // 🔹 Update application badge in modal + main table
+            fetch(`/api/applications/${updatedDoc.application}/`)
+                .then(r => r.json())
+                .then(updatedApp => {
+                    // modal badge
+                    const badgeEl = document.getElementById("application-status-badge");
+                    if (badgeEl) {
+                        badgeEl.textContent = updatedApp.status_display;
+                        badgeEl.className = "badge " + updatedApp.status_badge;
+                    }
+
+                    // main table badge
+                    const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+                    if (tableBadgeEl) {
+                        tableBadgeEl.textContent = updatedApp.status_display;
+                        tableBadgeEl.className = "badge " + updatedApp.status_badge;
+                    }
+                });
+        });
+    }
+});
+
+
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+</script>
+{% endblock %}

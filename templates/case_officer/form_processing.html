@@ -1,0 +1,324 @@
+{% extends 'case_officer/case_officer_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+
+<!-- templates/case_officer/form_filled_submission.html -->
+<h4 class="card-title mb-4">Reviewed Applications</h4>
+<div class="table-responsive">
+<table class="table align-middle table-nowrap mb-4">
+<thead class="table-light">
+<tr>
+<th style="width: 20px;">
+<div class="form-check font-size-16 align-middle">
+<input class="form-check-input" type="checkbox" id="transactionCheck01">
+<label class="form-check-label" for="transactionCheck01"></label>
+</div>
+</th>
+<th class="align-middle">Reference No:</th>
+<th class="align-middle">Name</th>
+<th class="align-middle">Email</th>
+<th class="align-middle">Type</th>
+<th class="align-middle">Status</th>
+<th class="align-middle">Date</th>
+<th class="align-middle">View Details</th>
+</tr>
+</thead>
+
+<tbody id="applications-table-body">
+  <tr>
+    <td colspan="8" class="text-center text-muted">Loading applications...</td>
+  </tr>
+</tbody>
+
+</table>
+</div>
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'CaseManagement:case_officer_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-1"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+<!--end col-->
+</div><!--end row-->
+
+
+</div> <!-- container-fluid -->
+</div>
+
+
+<!-- Application Detail Modal -->
+<!-- <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="application-detail-content">
+        <p class="text-muted">Select an application to view details.</p>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<!-- Application Detail Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Submit Filled Visa Form</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="application-detail-content">
+        <p class="text-muted">Select an application to submit its filled form.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let tbody = document.getElementById("applications-table-body");
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Loading applications...</td></tr>`;
+
+    fetch("/api/applications/reviewed/")
+        .then(res => res.json())
+        .then(data => {
+            tbody.innerHTML = ""; // clear placeholder
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr>
+                    <td colspan="8" class="text-center">No applications assigned to you yet.</td>
+                </tr>`;
+                return;
+            }
+
+            data.forEach((app, index) => {
+                let statusBadge = "";
+                if (app.status === "APPROVED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "REJECTED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-danger font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "ADMIN REVIEW") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-warning font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "REVIEWED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "ASSIGNED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-info font-size-11">${app.status_display}</span>`;
+                } else {
+                    statusBadge = `<span class="badge badge-pill badge-soft-secondary font-size-11">${app.status_display}</span>`;
+                }
+
+                tbody.innerHTML += `
+                <tr>
+                  <td>
+                    <div class="form-check font-size-16">
+                      <input class="form-check-input" type="checkbox" id="transactionCheck${index}">
+                      <label class="form-check-label" for="transactionCheck${index}"></label>
+                    </div>
+                  </td>
+                  <td>
+                    <a href="javascript:void(0);" class="text-body fw-bold">${app.reference_no}</a>
+                  </td>
+                  <td>${app.client_name}</td>
+                  <td>${app.client_email}</td>
+                  <td>${app.visa_type_display}</td>
+                  <td>${statusBadge}</td>
+                  <td>${new Date(app.created_at).toLocaleDateString("en-GB", {
+                        day: "2-digit", month: "short", year: "numeric"
+                    })}</td>
+                  <td>
+                    <button type="button"
+                      class="btn btn-primary btn-sm btn-rounded waves-effect waves-light view-details-btn"
+                      data-id="${app.id}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#applicationDetailModal">
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+                `;
+            });
+        })
+        .catch(err => {
+            console.error("Error fetching applications:", err);
+            tbody.innerHTML = `<tr>
+              <td colspan="8" class="text-center text-danger">Failed to load applications.</td>
+            </tr>`;
+        });
+});
+
+
+document.body.addEventListener("click", function (e) {
+    if (e.target.closest(".view-details-btn")) {
+        let appId = e.target.closest(".view-details-btn").dataset.id;
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+                let formHtml = `
+                  <h5 class="text-info">Submit Application Details for Visa Application No: ${app.reference_no} </h5>
+                  <form id="formFilledForm" enctype="multipart/form-data" method="post">
+                    <input type="hidden" name="application" value="${app.id}">
+
+                    <div class="mb-3">
+                      <label class="form-label">Form File (PDF)</label>
+                      <input type="file" name="file" accept="application/pdf" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">Application URL</label>
+                      <input type="url" name="application_url" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">Username</label>
+                      <input type="text" name="visa_application_username" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">Password</label>
+                      <input type="text" name="visa_application_password" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">Submit</button>
+                  </form>
+                `;
+
+                modalBody.innerHTML = formHtml;
+
+                // Handle submission
+                const form = modalBody.querySelector("#formFilledForm");
+
+                form.addEventListener("submit", function (ev) {
+                    ev.preventDefault();
+                    let formData = new FormData(form);
+
+                    fetch(`/api/form-processing/${app.id}/`, {   // 🔹 points to DRF endpoint for FormFilled
+                        method: "PATCH",                     // 🔹 use PATCH instead of POST
+                        headers: { "X-CSRFToken": getCookie("csrftoken") },
+                        body: formData
+                    })
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error("Form submission failed");
+                        }
+                        return res.json();
+                    })
+                    .then(resp => {
+                        // ✅ Redirect back to Reviewed Applications list
+                        window.location.href = "/CaseManagement/applications/form-filled-submissions/";
+                    })
+                    .catch(err => {
+                        console.error("Error submitting form:", err);
+                        modalBody.innerHTML = `<div class="alert alert-danger">
+                          ❌ Failed to submit form.
+                        </div>`;
+                    });
+                });
+            });
+    }
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// document.body.addEventListener("click", function (e) {
+//     if (e.target.closest(".view-details-btn")) {
+//         let appId = e.target.closest(".view-details-btn").dataset.id;
+//         let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+//         modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+//         fetch(`/api/applications/${appId}/`)
+//             .then(res => res.json())
+//             .then(app => {
+//             // Application details
+
+//             let detailsHtml = `
+//               <h5 class="text-info">Application Info</h5>
+//               <table class="table table-bordered">
+//                 <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+//                 <tr><th>Client</th><td>${app.client_name}</td></tr>
+//                  <tr><th>Email</th><td>${app.client_email}</td></tr>
+//                 <tr><th>Country</th><td>${app.country_display}</td></tr>
+//                 <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+//                 <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+//                 <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
+//                 <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+//                 <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+//                 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+//               </table>
+//             `;
+//                 // === Documents ===
+//                 let docsHtml = `
+//                   <h5 class="mt-4 text-info">Documents</h5>
+//                   <table class="table table-striped">
+//                     <thead>
+//                       <tr>
+//                         <th>Requirement</th>
+//                         <th>Status</th>
+//                         <th>File</th>
+//                         <th>Comments</th>
+//                         <th>Uploaded</th>
+//                       </tr>
+//                     </thead>
+//                     <tbody>
+//                 `;
+
+//                 if (app.documents.length === 0) {
+//                     docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+//                 } else {
+//                     app.documents.forEach(doc => {
+//                         docsHtml += `
+//                           <tr>
+//                             <td>${doc.requirement_name}</td>
+//                             <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+//                             <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+//                             <td>${doc.review_comments ?? '-'}</td>
+//                             <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+//                           </tr>
+//                         `;
+//                     });
+//                 }
+
+//                 docsHtml += "</tbody></table>";
+//                 modalBody.innerHTML = detailsHtml + docsHtml;
+//             });
+//     }
+// });
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,762 @@
+{% extends 'admin/admin_dashboard_base.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+<div class="main-content">
+
+<div class="page-content">
+<div class="container-fluid">
+
+<!-- start page title -->
+<!-- <div class="row">
+<div class="col-12">
+<div class="page-title-box d-sm-flex align-items-center justify-content-between">
+<h4 class="mb-sm-0 font-size-18">Horizontal Layout</h4>
+
+<div class="page-title-right">
+<ol class="breadcrumb m-0">
+<li class="breadcrumb-item"><a href="javascript: void(0);">Layouts</a></li>
+<li class="breadcrumb-item active">Horizontal Layout</li>
+</ol>
+</div>
+
+</div>
+</div>
+</div> -->
+<!-- end page title -->
+
+<div class="row">
+<div class="col-xl-4">
+<div class="card overflow-hidden">
+<div class="bg-primary-subtle">
+<div class="row">
+<div class="col-7">
+<div class="text-primary p-3">
+<h5 class="text-primary">Welcome Back !</h5>
+<p>Admin Dashboard</p>
+</div>
+</div>
+<div class="col-5 align-self-end">
+<img src="{% static 'admin_assets/images/profile-img.png' %}" alt="" class="img-fluid">
+</div>
+</div>
+</div>
+<div class="card-body pt-0">
+<div class="row">
+<div class="col-sm-4">
+<div class="avatar-md profile-user-wid mb-4">
+<img src="{% static 'admin_assets/images/users/avatar-1.jpg' %}" alt="" class="img-thumbnail rounded-circle">
+</div>
+<h5 class="font-size-15 text-truncate">{{user.get_full_name}}</h5>
+<p class="text-muted mb-0 text-truncate">Admin Officer</p>
+</div>
+
+<div class="col-sm-8">
+<div class="pt-4">
+
+<div class="row">
+<div class="col-6">
+<h5 class="font-size-15">5</h5>
+<p class="text-muted mb-0">Reviewed</p>
+</div>
+<div class="col-6">
+<h5 class="font-size-15">0</h5>
+<p class="text-muted mb-0">Submitted</p>
+</div>
+</div>
+<div class="mt-4">
+<a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View Profile <i class="mdi mdi-arrow-right ms-1"></i></a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="card-body">
+<h4 class="card-title mb-4">Monthly Output</h4>
+<div class="row">
+<div class="col-sm-6">
+<p class="text-muted">This month</p>
+<h3>5</h3>
+<p class="text-muted"><span class="text-success me-2"> 12% <i class="mdi mdi-arrow-up"></i> </span> From previous period</p>
+
+<div class="mt-4">
+<a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View More <i class="mdi mdi-arrow-right ms-1"></i></a>
+</div>
+</div>
+<div class="col-sm-6">
+<div class="mt-4 mt-sm-0">
+<div id="radialBar-chart" data-colors='["--bs-primary"]' class="apex-charts"></div>
+</div>
+</div>
+</div>
+<p class="text-muted mb-0">Total Applications Processed for the month.</p>
+</div>
+</div>
+</div>
+<div class="col-xl-8">
+<div class="row">
+<div class="col-md-4">
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Workload</p>
+<h4 class="mb-0">5</h4>
+</div>
+
+
+<div class="flex-shrink-0 align-self-center">
+<div class="mini-stat-icon avatar-sm rounded-circle bg-primary">
+<span class="avatar-title">
+<i class="bx bx-copy-alt font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-md-4">
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Student Applications</p>
+<h4 class="mb-0">2</h4>
+</div>
+
+<div class="flex-shrink-0 align-self-center">
+<div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
+<span class="avatar-title rounded-circle bg-primary">
+<i class="bx bx-archive-in font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-md-4">
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Completed Applications</p>
+<h4 class="mb-0">1</h4>
+</div>
+
+<div class="flex-shrink-0 align-self-center">
+<div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
+<span class="avatar-title rounded-circle bg-primary">
+<i class="bx bx-purchase-tag-alt font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- end row -->
+
+<div class="card">
+<div class="card-body">
+<div class="d-sm-flex flex-wrap">
+<h4 class="card-title mb-4">Visa Applications</h4>
+<div class="ms-auto">
+<ul class="nav nav-pills">
+<li class="nav-item">
+<a class="nav-link" href="#">Week</a>
+</li>
+<li class="nav-item">
+<a class="nav-link" href="#">Month</a>
+</li>
+<li class="nav-item">
+<a class="nav-link active" href="#">Year</a>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="stacked-column-chart" data-colors='["--bs-primary", "--bs-warning", "--bs-success"]' class="apex-charts" dir="ltr"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- end row -->
+
+<div class="row">
+<div class="col-xl-4">
+<div class="card">
+<div class="card-body">
+<h4 class="card-title mb-4">Social Source</h4>
+<div class="text-center">
+<div class="avatar-sm mx-auto mb-4">
+<span class="avatar-title rounded-circle bg-primary-subtle font-size-24">
+<i class="mdi mdi-facebook text-primary"></i>
+</span>
+</div>
+<p class="font-16 text-muted mb-2"></p>
+<h5><a href="javascript: void(0);" class="text-dark">Facebook - <span class="text-muted font-16">125 mentions</span> </a></h5>
+<p class="text-muted">Total leads generated from online sources</p>
+<a href="javascript: void(0);" class="text-primary font-16">Learn more <i class="mdi mdi-chevron-right"></i></a>
+</div>
+<div class="row mt-4">
+<div class="col-4">
+<div class="social-source text-center mt-3">
+<div class="avatar-xs mx-auto mb-3">
+<span class="avatar-title rounded-circle bg-primary font-size-16">
+<i class="mdi mdi-facebook text-white"></i>
+</span>
+</div>
+<h5 class="font-size-15">Facebook</h5>
+<p class="text-muted mb-0">125 mentions</p>
+</div>
+</div>
+<div class="col-4">
+<div class="social-source text-center mt-3">
+<div class="avatar-xs mx-auto mb-3">
+<span class="avatar-title rounded-circle bg-info font-size-16">
+<i class="mdi mdi-twitter text-white"></i>
+</span>
+</div>
+<h5 class="font-size-15">Twitter</h5>
+<p class="text-muted mb-0">112 mentions</p>
+</div>
+</div>
+<div class="col-4">
+<div class="social-source text-center mt-3">
+<div class="avatar-xs mx-auto mb-3">
+<span class="avatar-title rounded-circle bg-pink font-size-16">
+<i class="mdi mdi-instagram text-white"></i>
+</span>
+</div>
+<h5 class="font-size-15">Instagram</h5>
+<p class="text-muted mb-0">104 mentions</p>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+<div class="col-xl-4">
+<div class="card">
+<div class="card-body">
+<h4 class="card-title mb-5">Activity</h4>
+<ul class="verti-timeline list-unstyled">
+<li class="event-list">
+<div class="event-timeline-dot">
+<i class="bx bx-right-arrow-circle font-size-18"></i>
+</div>
+<div class="d-flex">
+<div class="flex-shrink-0 me-3">
+<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
+</div>
+<div class="flex-grow-1">
+<div>
+You have a pending request for A4 paper
+</div>
+</div>
+</div>
+</li>
+<li class="event-list">
+<div class="event-timeline-dot">
+<i class="bx bx-right-arrow-circle font-size-18"></i>
+</div>
+<div class="d-flex">
+<div class="flex-shrink-0 me-3">
+<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
+</div>
+<div class="flex-grow-1">
+<div>
+Admin has finalized 3 Applications sent for review  <a href="javascript: void(0);">View details</a>
+</div>
+</div>
+</div>
+</li>
+<li class="event-list active">
+<div class="event-timeline-dot">
+<i class="bx bxs-right-arrow-circle font-size-18 bx-fade-right"></i>
+</div>
+<div class="d-flex">
+<div class="flex-shrink-0 me-3">
+<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
+</div>
+<div class="flex-grow-1">
+<div>3 visa applications submitted this week
+</div>
+</div>
+</div>
+</li>
+<li class="event-list">
+<div class="event-timeline-dot">
+<i class="bx bx-right-arrow-circle font-size-18"></i>
+</div>
+<div class="d-flex">
+<div class="flex-shrink-0 me-3">
+<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
+</div>
+<div class="flex-grow-1">
+<div>
+Case officers sent 2 applications to you
+</div>
+</div>
+</div>
+</li>
+</ul>
+<div class="text-center mt-4"><a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View More <i class="mdi mdi-arrow-right ms-1"></i></a></div>
+</div>
+</div>
+</div>
+
+<div class="col-xl-4">
+<div class="card">
+<div class="card-body">
+<h4 class="card-title mb-4">Trending visa loctions</h4>
+
+<div class="text-center">
+<div class="mb-4">
+<i class="bx bx-map-pin text-primary display-4"></i>
+</div>
+<h3>1,456</h3>
+<p>United Kingdom</p>
+</div>
+
+<div class="table-responsive mt-4">
+<table class="table align-middle table-nowrap">
+<tbody>
+<tr>
+<td style="width: 30%">
+<p class="mb-0">United Kingdom</p>
+</td>
+<td style="width: 25%">
+<h5 class="mb-0">1,456</h5></td>
+<td>
+<div class="progress bg-transparent progress-sm">
+<div class="progress-bar bg-primary rounded" role="progressbar" style="width: 94%" aria-valuenow="94" aria-valuemin="0" aria-valuemax="100"></div>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<p class="mb-0">Canada</p>
+</td>
+<td>
+<h5 class="mb-0">1,123</h5>
+</td>
+<td>
+<div class="progress bg-transparent progress-sm">
+<div class="progress-bar bg-success rounded" role="progressbar" style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"></div>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<p class="mb-0">United States</p>
+</td>
+<td>
+<h5 class="mb-0">1,026</h5>
+</td>
+<td>
+<div class="progress bg-transparent progress-sm">
+<div class="progress-bar bg-warning rounded" role="progressbar" style="width: 70%" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- end row -->
+
+<div class="row">
+<div class="col-lg-12">
+<div class="card">
+<div class="card-body">
+
+
+
+
+<h4 class="card-title mb-4">Latest Applications</h4>
+<div class="table-responsive">
+<table class="table align-middle table-nowrap mb-0">
+<thead class="table-light">
+<tr>
+<th style="width: 20px;">
+<div class="form-check font-size-16 align-middle">
+<input class="form-check-input" type="checkbox" id="transactionCheck01">
+<label class="form-check-label" for="transactionCheck01"></label>
+</div>
+</th>
+<th class="align-middle">Reference No:</th>
+<th class="align-middle">Name</th>
+<th class="align-middle">Email</th>
+<th class="align-middle">Type</th>
+<th class="align-middle">Status</th>
+<th class="align-middle">Date</th>
+<th class="align-middle">View Details</th>
+</tr>
+</thead>
+
+
+<!-- <tbody>
+{% for app in applications %}
+<tr>
+  <td>
+    <div class="form-check font-size-16">
+      <input class="form-check-input" type="checkbox" id="transactionCheck{{ forloop.counter }}">
+      <label class="form-check-label" for="transactionCheck{{ forloop.counter }}"></label>
+    </div>
+  </td>
+  <td>
+    <a href="javascript:void(0);" class="text-body fw-bold">{{ app.reference_no }}</a>
+  </td>
+  <td>{{ app.client.user.first_name }} {{ app.client.user.last_name }}</td>
+  <td>{{ app.client.user.email }}</td>
+  <td>{{ app.get_visa_type_display }}</td>
+  <td>
+    {% if app.status == "APPROVED" %}
+      <span class="badge badge-pill badge-soft-success font-size-11">{{ app.get_status_display }}</span>
+    {% elif app.status == "REJECTED" %}
+      <span class="badge badge-pill badge-soft-danger font-size-11">{{ app.get_status_display }}</span>
+    {% elif app.status == "ADMIN REVIEW" %}
+      <span class="badge badge-pill badge-soft-warning font-size-11">{{ app.get_status_display }}</span>
+    {% else %}
+      <span class="badge badge-pill badge-soft-secondary font-size-11">{{ app.get_status_display }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {{ app.created_at|date:"d M, Y" }}
+  </td>
+  <td>
+    <button type="button"
+    class="btn btn-primary btn-sm btn-rounded waves-effect waves-light view-details-btn"
+    data-id="{{ app.id }}"
+    data-bs-toggle="modal"
+    data-bs-target="#applicationDetailModal">
+    View Details
+</button>
+
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="8" class="text-center">No applications assigned to you yet.</td>
+</tr>
+{% endfor %}
+</tbody> -->
+
+<tbody id="applications-table-body">
+  <tr>
+    <td colspan="8" class="text-center text-muted">Loading applications...</td>
+  </tr>
+</tbody>
+
+</table>
+</div>
+<!-- end table-responsive -->
+</div>
+</div>
+</div>
+</div>
+<!-- end row -->
+
+</div> <!-- container-fluid -->
+</div>
+<!-- End Page-content -->
+
+<!-- Modal -->
+<!-- <div class="modal fade transaction-detailModal" tabindex="-1" role="dialog" aria-labelledby="transaction-detailModalLabel" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered" role="document">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title" id="transaction-detailModalLabel">Order Details</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+<p class="mb-2">Product id: <span class="text-primary">#SK2540</span></p>
+<p class="mb-4">Billing Name: <span class="text-primary">Neal Matthews</span></p>
+
+<div class="table-responsive">
+<table class="table align-middle table-nowrap">
+<thead>
+<tr>
+<th scope="col">Product</th>
+<th scope="col">Product Name</th>
+<th scope="col">Price</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th scope="row">
+<div>
+<img src="{% static 'admin_assets/images/product/img-7.png' %}" alt="" class="avatar-sm">
+</div>
+</th>
+<td>
+<div>
+<h5 class="text-truncate font-size-14">Wireless Headphone (Black)</h5>
+<p class="text-muted mb-0">$ 225 x 1</p>
+</div>
+</td>
+<td>$ 255</td>
+</tr>
+<tr>
+<th scope="row">
+<div>
+<img src="{% static 'admin_assets/images/product/img-4.png' %}" alt="" class="avatar-sm">
+</div>
+</th>
+<td>
+<div>
+<h5 class="text-truncate font-size-14">Phone patterned cases</h5>
+<p class="text-muted mb-0">$ 145 x 1</p>
+</div>
+</td>
+<td>$ 145</td>
+</tr>
+<tr>
+<td colspan="2">
+<h6 class="m-0 text-right">Sub Total:</h6>
+</td>
+<td>
+$ 400
+</td>
+</tr>
+<tr>
+<td colspan="2">
+<h6 class="m-0 text-right">Shipping:</h6>
+</td>
+<td>
+Free
+</td>
+</tr>
+<tr>
+<td colspan="2">
+<h6 class="m-0 text-right">Total:</h6>
+</td>
+<td>
+$ 400
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+</div>
+</div>
+</div>
+</div> -->
+<!-- end modal -->
+
+<!-- Application Detail Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="application-detail-content">
+        <p class="text-muted">Select an application to view details.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- subscribeModal -->
+<!-- <div class="modal fade" id="subscribeModal" tabindex="-1" aria-labelledby="subscribeModalLabel" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+<div class="modal-header border-bottom-0">
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+    <div class="text-center mb-4">
+        <div class="avatar-md mx-auto mb-4">
+            <div class="avatar-title bg-light rounded-circle text-primary h1">
+                <i class="mdi mdi-email-open"></i>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-xl-10">
+                <h4 class="text-primary">Subscribe !</h4>
+                <p class="text-muted font-size-14 mb-4">Subscribe our newletter and get notification to stay update.</p>
+
+                <div class="input-group bg-light rounded">
+                    <input type="email" class="form-control bg-transparent border-0" placeholder="Enter Email address" aria-label="Recipient's username" aria-describedby="button-addon2">
+                    
+                    <button class="btn btn-primary" type="button" id="button-addon2">
+                        <i class="bx bxs-paper-plane"></i>
+                    </button>
+                    
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+</div> -->
+<!-- end modal -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let tbody = document.getElementById("applications-table-body");
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Loading applications...</td></tr>`;
+
+    fetch("/api/applications/")
+        .then(res => res.json())
+        .then(data => {
+            tbody.innerHTML = ""; // clear placeholder
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr>
+                    <td colspan="8" class="text-center">No applications assigned to you yet.</td>
+                </tr>`;
+                return;
+            }
+
+            data.forEach((app, index) => {
+                let statusBadge = "";
+                if (app.status === "APPROVED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "REJECTED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-danger font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "ADMIN REVIEW") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-warning font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "REVIEWED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "ASSIGNED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-info font-size-11">${app.status_display}</span>`;
+                } else {
+                    statusBadge = `<span class="badge badge-pill badge-soft-secondary font-size-11">${app.status_display}</span>`;
+                }
+
+                tbody.innerHTML += `
+                <tr>
+                  <td>
+                    <div class="form-check font-size-16">
+                      <input class="form-check-input" type="checkbox" id="transactionCheck${index}">
+                      <label class="form-check-label" for="transactionCheck${index}"></label>
+                    </div>
+                  </td>
+                  <td>
+                    <a href="javascript:void(0);" class="text-body fw-bold">${app.reference_no}</a>
+                  </td>
+                  <td>${app.client_name}</td>
+                  <td>${app.client_email}</td>
+                  <td>${app.visa_type_display}</td>
+                  <td>${statusBadge}</td>
+                  <td>${new Date(app.created_at).toLocaleDateString("en-GB", {
+                        day: "2-digit", month: "short", year: "numeric"
+                    })}</td>
+                  <td>
+                    <button type="button"
+                      class="btn btn-primary btn-sm btn-rounded waves-effect waves-light view-details-btn"
+                      data-id="${app.id}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#applicationDetailModal">
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+                `;
+            });
+        })
+        .catch(err => {
+            console.error("Error fetching applications:", err);
+            tbody.innerHTML = `<tr>
+              <td colspan="8" class="text-center text-danger">Failed to load applications.</td>
+            </tr>`;
+        });
+});
+
+document.body.addEventListener("click", function (e) {
+    if (e.target.closest(".view-details-btn")) {
+        let appId = e.target.closest(".view-details-btn").dataset.id;
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+            // Application details
+
+            let detailsHtml = `
+              <h5 class="text-info">Application Info</h5>
+              <table class="table table-bordered">
+                <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                <tr><th>Client</th><td>${app.client_name}</td></tr>
+                 <tr><th>Email</th><td>${app.client_email}</td></tr>
+                <tr><th>Country</th><td>${app.country_display}</td></tr>
+                <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
+                <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+                <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+              </table>
+            `;
+                // === Documents ===
+                let docsHtml = `
+                  <h5 class="mt-4 text-info">Documents</h5>
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Comments</th>
+                        <th>Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                if (app.documents.length === 0) {
+                    docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+                } else {
+                    app.documents.forEach(doc => {
+                        docsHtml += `
+                          <tr>
+                            <td>${doc.requirement_name}</td>
+                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+                            <td>${doc.review_comments ?? '-'}</td>
+                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+                          </tr>
+                        `;
+                    });
+                }
+
+                docsHtml += "</tbody></table>";
+                modalBody.innerHTML = detailsHtml + docsHtml;
+            });
+    }
+});
+</script>
+
+{% endblock %}

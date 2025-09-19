@@ -24,14 +24,16 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 
 
-
 urlpatterns = [
     path('', include ('Pages.urls')),
     path('admin/', admin.site.urls),
+    # path("api/", include("Documents.urls")),
     path("api/", include("Applications.api_urls")),
     path('Accounts/', include('Accounts.urls')),
     path('Clients/', include('Clients.urls')),
     path('CaseManagement/', include('CaseManagement.urls')),
+    path('Admin/', include('Admin.urls')),
+    # path("api_app/", include("CaseManagement.api_urls")),
     # path("api/", include("Documents.api_urls")),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

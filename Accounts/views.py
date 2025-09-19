@@ -29,9 +29,12 @@ def login(request):
             auth_login(request, user)
             return redirect("Clients:client_dashboard")
 
-        elif user is not None and user.role == "CaseOfficer":
+        elif user is not None and user.role == "Case Officer":
             auth_login(request, user)
             return redirect("CaseManagement:case_officer_dashboard")
+        elif user is not None and user.role == "Admin":
+            auth_login(request, user)
+            return redirect("Admin:admin_dashboard")
         return render(request, "pages/login.html", {"error": "Invalid credentials"})
     return render(request, "pages/login.html")
 

@@ -1,7 +1,15 @@
 import uuid
 from django.db import models
-from Accounts.models import User, ClientProfile
+from Accounts.models import *
 from django.conf import settings
+import secrets
+from django.utils import timezone
+
+
+def default_reference_no():
+    date = timezone.now().strftime("%Y%m%d")
+    token = secrets.token_hex(4).upper()  # 8 hex chars
+    return f"APP-{date}-{token}"
 
 
 class BaseModel(models.Model):
@@ -40,7 +48,6 @@ class BaseModel(models.Model):
 #         return f"VisaApplication {self.id} - {self.client.username} ({self.status})"
 
 
-
 class VisaApplication(BaseModel):
     VISA_TYPES = [
         ("TOURIST", "Tourist Visa"),
@@ -63,11 +70,11 @@ class VisaApplication(BaseModel):
     ]
 
     STATUS_CHOICES = [
-    	("DRAFT", "Draft"),
-    	("DOCUMENTS SUBMITTED", "Documents Submitted"),
+    	# ("DRAFT", "Draft"),
+    	# ("DOCUMENTS SUBMITTED", "Documents Submitted"),
         ("QUEUED", "Queued"),
         ("ASSIGNED", "Assigned to Officer"),
-        ("UNDER REVIEW", "Under Review"),
+        ("REVIEWED", "Reviewed"),
         ("FORM FILLED", "Form Filled"),
         ("ADMIN REVIEW", "Admin Review"),
         ("SUBMITTED", "Submitted to Embassy"),
@@ -80,22 +87,27 @@ class VisaApplication(BaseModel):
     country = models.CharField(max_length=20, choices=COUNTRIES)
     visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
     assigned_officer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        StaffProfile,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name="assigned_applications"
+        null=True,
+        blank=True,
+        related_name="assigned_applications"   # ✅ add this
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
     form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
     submission_date = models.DateField(blank=True, null=True)
     decision_date = models.DateField(blank=True, null=True)
+    # reference_no = models.CharField(max_length=50, unique=True)
     reference_no = models.CharField(max_length=50, unique=True)
-
-    # def __str__(self):
-    #     return f"VisaApplication {self.id} - {self.client.username} ({self.status})"
+    # ...
 
     def __str__(self):
-        return f"VisaApplication {self.reference_no} - {self.client.full_name}"
+         return f"{self.reference_no} ({self.country}, {self.visa_type})"
+
+
+         
+    # def __str__(self):
+        # return f"VisaApplication {self.reference_no} - {self.client}"
 
     class Meta:
         indexes = [models.Index(fields=["reference_no", "status"])]
@@ -126,12 +138,47 @@ class VisaApplication(BaseModel):
 #     class Meta:
 #         indexes = [models.Index(fields=["reference_no", "status"])]
 
+# models.py
+class FormProcessing(BaseModel):
+    application = models.OneToOneField(
+        "VisaApplication",
+        on_delete=models.CASCADE,
+        related_name="form_processing"
+    )
+    application_url = models.URLField()
+    visa_application_username = models.CharField(max_length=255)
+    visa_application_password = models.CharField(max_length=255)
+    file = models.FileField(
+        upload_to="visa_forms/",
+        blank=True,
+        null=True,
+        help_text="Upload a PDF copy of the filled visa form"
+    )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # 🔑 Automatically update VisaApplication status
+        if self.application.status != "ADMIN REVIEW":
+            self.application.status = "ADMIN REVIEW"
+            self.application.save(update_fields=["status"])
+
+    def __str__(self):
+        return f"FormFilled for {self.application.reference_no}"
+
 
 class EmbassySubmission(BaseModel):
     application = models.OneToOneField(VisaApplication, on_delete=models.CASCADE, related_name="submission")
+    reviewed_by = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_reviewer"   # ✅ add this
+    )
     submitted_by = models.CharField(max_length=255)
     submission_channel = models.CharField(max_length=50)  # API / Manual
-    submission_date = models.DateField()
+    review_date = models.DateTimeField()
+    submission_date = models.DateTimeField()
 
     def __str__(self):
         return f"Submission for {self.application.reference_no}"

@@ -53,7 +53,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     ROLE_CHOICES = [
         ("Admin", "Admin"),
-        ("CaseOfficer", "Case Officer"),
+        ("Case Officer", "Case Officer"),
         ("Finance", "Finance"),
         ("Support", "Support"),
         ("Client", "Client"),

@@ -1,0 +1,148 @@
+{% extends 'clients/clients_dashboard_base.html'%}
+{% block content %}
+
+<div class="container mt-5 py-4">
+  
+<div class="d-flex justify-content-between align-items-center mb-3">
+<h2>Visa Application Documents</h2>
+<button id="refreshBtn" class="btn btn-outline-secondary btn-sm">🔄 Refresh Checklist</button>
+</div>
+<table class="table table-bordered table-striped align-middle" id="documentsTable">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+
+</div>
+
+
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      // update status cell
+      row.querySelector(".status").innerHTML =
+        `<span class="badge bg-success">${data.status}</span>`;
+
+      // update action cell to show "View"
+      row.querySelector(".action-cell").innerHTML =
+        `<a href="${data.file_url}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>`;
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+</script>
+
+{% endblock %}
+
