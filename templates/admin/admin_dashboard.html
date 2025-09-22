@@ -633,7 +633,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (data.length === 0) {
                 tbody.innerHTML = `<tr>
-                    <td colspan="8" class="text-center">No applications assigned to you yet.</td>
+                    <td colspan="8" class="text-center">No applications available for Admin Review.</td>
                 </tr>`;
                 return;
             }
@@ -644,6 +644,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
                 } else if (app.status === "REJECTED") {
                     statusBadge = `<span class="badge badge-pill badge-soft-danger font-size-11">${app.status_display}</span>`;
+                } else if (app.status === "SUBMITTED") {
+                    statusBadge = `<span class="badge badge-pill badge-soft-warning font-size-11">${app.status_display}</span>`;
                 } else if (app.status === "ADMIN REVIEW") {
                     statusBadge = `<span class="badge badge-pill badge-soft-warning font-size-11">${app.status_display}</span>`;
                 } else if (app.status === "REVIEWED") {
@@ -716,6 +718,7 @@ document.body.addEventListener("click", function (e) {
                 <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
                 <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
                 <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+              <tr><th>Visa Application URL</th><td>${app.visa_application_url ?? '-'}</td></tr>
                 <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
               </table>

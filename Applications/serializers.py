@@ -1,7 +1,7 @@
 # applications/serializers.py
 from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
-from .models import VisaApplication, FormProcessing
+from .models import VisaApplication
 from django.contrib.auth import get_user_model
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
@@ -9,14 +9,14 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-class FormProcessingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FormProcessing
-        fields = [
-            "id", "application", "file", "application_url",
-            "visa_application_username", "visa_application_password"
-        ]
-        read_only_fields = ["id", "application"]
+# class FormProcessingSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = FormProcessing
+#         fields = [
+#             "id", "application", "file", "application_url",
+#             "visa_application_username", "visa_application_password"
+#         ]
+#         read_only_fields = ["id", "application"]
 
 
 
@@ -125,7 +125,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "client_name", "client_email", "reference_no", "country", "country_display",
             "visa_type", "visa_type_display", "status", "status_display",
-            "status_badge", "assigned_officer_name", "created_at",
+            "status_badge", "assigned_officer_name", "created_at", "visa_application_url",
             "submission_date", "decision_date", "documents"
         ]
 
@@ -133,12 +133,84 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         mapping = {
             "APPROVED": "badge-soft-success",
             "REJECTED": "badge-soft-danger",
+            "SUBMITTED": "badge-soft-warning",
             "REVIEWED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
             "ASSIGNED": "badge-soft-primary",
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
+
+
+# class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = VisaApplication
+#         fields = ["visa_application_url"]
+
+
+class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_badge = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VisaApplication
+        fields = [
+            "id",  # 🔑 needed for frontend lookup
+            "visa_application_url",
+            "status",
+            "status_display",
+            "status_badge",
+        ]
+
+    def get_status_badge(self, obj):
+        mapping = {
+            "REJECTED": "badge-soft-danger",
+            "APPROVED": "badge-soft-success",
+            "SUBMITTED": "badge-soft-warning",
+            "ADMIN REVIEW": "badge-soft-info",
+            "REVIEWED": "badge-soft-warning",
+            "ASSIGNED": "badge-soft-primary",
+            "QUEUED": "badge-soft-secondary",
+        }
+        return mapping.get(obj.status, "badge-soft-secondary")
+
+    def update(self, instance, validated_data):
+        instance.visa_application_url = validated_data.get(
+            "visa_application_url", instance.visa_application_url
+        )
+        # ✅ force status change
+        instance.status = "ADMIN REVIEW"
+        instance.save(update_fields=["visa_application_url", "status"])
+        return instance
+
+class VisaApplicationUrlUpdateSerializer000(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_badge = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VisaApplication
+        fields = ["visa_application_url", "status", "status_display",
+            "status_badge"]
+
+
+    def get_status_badge(self, obj):
+        mapping = {
+            "APPROVED": "badge-soft-success",
+            "REJECTED": "badge-soft-danger",
+            "ADMIN REVIEW": "badge-soft-info",
+            "REVIEWED": "badge-soft-warning",
+            "ASSIGNED": "badge-soft-primary",
+            "QUEUED": "badge-soft-secondary",
+        }
+        return mapping.get(obj.status, "badge-soft-secondary")
+
+    def update(self, instance, validated_data):
+        instance.visa_application_url = validated_data.get("visa_application_url", instance.visa_application_url)
+        # ✅ force status change
+        instance.status = "ADMIN REVIEW"
+        instance.save(update_fields=["visa_application_url", "status"])
+        return instance
+
 
 class VisaApplicationsSerializer(serializers.ModelSerializer):
     country_display = serializers.CharField(source="get_country_display", read_only=True)
@@ -167,12 +239,13 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "APPROVED": "badge-soft-success",
             "REJECTED": "badge-soft-danger",
-            "UNDER REVIEW": "badge-soft-warning",
+            "APPROVED": "badge-soft-success",
+            "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
+            "REVIEWED": "badge-soft-warning",
             "ASSIGNED": "badge-soft-primary",
-            "QUEUED": "badge-soft-warning",
+            "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
 
@@ -207,6 +280,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "status", "status_display", "status_badge",
             "assigned_officer_name",
             "created_at",
+            "visa_application_url",
             "submission_date",
             "decision_date",
             "documents",
@@ -214,10 +288,11 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "APPROVED": "badge-soft-success",
             "REJECTED": "badge-soft-danger",
-            "REVIEWED": "badge-soft-warning",
+            "APPROVED": "badge-soft-success",
+            "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
+            "REVIEWED": "badge-soft-warning",
             "ASSIGNED": "badge-soft-primary",
             "QUEUED": "badge-soft-secondary",
         }

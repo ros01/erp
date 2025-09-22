@@ -61,34 +61,21 @@
 
 
 <!-- Application Detail Modal -->
-<!-- <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title text-success">Application Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="application-detail-content">
-        <p class="text-muted">Select an application to view details.</p>
-      </div>
-    </div>
-  </div>
-</div> -->
-
-<!-- Application Detail Modal -->
 <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title text-success">Submit Filled Visa Form</h5>
+        <h5 class="modal-title text-success">Add Visa Application URL for Admin Review</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="application-detail-content">
-        <p class="text-muted">Select an application to submit its filled form.</p>
+        <p class="text-muted">Add Visa Application URL for Admin Review</p>
       </div>
     </div>
   </div>
 </div>
+
+
 
 
 
@@ -104,29 +91,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (data.length === 0) {
                 tbody.innerHTML = `<tr>
-                    <td colspan="8" class="text-center">No applications assigned to you yet.</td>
+                    <td colspan="8" class="text-center">No applications available for submission for Admin Review.</td>
                 </tr>`;
                 return;
             }
 
             data.forEach((app, index) => {
-                let statusBadge = "";
-                if (app.status === "APPROVED") {
-                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
-                } else if (app.status === "REJECTED") {
-                    statusBadge = `<span class="badge badge-pill badge-soft-danger font-size-11">${app.status_display}</span>`;
-                } else if (app.status === "ADMIN REVIEW") {
-                    statusBadge = `<span class="badge badge-pill badge-soft-warning font-size-11">${app.status_display}</span>`;
-                } else if (app.status === "REVIEWED") {
-                    statusBadge = `<span class="badge badge-pill badge-soft-success font-size-11">${app.status_display}</span>`;
-                } else if (app.status === "ASSIGNED") {
-                    statusBadge = `<span class="badge badge-pill badge-soft-info font-size-11">${app.status_display}</span>`;
-                } else {
-                    statusBadge = `<span class="badge badge-pill badge-soft-secondary font-size-11">${app.status_display}</span>`;
-                }
-
                 tbody.innerHTML += `
-                <tr>
+                <tr data-id="${app.id}">
                   <td>
                     <div class="form-check font-size-16">
                       <input class="form-check-input" type="checkbox" id="transactionCheck${index}">
@@ -139,7 +111,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   <td>${app.client_name}</td>
                   <td>${app.client_email}</td>
                   <td>${app.visa_type_display}</td>
-                  <td>${statusBadge}</td>
+                  <td class="status-cell">${renderStatusBadge(app.status, app.status_display, app.status_badge)}</td>
                   <td>${new Date(app.created_at).toLocaleDateString("en-GB", {
                         day: "2-digit", month: "short", year: "numeric"
                     })}</td>
@@ -165,6 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
+// === Modal Details Loader ===
 document.body.addEventListener("click", function (e) {
     if (e.target.closest(".view-details-btn")) {
         let appId = e.target.closest(".view-details-btn").dataset.id;
@@ -175,70 +148,126 @@ document.body.addEventListener("click", function (e) {
         fetch(`/api/applications/${appId}/`)
             .then(res => res.json())
             .then(app => {
-                let formHtml = `
-                  <h5 class="text-info">Submit Application Details for Visa Application No: ${app.reference_no} </h5>
-                  <form id="formFilledForm" enctype="multipart/form-data" method="post">
-                    <input type="hidden" name="application" value="${app.id}">
-
-                    <div class="mb-3">
-                      <label class="form-label">Form File (PDF)</label>
-                      <input type="file" name="file" accept="application/pdf" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label">Application URL</label>
-                      <input type="url" name="application_url" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label">Username</label>
-                      <input type="text" name="visa_application_username" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label">Password</label>
-                      <input type="text" name="visa_application_password" class="form-control" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-success">Submit</button>
-                  </form>
+                let detailsHtml = `
+                  <h5 class="text-info">Application Info</h5>
+                  <table class="table table-bordered">
+                    <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                    <tr><th>Client</th><td>${app.client_name}</td></tr>
+                    <tr><th>Email</th><td>${app.client_email}</td></tr>
+                    <tr><th>Country</th><td>${app.country_display}</td></tr>
+                    <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                    <tr><th>Status</th><td><span id="application-status-badge" class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                    <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
+                    <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+                    <tr>
+                      <th>Visa Application URL</th>
+                      <td>
+                        <span id="visa-url-display">${app.visa_application_url ?? '-'}</span>
+                        <input type="url" id="visa-url-input" class="form-control form-control-sm mt-2" placeholder="Enter Visa URL">
+                        <button type="button" class="btn btn-sm btn-success mt-2" id="add-url-btn" data-id="${app.id}">
+                          Add Visa Application URL
+                        </button>
+                      </td>
+                    </tr>
+                    <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                    <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                  </table>
                 `;
 
-                modalBody.innerHTML = formHtml;
+                let docsHtml = `
+                  <h5 class="mt-4 text-info">Documents</h5>
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Comments</th>
+                        <th>Uploaded</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                `;
 
-                // Handle submission
-                const form = modalBody.querySelector("#formFilledForm");
-
-                form.addEventListener("submit", function (ev) {
-                    ev.preventDefault();
-                    let formData = new FormData(form);
-
-                    fetch(`/api/form-processing/${app.id}/`, {   // 🔹 points to DRF endpoint for FormFilled
-                        method: "PATCH",                     // 🔹 use PATCH instead of POST
-                        headers: { "X-CSRFToken": getCookie("csrftoken") },
-                        body: formData
-                    })
-                    .then(res => {
-                        if (!res.ok) {
-                            throw new Error("Form submission failed");
-                        }
-                        return res.json();
-                    })
-                    .then(resp => {
-                        // ✅ Redirect back to Reviewed Applications list
-                        window.location.href = "/CaseManagement/applications/form-filled-submissions/";
-                    })
-                    .catch(err => {
-                        console.error("Error submitting form:", err);
-                        modalBody.innerHTML = `<div class="alert alert-danger">
-                          ❌ Failed to submit form.
-                        </div>`;
+                if (app.documents.length === 0) {
+                    docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+                } else {
+                    app.documents.forEach(doc => {
+                        docsHtml += `
+                          <tr>
+                            <td>${doc.requirement_name}</td>
+                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+                            <td>
+                              <input type="text" class="form-control form-control-sm review-comment-input"
+                                     data-doc-id="${doc.id}"
+                                     value="${doc.review_comments ?? ''}"
+                                     placeholder="Add comment"
+                                     ${doc.status === "REVIEWED" ? "readonly" : ""}>
+                            </td>
+                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+                            <td>
+                              ${doc.status === "REVIEWED"
+                                ? `<span class="text-success">✅ Reviewed</span>`
+                                : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+                            </td>
+                          </tr>
+                        `;
                     });
-                });
+                }
+
+                docsHtml += "</tbody></table>";
+                modalBody.innerHTML = detailsHtml + docsHtml;
             });
     }
 });
 
+
+// === Visa URL PATCH + Status Update ===
+document.body.addEventListener("click", function (e) {
+  if (e.target.id === "add-url-btn") {
+    let appId = e.target.dataset.id;
+    let newUrl = document.querySelector("#visa-url-input").value;
+
+    fetch(`/api/applications/${appId}/add-url/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: JSON.stringify({ visa_application_url: newUrl }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      // ✅ Update Visa URL display
+      document.querySelector("#visa-url-display").textContent = data.visa_application_url;
+
+      // ✅ Update the modal status badge
+      const modalStatusBadge = document.querySelector("#application-status-badge");
+      modalStatusBadge.textContent = data.status_display;
+      modalStatusBadge.className = "badge " + data.status_badge;
+
+      // ✅ Update the applications table row badge
+      let row = document.querySelector(`#applications-table-body tr[data-id="${data.id}"]`);
+      if (row) {
+        let badgeCell = row.querySelector(".status-cell");
+        badgeCell.innerHTML = renderStatusBadge(data.status, data.status_display, data.status_badge);
+      }
+    })
+    .catch(err => {
+      console.error("Error updating visa URL:", err);
+    });
+  }
+});
+
+
+// === Helper: Render Badge ===
+function renderStatusBadge(status, status_display, status_badge) {
+  return `<span class="badge ${status_badge} font-size-11">${status_display}</span>`;
+}
+
+// === Helper: Get CSRF Token ===
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== "") {
@@ -253,72 +282,8 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
-// document.body.addEventListener("click", function (e) {
-//     if (e.target.closest(".view-details-btn")) {
-//         let appId = e.target.closest(".view-details-btn").dataset.id;
-//         let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
-
-//         modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
-
-//         fetch(`/api/applications/${appId}/`)
-//             .then(res => res.json())
-//             .then(app => {
-//             // Application details
-
-//             let detailsHtml = `
-//               <h5 class="text-info">Application Info</h5>
-//               <table class="table table-bordered">
-//                 <tr><th>Reference</th><td>${app.reference_no}</td></tr>
-//                 <tr><th>Client</th><td>${app.client_name}</td></tr>
-//                  <tr><th>Email</th><td>${app.client_email}</td></tr>
-//                 <tr><th>Country</th><td>${app.country_display}</td></tr>
-//                 <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
-//                 <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
-//                 <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
-//                 <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
-//                 <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
-//                 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-//               </table>
-//             `;
-//                 // === Documents ===
-//                 let docsHtml = `
-//                   <h5 class="mt-4 text-info">Documents</h5>
-//                   <table class="table table-striped">
-//                     <thead>
-//                       <tr>
-//                         <th>Requirement</th>
-//                         <th>Status</th>
-//                         <th>File</th>
-//                         <th>Comments</th>
-//                         <th>Uploaded</th>
-//                       </tr>
-//                     </thead>
-//                     <tbody>
-//                 `;
-
-//                 if (app.documents.length === 0) {
-//                     docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-//                 } else {
-//                     app.documents.forEach(doc => {
-//                         docsHtml += `
-//                           <tr>
-//                             <td>${doc.requirement_name}</td>
-//                             <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-//                             <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-//                             <td>${doc.review_comments ?? '-'}</td>
-//                             <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-//                           </tr>
-//                         `;
-//                     });
-//                 }
-
-//                 docsHtml += "</tbody></table>";
-//                 modalBody.innerHTML = detailsHtml + docsHtml;
-//             });
-//     }
-// });
 </script>
+
 
 
 {% endblock %}

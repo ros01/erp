@@ -77,7 +77,7 @@ class VisaApplication(BaseModel):
         ("REVIEWED", "Reviewed"),
         ("FORM FILLED", "Form Filled"),
         ("ADMIN REVIEW", "Admin Review"),
-        ("SUBMITTED", "Submitted to Embassy"),
+        ("SUBMITTED", "Awaiting Embassy Decision"),
         ("APPROVED", "Approved"),
         ("REJECTED", "Rejected"),
     ]
@@ -95,6 +95,7 @@ class VisaApplication(BaseModel):
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
     form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
+    visa_application_url = models.URLField(blank=True, null=True)
     submission_date = models.DateField(blank=True, null=True)
     decision_date = models.DateField(blank=True, null=True)
     # reference_no = models.CharField(max_length=50, unique=True)
@@ -139,31 +140,31 @@ class VisaApplication(BaseModel):
 #         indexes = [models.Index(fields=["reference_no", "status"])]
 
 # models.py
-class FormProcessing(BaseModel):
-    application = models.OneToOneField(
-        "VisaApplication",
-        on_delete=models.CASCADE,
-        related_name="form_processing"
-    )
-    application_url = models.URLField()
-    visa_application_username = models.CharField(max_length=255)
-    visa_application_password = models.CharField(max_length=255)
-    file = models.FileField(
-        upload_to="visa_forms/",
-        blank=True,
-        null=True,
-        help_text="Upload a PDF copy of the filled visa form"
-    )
+# class FormProcessing(BaseModel):
+#     application = models.OneToOneField(
+#         "VisaApplication",
+#         on_delete=models.CASCADE,
+#         related_name="form_processing"
+#     )
+#     application_url = models.URLField()
+#     visa_application_username = models.CharField(max_length=255)
+#     visa_application_password = models.CharField(max_length=255)
+#     file = models.FileField(
+#         upload_to="visa_forms/",
+#         blank=True,
+#         null=True,
+#         help_text="Upload a PDF copy of the filled visa form"
+#     )
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # 🔑 Automatically update VisaApplication status
-        if self.application.status != "ADMIN REVIEW":
-            self.application.status = "ADMIN REVIEW"
-            self.application.save(update_fields=["status"])
+#     def save(self, *args, **kwargs):
+#         super().save(*args, **kwargs)
+#         # 🔑 Automatically update VisaApplication status
+#         if self.application.status != "ADMIN REVIEW":
+#             self.application.status = "ADMIN REVIEW"
+#             self.application.save(update_fields=["status"])
 
-    def __str__(self):
-        return f"FormFilled for {self.application.reference_no}"
+#     def __str__(self):
+#         return f"FormFilled for {self.application.reference_no}"
 
 
 class EmbassySubmission(BaseModel):

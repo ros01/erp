@@ -191,6 +191,7 @@ document.body.addEventListener("click", function (e) {
                 <tr><th>Status</th><td><span id="application-status-badge" class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
                 <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
                 <tr><th>Created At</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+             <tr><th>Visa Application URL</th><td>${app.visa_application_url ?? '-'}</td></tr>
                 <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
               </table>

@@ -23,3 +23,14 @@ def admin_dashboard_view(request):
         return redirect("/")  # role check
     return render(request, "admin/admin_dashboard.html")
 
+
+
+@login_required
+def admin_review_list(request):
+    return render(request, "admin/admin_review_list.html")
+
+
+@login_required
+def submitted_applications_list(request):
+    return render(request, "admin/submitted_applications_list.html")
+

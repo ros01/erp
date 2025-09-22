@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Q
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
-from .models import VisaApplication, FormProcessing
+from .models import VisaApplication
 from Documents.serializers import DocumentRequirementSerializer
 from .serializers import (
     DocumentRequirementSerializer,
@@ -15,7 +15,8 @@ from .serializers import (
     VisaApplicationsSerializer,
     VisaApplicationDetailSerializer,
     DocumentSerializer,
-    FormProcessingSerializer,
+    VisaApplicationUrlUpdateSerializer,
+    # FormProcessingSerializer,
 )
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -32,23 +33,92 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 
 
 User = get_user_model()
 
+# class FormProcessingDetailUpdateAPIView(generics.RetrieveUpdateAPIView):
+#     serializer_class = FormProcessingSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_object(self):
+#         app_id = self.kwargs["pk"]
+#         application = get_object_or_404(VisaApplication, pk=app_id)
+#         # Auto-create FormFilled record if it doesn’t exist
+#         form_processing, _ = FormProcessing.objects.get_or_create(application=application)
+#         return form_processing
 
 
-class FormProcessingDetailUpdateAPIView(generics.RetrieveUpdateAPIView):
-    serializer_class = FormProcessingSerializer
-    permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        app_id = self.kwargs["pk"]
-        application = get_object_or_404(VisaApplication, pk=app_id)
-        # Auto-create FormFilled record if it doesn’t exist
-        form_processing, _ = FormProcessing.objects.get_or_create(application=application)
-        return form_processing
+
+
+class FinalizeVisaApplicationAPIView(APIView):
+    def patch(self, request, pk):
+        app = get_object_or_404(VisaApplication, pk=pk)
+
+        # Only finalize if not already submitted
+        if app.status != "SUBMITTED":
+            app.status = "SUBMITTED"
+            app.submission_date = timezone.now().date()  # ✅ only store date
+            app.save(update_fields=["status", "submission_date"])
+
+        serializer = VisaApplicationSerializer(app)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# class FinalizeVisaApplicationAPIView(APIView):
+#     def patch(self, request, pk):
+#         app = get_object_or_404(VisaApplication, pk=pk)
+#         app.status = "SUBMITTED"
+#         app.submission_date = timezone.now()  # ✅ set current date/time
+#         app.save(update_fields=["status", "submission_date"])
+#         serializer = VisaApplicationSerializer(app)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+# class FinalizeVisaApplicationAPIView(APIView):
+#     def patch(self, request, pk):
+#         app = get_object_or_404(VisaApplication, pk=pk)
+#         app.status = "SUBMITTED"
+#         app.save(update_fields=["status"])
+#         serializer = VisaApplicationSerializer(app)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VisaApplicationUrlUpdateAPIView(generics.UpdateAPIView):
+    queryset = VisaApplication.objects.all()
+    serializer_class = VisaApplicationUrlUpdateSerializer
+    lookup_field = "id"   # so PATCH /api/applications/<id>/add-url/
+
+
+
+class AdminVisaApplicationListAPIView(generics.ListAPIView):
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .filter(status="ADMIN REVIEW")
+            .select_related("client", "assigned_officer__user")
+            .order_by("-submission_date", "-created_at")
+        )
+
+
+class SubmittedVisaApplicationListAPIView(generics.ListAPIView):
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .filter(status="SUBMITTED")
+            .select_related("client", "assigned_officer__user")
+         )
+
 
 
 class ReviewedVisaApplicationListAPIView(generics.ListAPIView):

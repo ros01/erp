@@ -8,11 +8,11 @@ class VisaApplicationAdmin(admin.ModelAdmin):
     list_filter = ("reference_no", "status", "country")
 
 
-@admin.register(FormProcessing)
-class FormProcessingAdmin(admin.ModelAdmin):
-    list_display = ("application", "application_url", "visa_application_username", "file")
-    search_fields = ("application", "application_url", "visa_application_username")
-    list_filter = ("application", "file")
+# @admin.register(FormProcessing)
+# class FormProcessingAdmin(admin.ModelAdmin):
+#     list_display = ("application", "application_url", "visa_application_username", "file")
+#     search_fields = ("application", "application_url", "visa_application_username")
+#     list_filter = ("application", "file")
 
 
 @admin.register(EmbassySubmission)

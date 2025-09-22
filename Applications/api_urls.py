@@ -4,7 +4,6 @@ from .api_views import *
 from Accounts.views import ClientRegistrationView
 
 
-
 app_name = "Applications"
 
 urlpatterns = [
@@ -19,9 +18,14 @@ urlpatterns = [
     path("applications/<uuid:id>/", VisaApplicationDetailAPIView.as_view(), name="applications-detail"),
     path("documents/<uuid:id>/review/", DocumentReviewAPIView.as_view(), name="document-review"),
     path("applications/reviewed/", ReviewedVisaApplicationListAPIView.as_view(), name="reviewed-application-list"),
-    path("form-processing/<uuid:pk>/", FormProcessingDetailUpdateAPIView.as_view(), name="form-processing-detail"),
+    path("applications/admin_view/", AdminVisaApplicationListAPIView.as_view(), name="admin-application-list"),
+    path("applications/submitted_list_view/", SubmittedVisaApplicationListAPIView.as_view(), name="submitted-application-list"),
+    path("applications/<uuid:id>/add-url/", VisaApplicationUrlUpdateAPIView.as_view(), name="application-add-url"),
+    path("applications/<uuid:pk>/finalize/", FinalizeVisaApplicationAPIView.as_view(), name="application-finalize"),
+    # path("form-processing/<uuid:pk>/", FormProcessingDetailUpdateAPIView.as_view(), name="form-processing-detail"),
     # path("applications/", VisaApplicationsListAPIView.as_view(), name="application-list"),
     # path("applications/<uuid:id>/", VisaApplicationsListAPIView.as_view(), name="application-detail"),
 ]
+
 
 
