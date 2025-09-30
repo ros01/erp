@@ -46,6 +46,7 @@ class MyUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Custom user model for the ERP system.
@@ -80,6 +81,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             'Unselect this instead of deleting accounts.'
         ),
     )
+    must_reset_password = models.BooleanField(default=False)
     USERNAME_FIELD = 'email'
     objects = MyUserManager()
 

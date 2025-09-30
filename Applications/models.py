@@ -73,6 +73,7 @@ class VisaApplication(BaseModel):
     	# ("DRAFT", "Draft"),
     	# ("DOCUMENTS SUBMITTED", "Documents Submitted"),
         ("QUEUED", "Queued"),
+        ("INITIATED", "Initiated by Officer"),
         ("ASSIGNED", "Assigned to Officer"),
         ("REVIEWED", "Reviewed"),
         ("FORM FILLED", "Form Filled"),
@@ -86,6 +87,14 @@ class VisaApplication(BaseModel):
     client = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="visa_applications")
     country = models.CharField(max_length=20, choices=COUNTRIES)
     visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
+    created_by_officer = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="initiated_applications"
+    )
+
     assigned_officer = models.ForeignKey(
         StaffProfile,
         on_delete=models.SET_NULL,
@@ -96,11 +105,21 @@ class VisaApplication(BaseModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
     form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
     visa_application_url = models.URLField(blank=True, null=True)
-    submission_date = models.DateField(blank=True, null=True)
-    decision_date = models.DateField(blank=True, null=True)
+    submission_date = models.DateTimeField(blank=True, null=True)
+    decision_date = models.DateTimeField(blank=True, null=True)
     # reference_no = models.CharField(max_length=50, unique=True)
     reference_no = models.CharField(max_length=50, unique=True)
-    # ...
+
+    # @property
+    # def assigned_officer_name(self):
+    #     """Readable name for assigned officer (if any)."""
+    #     return self.assigned_officer.user.get_full_name() if self.assigned_officer else None
+
+    # @property
+    # def created_by_officer_name(self):
+    #     """Readable name for initiating officer (if any)."""
+    #     return self.created_by_officer.user.get_full_name() if self.created_by_officer else None
+
 
     def __str__(self):
          return f"{self.reference_no} ({self.country}, {self.visa_type})"

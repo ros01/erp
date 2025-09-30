@@ -1,11 +1,12 @@
 # clients/views.py
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
 from django.middleware.csrf import get_token
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView, ListView
 from Applications.models import VisaApplication
 from django.urls import reverse, reverse_lazy
+from django.db.models import Q
 
 class ClientRegisterPage(View):
     template_name = "clients/register.html"
@@ -20,15 +21,26 @@ def client_dashboard_view(request):
     if request.user.role != "Client":
         return redirect("/")  # role check
 
-    # applications = VisaApplication.objects.filter(client=request.user)
-    # apps_data = []
-    # for app in applications:
-    #     docs = Document.objects.filter(application=app).select_related("requirement")
-    #     apps_data.append({
-    #         "app": app,
-    #         "docs": docs
-    #     })
-    return render(request, "clients/clients_dashboard.html")
+    # ✅ All applications belonging to this client
+    applications = VisaApplication.objects.filter(client=request.user.client_profile)
+    # ✅ Status breakdown
+    applications_count = applications.count()
+    approved_count = applications.filter(status="APPROVED").count()
+    rejected_count = applications.filter(status="REJECTED").count()
+    completed_count = approved_count + rejected_count
+    pending_count = applications.exclude(
+        Q(status="APPROVED") | Q(status="REJECTED")
+    ).count()
+
+    context = {
+        "applications_count": applications_count,
+        "approved_count": approved_count,
+        "rejected_count": rejected_count,
+        "completed_count": completed_count,
+        "pending_count": pending_count,
+    }
+    
+    return render(request, "clients/clients_dashboard.html", context)
 
 
 class StartApplication(TemplateView):
@@ -76,5 +88,10 @@ class StartApplication(TemplateView):
 def application_documents(request, pk):
     app = get_object_or_404(VisaApplication, id=pk, client=request.user.client_profile)
     return render(request, "clients/application_documents1.html", {"application": app})
+
+
+@login_required
+def applications_list(request):
+    return render(request, "clients/applications_list.html")
 
 

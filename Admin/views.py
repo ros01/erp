@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Q, Count
 from Applications.models import VisaApplication
 from Documents.models import Document
 
@@ -21,8 +21,45 @@ User = get_user_model()
 def admin_dashboard_view(request):
     if request.user.role != "Admin":
         return redirect("/")  # role check
-    return render(request, "admin/admin_dashboard.html")
 
+    # ✅ All applications initiated by officers
+    initiated_count = VisaApplication.objects.filter(
+        created_by_officer__isnull=False
+    ).count()
+
+    # ✅ All applications assigned to officers
+    assigned_count = VisaApplication.objects.filter(
+        assigned_officer__isnull=False
+    ).count()
+
+    # ✅ Applications for dashboard
+    applications = VisaApplication.objects.all()
+    applications_count = applications.count()
+
+    # ✅ Status breakdown across all applications
+    status_breakdown = (
+        applications.values("status")
+        .annotate(total=Count("id"))
+        .order_by("status")
+    )
+
+    admin_review_count = applications.filter(status="ADMIN REVIEW").count()
+    awaiting_decision_count = applications.filter(status="SUBMITTED").count()
+    complete_count = applications.filter(
+        Q(status="APPROVED") | Q(status="REJECTED")
+    ).count()
+
+    context = {
+        "initiated_count": initiated_count,
+        "assigned_count": assigned_count,
+        "status_breakdown": status_breakdown,
+        "applications": applications,
+        "applications_count": applications_count,
+        "admin_review_count": admin_review_count,
+        "awaiting_decision_count": awaiting_decision_count,
+        "complete_count": complete_count,
+    }
+    return render(request, "admin/admin_dashboard.html", context)
 
 
 @login_required

@@ -8,28 +8,15 @@
 
 {% endblock %}
 
-
 {% block content %}
-
-
-<!-- ============================================================== -->
-<!-- Start right Content here -->
-<!-- ============================================================== -->
-
-
-
-
 <div class="col-xl-9">
 <div class="card pb-3">
 <div class="card-body">
 <div class="d-flex justify-content-between align-items-center mb-3">
-<!-- <h2>Visa Application Documents</h2> -->
-<h4 class="text-info">Review and Finalize Applications</h4>
-<!-- <button id="refreshBtn" class="btn btn-outline-secondary btn-sm">🔄 Refresh Checklist</button> -->
+<h4 class="card-title text-info">Review and Finalize Applications</h4>
 </div>
 
-
-<table id="datatable" class="table table-striped">
+<table id="datatable" class="table table-bordered dt-responsive">
     <thead class="table-light">
       <tr>
         <th>Ref No</th>
@@ -44,51 +31,6 @@
     <tbody></tbody>
   </table>
 
-
-
-<!-- <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
-<thead class="table-light">
-<tr>
-<th>Requirement</th>
-<th>Status</th>
-<th>Upload / View</th>
-</tr>
-</thead>
-<tbody id="documentsBody">
-{% for doc in application.documents.all %}
-<tr data-doc-id="{{ doc.id }}">
-<td>{{ doc.requirement.name }}</td>
-<td class="status">
-<span class="badge 
-{% if doc.status == 'MISSING' %} bg-danger 
-{% elif doc.status == 'REJECTED' %} bg-warning 
-{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
-{% else %} bg-secondary {% endif %}">
-{{ doc.status }}
-</span>
-</td>
-<td class="action-cell">
-{% if doc.file %}
-<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
-{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
-<div class="d-flex gap-2">
-<input type="file" class="form-control form-control-sm file-input" />
-<button class="btn btn-sm btn-primary upload-btn">Upload</button>
-</div>
-{% else %}
-<span class="text-muted">—</span>
-{% endif %}
-</td>
-</tr>
-{% empty %}
-<tr>
-<td colspan="3" class="text-center">No required documents found.</td>
-</tr>
-{% endfor %}
-</tbody>
-</table> -->
-
-
 <div class="d-flex justify-content-end"> 
 <a href="{% url 'Admin:admin_dashboard' %}" class="btn btn-soft-success mt-4"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
 </div>
@@ -97,17 +39,12 @@
 <!--end col-->
 </div><!--end row-->
 
-
 </div> <!-- container-fluid -->
 </div>
 
-
-
-
-
 <!-- Application Detail Modal -->
 <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title text-success">Application Details</h5>
@@ -120,28 +57,19 @@
   </div>
 </div>
 
-<!-- jQuery (must come first) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Bootstrap (optional but usually required with DataTables styling) -->
-<!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
-
-<!-- DataTables CSS + JS -->
-<!-- <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script> -->
-
-
-
 
 <script>
 $(document).ready(function () {
     // 🔹 Initialize DataTable
     let table = $('#datatable').DataTable({
+        processing: true,
+        serverSide: false,   // ✅ change to true if your API supports paging/filtering
         ajax: {
             url: "/api/applications/admin_view/",
-            dataSrc: "" // change to "results" if API wraps results
+            dataSrc: ""  // ✅ use "results" if API wraps data as {results: [...]}
         },
+        order: [[5, "desc"]], // ✅ column index of "Created On / Date"
         columns: [
             { data: "reference_no" },
             { data: "client_name" },
@@ -156,12 +84,9 @@ $(document).ready(function () {
                 }
             },
             {
-                data: "submission_date",
-                render: function (data, type, row) {
-                    const dateVal = data || row.created_at;
-                    return new Date(dateVal).toLocaleDateString("en-GB", {
-                        day: "2-digit", month: "short", year: "numeric"
-                    });
+                data: "created_at",
+                render: function (data) {
+                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
                 }
             },
             {
@@ -192,6 +117,31 @@ $(document).ready(function () {
         fetch(`/api/applications/${appId}/`)
             .then(res => res.json())
             .then(app => {
+                // ✅ Officer row logic with fallback
+            let officerRow = "";
+            if (app.created_by_officer_name) {
+                officerRow = `
+                    <tr>
+                        <th>Initiating Officer</th>
+                        <td>${app.created_by_officer_name ?? '-'}</td>
+                    </tr>
+                `;
+            } else if (app.assigned_officer_name) {
+                officerRow = `
+                    <tr>
+                        <th>Assigned Officer</th>
+                        <td>${app.assigned_officer_name ?? '-'}</td>
+                    </tr>
+                `;
+            } else {
+                officerRow = `
+                    <tr>
+                        <th>Officer</th>
+                        <td>-</td>
+                    </tr>
+                `;
+            }
+            
               let detailsHtml = `
                 <h5 class="text-info">Application Info</h5>
                 <table class="table table-bordered">
@@ -205,8 +155,8 @@ $(document).ready(function () {
                       ${app.status_display}
                     </span></td>
                   </tr>
-                  <tr><th>Assigned Officer</th><td>${app.assigned_officer_name ?? '-'}</td></tr>
-                  <tr><th>Created On</th><td>${new Date(app.created_at).toLocaleString()}</td></tr>
+                  ${officerRow}
+                  <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
                   <tr>
                     <th>Visa Application URL</th>
                     <td id="visa-url-cell">

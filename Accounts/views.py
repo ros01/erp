@@ -1,4 +1,5 @@
-from django.contrib.auth import authenticate, login, logout
+# from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login as auth_login, authenticate, logout
 from django.shortcuts import render, redirect
 from rest_framework import generics, permissions
 from rest_framework.response import Response
@@ -14,10 +15,61 @@ from django.conf import settings
 
 from Applications.models import VisaApplication
 from Documents.models import Document
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash, get_user_model
 
 User = get_user_model()
 
-# accounts/views.py
+
+
+
+@login_required
+def force_password_reset1(request):
+    if request.method == "POST":
+        pw1 = request.POST.get("new_password1")
+        pw2 = request.POST.get("new_password2")
+
+        if pw1 != pw2:
+            messages.error(request, "Passwords do not match.")
+        elif len(pw1) < 8:
+            messages.error(request, "Password must be at least 8 characters long.")
+        else:
+            user = request.user
+            user.set_password(pw1)
+            user.must_reset_password = False  # ✅ clear the flag
+            user.save()
+
+            # Keep the user logged in after password change
+            update_session_auth_hash(request, user)
+
+            messages.success(request, "Password changed successfully.")
+            return redirect("Clients:client_dashboard")
+
+    return render(request, "accounts/reset.html")
+
+
+
+def force_password_reset(request):
+    if request.method == "POST":
+        new_password = request.POST.get("password1")
+        confirm_password = request.POST.get("password2")
+        user_id = request.session.get("reset_user_id")
+
+        if new_password != confirm_password:
+            return render(request, "accounts/reset.html", {"error": "Passwords do not match"})
+
+        user = User.objects.get(id=user_id)
+        user.set_password(new_password)
+        user.must_reset_password = False  # ✅ reset flag
+        user.save()
+
+        # auto-login after reset
+        # in force_password_reset
+        auth_login(request, user)
+        return redirect("Clients:client_dashboard")
+
+    return render(request, "accounts/reset.html")
+
 
 
 def login(request):
@@ -25,6 +77,13 @@ def login(request):
         email = request.POST.get("email")
         password = request.POST.get("password")
         user = authenticate(request, email=email, password=password)
+
+        if user is not None:
+            if user.must_reset_password:   # 🚨 check flag
+                # don't log them in yet — redirect to reset page
+                request.session["reset_user_id"] = user.id
+                return redirect("Accounts:force_password_reset")
+
         if user is not None and user.role == "Client":
             auth_login(request, user)
             return redirect("Clients:client_dashboard")

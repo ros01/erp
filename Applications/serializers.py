@@ -105,12 +105,18 @@ class DocumentSerializer00(serializers.ModelSerializer):
 
 
 class VisaApplicationDetailSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    decision_date = serializers.SerializerMethodField()
+    submission_date = serializers.SerializerMethodField()
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     status_badge = serializers.SerializerMethodField()
     assigned_officer_name = serializers.CharField(
         source="assigned_officer.user.get_full_name", read_only=True
+    )
+    created_by_officer_name = serializers.CharField(
+        source="created_by_officer.user.get_full_name", read_only=True
     )
     client_name = serializers.CharField(
         source="client.user.get_full_name", read_only=True
@@ -124,10 +130,25 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         model = VisaApplication
         fields = [
             "id", "client_name", "client_email", "reference_no", "country", "country_display",
-            "visa_type", "visa_type_display", "status", "status_display",
-            "status_badge", "assigned_officer_name", "created_at", "visa_application_url",
+            "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
+            "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
             "submission_date", "decision_date", "documents"
         ]
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return obj.created_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_decision_date(self, obj):
+        if obj.decision_date:
+            return obj.decision_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_submission_date(self, obj):
+        if obj.submission_date:
+            return obj.submission_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
 
     def get_status_badge(self, obj):
         mapping = {
@@ -137,6 +158,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "REVIEWED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
             "ASSIGNED": "badge-soft-primary",
+            "INITIATED": "badge-soft-primary",
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
@@ -170,6 +192,7 @@ class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
             "ADMIN REVIEW": "badge-soft-info",
             "REVIEWED": "badge-soft-warning",
             "ASSIGNED": "badge-soft-primary",
+            "INITIATED": "badge-soft-primary",
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
@@ -256,12 +279,24 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
     #         rep.pop("documents", None)
     #     return rep
 
+
+
 class VisaApplicationSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    decision_date = serializers.SerializerMethodField()
+    submission_date = serializers.SerializerMethodField()
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     status_badge = serializers.SerializerMethodField()
-    assigned_officer_name = serializers.CharField(source="assigned_officer.user.get_full_name", read_only=True)
+    assigned_officer_name = serializers.CharField(read_only=True)
+    created_by_officer_name = serializers.CharField(read_only=True)
+    assigned_officer_name = serializers.CharField(
+        source="assigned_officer.user.get_full_name", read_only=True
+    )
+    created_by_officer_name = serializers.CharField(
+        source="created_by_officer.user.get_full_name", read_only=True
+    )
     client_name = serializers.CharField(
         source="client.user.get_full_name", read_only=True
     )
@@ -278,13 +313,31 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "visa_type", "visa_type_display",
             "country", "country_display",
             "status", "status_display", "status_badge",
+            "assigned_officer",
+            "created_by_officer",
             "assigned_officer_name",
+            "created_by_officer_name",
             "created_at",
             "visa_application_url",
             "submission_date",
             "decision_date",
             "documents",
         ]
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return obj.created_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_decision_date(self, obj):
+        if obj.decision_date:
+            return obj.decision_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_submission_date(self, obj):
+        if obj.submission_date:
+            return obj.submission_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
 
     def get_status_badge(self, obj):
         mapping = {
@@ -294,6 +347,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "ADMIN REVIEW": "badge-soft-info",
             "REVIEWED": "badge-soft-warning",
             "ASSIGNED": "badge-soft-primary",
+            "INITIATED": "badge-soft-primary",
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
@@ -302,6 +356,8 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         validated_data["client"] = user
         return super().create(validated_data)
+
+
 
 
 class DocumentSerializer000(serializers.ModelSerializer):

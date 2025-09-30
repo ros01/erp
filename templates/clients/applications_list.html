@@ -1,0 +1,340 @@
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+  
+
+{% block content %}
+
+
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+
+
+
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<!-- <div class="d-flex justify-content-between align-items-center mb-3"> -->
+<h4 class="card-title text-info mb-4">My Visa Applications</h4>
+<!-- </div> -->
+<div class="table-responsive">
+
+<table id="datatable" class="table table-bordered dt-responsive">
+   <thead class="table-light">
+      <tr>
+        <th class="align-middle">Ref No</th>
+        <!-- <th class="align-middle">Client</th>
+        <th class="align-middle">Email</th> -->
+        <th class="align-middle">Visa Type</th>
+        <th class="align-middle">Status</th>
+        <th class="align-middle">Created On</th>
+        <th class="align-middle">Action</th>
+      </tr>
+    </thead>
+    <tbody id="datatable-tbody">
+  <tr>
+    <td colspan="8" class="text-center text-muted">Loading applications...</td>
+  </tr>
+</tbody>
+  </table>
+  </div>
+
+
+<!-- <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+</tbody>
+</table> -->
+
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'Clients:client_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-4"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+<!--end col-->
+</div><!--end row-->
+
+
+</div> <!-- container-fluid -->
+</div>
+
+
+
+
+
+<!-- Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="application-detail-content">
+          <p class="text-muted">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jQuery (must come first) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+<!-- DataTables CSS/JS -->
+<!-- <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script> -->
+
+<script>
+$(document).ready(function () {
+    $('#datatable').DataTable({
+        processing: true,
+        serverSide: false,   // change to true if you want Django API to handle paging
+        ajax: {
+            url: "/api/applications/",
+            dataSrc: ""  // use "results" if your API wraps data as {results: [...]}
+        },
+        order: [[3, "desc"]], // column index of "Created On / Date"
+
+        columns: [
+            { data: "reference_no",
+              render: function (data) {
+                  return `<a href="javascript:void(0);" class="text-body fw-bold">${data}</a>`;
+              }
+            },
+            { data: "visa_type_display" },
+            { data: "status_display",
+              render: function (data, type, row) {
+                  return `<span class="badge ${row.status_badge}">${data}</span>`;
+              }
+            },
+            {
+                data: "created_at",
+                render: function (data, type, row) {
+                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
+                }
+            },
+            // { data: "id",
+            //   render: function (id, type, row) {
+            //       let missingDocs = (row.documents || []).filter(doc => doc.status.toLowerCase() === "missing");
+            //       if (missingDocs.length >= 1) {
+            //           return `<a href="{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+            //                       class="btn btn-warning btn-sm btn-rounded upload-docs-btn"
+            //                       data-id="${id}">
+            //                       Upload Documents
+            //                   </a>`;
+            //       } else {
+            //           return `<button type="button"
+            //                       class="btn btn-primary btn-sm btn-rounded view-details-btn"
+            //                       data-id="${id}"
+            //                       data-bs-toggle="modal"
+            //                       data-bs-target="#applicationDetailModal">
+            //                       View Details
+            //                   </button>`;
+            //       }
+            //   }
+            // }
+            {
+              data: "id",
+              render: function (id, type, row) {
+                  let missingDocs = (row.documents || []).filter(
+                      doc => doc.status.toLowerCase() === "missing"
+                  );
+
+                  if (missingDocs.length >= 1) {
+                      return `
+                          <div class="dropdown">
+                              <button class="btn btn-primary btn-sm btn-rounded dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  Select an Action
+                              </button>
+                              <ul class="dropdown-menu">
+                                  <li>
+                                      <a href="{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                                         class="dropdown-item upload-docs-btn"
+                                         data-id="${id}">
+                                         Upload Documents
+                                      </a>
+                                  </li>
+                                  <li>
+                                      <a href="javascript:void(0);" 
+                                         class="dropdown-item view-details-btn"
+                                         data-id="${id}"
+                                         data-bs-toggle="modal"
+                                         data-bs-target="#applicationDetailModal">
+                                         View Details
+                                      </a>
+                                  </li>
+                              </ul>
+                          </div>
+                      `;
+                  } else {
+                      return `
+                          <button type="button"
+                              class="btn btn-primary btn-sm btn-rounded view-details-btn"
+                              data-id="${id}"
+                              data-bs-toggle="modal"
+                              data-bs-target="#applicationDetailModal">
+                              View Details
+                          </button>
+                      `;
+
+                  }
+              }
+          }
+
+        ],
+        pageLength: 10,
+        responsive: true,
+        ordering: true
+    });
+
+    // 🔹 Fix Upload Documents links after table draw
+    $('#datatable').on('draw.dt', function () {
+        document.querySelectorAll(".upload-docs-btn").forEach(link => {
+            let appId = link.dataset.id;
+            link.href = "{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                          .replace("00000000-0000-0000-0000-000000000000", appId);
+        });
+    });
+
+    // 🔹 Handle View Details button clicks
+    $('#datatable').on('click', '.view-details-btn', function () {
+        let appId = $(this).data('id');
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+              // ✅ Officer row logic with fallback
+                let officerRow = "";
+                if (app.created_by_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Initiating Officer</th>
+                            <td>${app.created_by_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else if (app.assigned_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Assigned Officer</th>
+                            <td>${app.assigned_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else {
+                    officerRow = `
+                        <tr>
+                            <th>Officer</th>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+                let detailsHtml = `
+                  <h5 class="text-info">Application Info</h5>
+                  <table class="table table-bordered">
+                    <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                    <tr><th>Country</th><td>${app.country_display}</td></tr>
+                    <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                    <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                    ${officerRow}
+                    <tr><th>Created At</th><td>${app.created_at ?? '-'}</td></tr>
+                    <tr><th>Visa Application URL</th>
+                        <td>
+                          ${app.visa_application_url 
+                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Go To URL</a>` 
+                            : '-'}
+                        </td>
+                    </tr>
+                    <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                    <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                  </table>
+                `;
+
+                let docsHtml = `
+                  <h5 class="mt-4 text-info">Documents</h5>
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Comments</th>
+                        <th>Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                if (app.documents.length === 0) {
+                    docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+                } else {
+                    app.documents.forEach(doc => {
+                        docsHtml += `
+                          <tr>
+                            <td>${doc.requirement_name}</td>
+                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+                            <td>${doc.review_comments ?? '-'}</td>
+                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+                          </tr>
+                        `;
+                    });
+                }
+
+                docsHtml += "</tbody></table>";
+                modalBody.innerHTML = detailsHtml + docsHtml;
+            });
+    });
+});
+</script>
+
+{% endblock %}

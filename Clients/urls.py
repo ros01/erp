@@ -10,6 +10,7 @@ urlpatterns = [
     # HTML page for registration
     path("register/", ClientRegisterPage.as_view(), name="client-register"),
     path('start/', StartApplication.as_view(), name='start-application'),
+    path("applications/", applications_list, name="applications-list"),
     path("applications/<uuid:pk>/documents/", application_documents, name="application_documents"),
     # API endpoint for registration
     path("api/clients/register/", ClientRegistrationView.as_view(), name="client-register-api"),

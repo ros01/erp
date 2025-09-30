@@ -73,55 +73,256 @@ def check_and_assign_officer(sender, instance, created, **kwargs):
         )
 
 
-
-
 @receiver(post_save, sender=VisaApplication)
 def auto_assign_officer(sender, instance, created, **kwargs):
     """
-    Auto-assign least busy Case Officer, update workload,
-    and create TaskAssignment when a new VisaApplication is created.
-    Only runs when ALL mandatory DocumentRequirements for this visa type & country
-    are satisfied (i.e. corresponding Document exists and is not MISSING).
+    Auto-assign least busy Case Officer when a Client completes all mandatory docs.
+    OR
+    If created directly by a Case Officer with status 'INITIATED',
+    record creator, update workload, and create TaskAssignment
+    (without treating it as auto-assigned).
     """
+
+    # 🔹 Don't run if not newly created or task already exists
     if not created or hasattr(instance, "task"):
         return
 
-    # ✅ Get all mandatory requirements for this visa type + country
+    # 🔹 Case 1: Application created directly by a Case Officer
+    if instance.status == "INITIATED":
+        officer = instance.created_by_officer
+
+        # ✅ Explicitly track initiator
+        if not instance.created_by_officer:
+            instance.created_by_officer = officer
+            instance.save(update_fields=["created_by_officer"])
+
+        # ✅ Update workload
+        officer.workload = officer.workload + 1
+        officer.save(update_fields=["workload"])
+
+        # ✅ Create TaskAssignment (initiated, not auto-assigned)
+        TaskAssignment.objects.create(
+            application=instance,
+            assigned_to=officer,
+            status="Assigned",
+            description=f"Task for application {instance.reference_no} (initiated by Case Officer)",
+        )
+        return
+
+    # 🔹 Case 2: Application created by Client (check mandatory requirements)
     mandatory_requirements = DocumentRequirement.objects.filter(
         country=instance.country,
         visa_type=instance.visa_type,
         is_mandatory=True,
     )
 
-    # ✅ Check each mandatory requirement has a corresponding uploaded document
     for req in mandatory_requirements:
         doc = instance.documents.filter(requirement=req).first()
         if not doc or doc.status == "MISSING":
-            # Abort auto-assignment until all mandatory docs are uploaded
-            return
+            return  # stop until all mandatory docs uploaded
 
-    # ✅ If we reach here → all requirements are satisfied
+    # 🔹 Auto-assign least busy officer (only if no creator officer)
     officers = (
         StaffProfile.objects.filter(user__role="Case Officer", is_available=True)
-        .annotate(num_apps=Count("tasks"))
+        .annotate(num_apps=Count("assigned_applications"))
         .order_by("workload", "id")
     )
 
     if officers.exists():
         officer = officers.first()
+
+        # ✅ Mark as auto-assigned
         instance.assigned_officer = officer
-        instance.status = "ASSIGNED"   # ✅ now safe to assign
+        instance.status = "ASSIGNED"
         instance.save(update_fields=["assigned_officer", "status"])
 
+        # ✅ Update workload
         officer.workload = officer.workload + 1
         officer.save(update_fields=["workload"])
 
+        # ✅ Create TaskAssignment (auto-assigned)
         TaskAssignment.objects.create(
             application=instance,
             assigned_to=officer,
             status="Assigned",
             description=f"Auto-assigned task for application {instance.reference_no}",
         )
+
+
+
+
+
+
+# @receiver(post_save, sender=VisaApplication)
+# def auto_assign_officer(sender, instance, created, **kwargs):
+#     """
+#     Auto-assign least busy Case Officer when a Client completes all mandatory docs.
+#     OR
+#     If created directly by a Case Officer with status 'INITIATED',
+#     update workload and create TaskAssignment immediately (without reassign).
+#     """
+#     if not created or hasattr(instance, "task"):
+#         return
+
+#     # 🔹 Case 1: Application created directly by a Case Officer with INITIATED status
+#     if instance.status == "INITIATED" and instance.assigned_officer:
+#         officer = instance.assigned_officer
+
+#         # ✅ Update workload
+#         officer.workload = officer.workload + 1
+#         officer.save(update_fields=["workload"])
+
+#         # ✅ Create TaskAssignment (do not reassign officer)
+#         TaskAssignment.objects.create(
+#             application=instance,
+#             assigned_to=officer,
+#             status="Assigned",
+#             description=f"Task for application {instance.reference_no} (initiated by Case Officer)",
+#         )
+#         return
+
+#     # 🔹 Case 2: Client-created application (must check mandatory requirements)
+#     mandatory_requirements = DocumentRequirement.objects.filter(
+#         country=instance.country,
+#         visa_type=instance.visa_type,
+#         is_mandatory=True,
+#     )
+
+#     for req in mandatory_requirements:
+#         doc = instance.documents.filter(requirement=req).first()
+#         if not doc or doc.status == "MISSING":
+#             return  # stop until all mandatory docs uploaded
+
+#     officers = (
+#         StaffProfile.objects.filter(user__role="Case Officer", is_available=True)
+#         .annotate(num_apps=Count("assigned_applications"))
+#         .order_by("workload", "id")
+#     )
+
+#     if officers.exists():
+#         officer = officers.first()
+#         instance.assigned_officer = officer
+#         instance.status = "ASSIGNED"
+#         instance.save(update_fields=["assigned_officer", "status"])
+
+#         officer.workload = officer.workload + 1
+#         officer.save(update_fields=["workload"])
+
+#         TaskAssignment.objects.create(
+#             application=instance,
+#             assigned_to=officer,
+#             status="Assigned",
+#             description=f"Auto-assigned task for application {instance.reference_no}",
+#         )
+
+# @receiver(post_save, sender=VisaApplication)
+# def auto_assign_officer(sender, instance, created, **kwargs):
+#     """
+#     Auto-assign least busy Case Officer when a Client completes all mandatory docs.
+#     OR
+#     If created directly by a Case Officer with status 'INITIATED',
+#     update workload and create TaskAssignment immediately.
+#     """
+#     if not created or hasattr(instance, "task"):
+#         return
+
+#     # 🔹 Case 1: Application created directly by Case Officer with INITIATED status
+#     if instance.status == "INITIATED" and instance.assigned_officer:
+#         officer = instance.assigned_officer
+#         officer.workload += 1
+#         officer.save(update_fields=["workload"])
+
+#         TaskAssignment.objects.create(
+#             application=instance,
+#             assigned_to=officer,
+#             status="Assigned",
+#             description=f"Task for application {instance.reference_no} (initiated by Case Officer)",
+#         )
+#         return
+
+
+#     # 🔹 Case 2: Client-created application (must check mandatory requirements)
+#     mandatory_requirements = DocumentRequirement.objects.filter(
+#         country=instance.country,
+#         visa_type=instance.visa_type,
+#         is_mandatory=True,
+#     )
+
+#     for req in mandatory_requirements:
+#         doc = instance.documents.filter(requirement=req).first()
+#         if not doc or doc.status == "MISSING":
+#             return  # stop until all docs uploaded
+
+#     officers = (
+#         StaffProfile.objects.filter(user__role="Case Officer", is_available=True)
+#         .annotate(num_apps=Count("tasks"))
+#         .order_by("workload", "id")
+#     )
+
+#     if officers.exists():
+#         officer = officers.first()
+#         instance.assigned_officer = officer
+#         instance.status = "ASSIGNED"
+#         instance.save(update_fields=["assigned_officer", "status"])
+
+#         officer.workload = officer.workload + 1
+#         officer.save(update_fields=["workload"])
+
+#         TaskAssignment.objects.create(
+#             application=instance,
+#             assigned_to=officer,
+#             status="Assigned",
+#             description=f"Auto-assigned task for application {instance.reference_no}",
+#         )
+
+
+# @receiver(post_save, sender=VisaApplication)
+# def auto_assign_officer(sender, instance, created, **kwargs):
+    """
+    Auto-assign least busy Case Officer, update workload,
+    and create TaskAssignment when a new VisaApplication is created.
+    Only runs when ALL mandatory DocumentRequirements for this visa type & country
+    are satisfied (i.e. corresponding Document exists and is not MISSING).
+    """
+    # if not created or hasattr(instance, "task"):
+    #     return
+
+    # # ✅ Get all mandatory requirements for this visa type + country
+    # mandatory_requirements = DocumentRequirement.objects.filter(
+    #     country=instance.country,
+    #     visa_type=instance.visa_type,
+    #     is_mandatory=True,
+    # )
+
+    # # ✅ Check each mandatory requirement has a corresponding uploaded document
+    # for req in mandatory_requirements:
+    #     doc = instance.documents.filter(requirement=req).first()
+    #     if not doc or doc.status == "MISSING":
+    #         # Abort auto-assignment until all mandatory docs are uploaded
+    #         return
+
+    # # ✅ If we reach here → all requirements are satisfied
+    # officers = (
+    #     StaffProfile.objects.filter(user__role="Case Officer", is_available=True)
+    #     .annotate(num_apps=Count("tasks"))
+    #     .order_by("workload", "id")
+    # )
+
+    # if officers.exists():
+    #     officer = officers.first()
+    #     instance.assigned_officer = officer
+    #     instance.status = "ASSIGNED"   # ✅ now safe to assign
+    #     instance.save(update_fields=["assigned_officer", "status"])
+
+    #     officer.workload = officer.workload + 1
+    #     officer.save(update_fields=["workload"])
+
+    #     TaskAssignment.objects.create(
+    #         application=instance,
+    #         assigned_to=officer,
+    #         status="Assigned",
+    #         description=f"Auto-assigned task for application {instance.reference_no}",
+    #     )
 
 
 

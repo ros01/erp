@@ -49,21 +49,23 @@
       </div>
 
       <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-        <button id="showBtn" type="button" disabled>Show Requirements</button>
-        <span id="status" class="muted" aria-live="polite"></span>
+      <button id="showBtn" type="button" disabled>Show Requirements</button>
+      <span id="status" class="muted" aria-live="polite"></span>
       </div>
 
       <div class="reqs" id="requirements" aria-live="polite"></div>
 
-      <!-- Confirm Application button -->
-      <div style="margin-top:20px">
-        <button id="confirmBtn" type="button" disabled>✅ Confirm & Start Application</button>
-
-        <a href="{% url 'Clients:client-register' %}" class="btn btn-primary file-dl-toast">Register</a>
-
+      <!-- Register CTA, hidden until requirements are loaded -->
+      <div class="d-flex justify-content-end" style="margin-top:20px"> 
+      <a id="registerLink" href="{% url 'Clients:client-register' %}" 
+      class="btn btn-primary file-dl-toast" 
+      style="display:none">
+      <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
+      </a>
       </div>
 
       <div id="appResult" class="reqs"></div>
+
 
       
     </div>
@@ -78,10 +80,9 @@
     const countrySel = document.getElementById("country");
     const visaSel = document.getElementById("visaType");
     const showBtn = document.getElementById("showBtn");
-    const confirmBtn = document.getElementById("confirmBtn");
     const statusEl = document.getElementById("status");
     const reqsEl = document.getElementById("requirements");
-    const appResultEl = document.getElementById("appResult");
+    const registerLink = document.getElementById("registerLink");
 
     async function fetchJSON(url, opts={}){
       const res = await fetch(url, {
@@ -101,7 +102,7 @@
 
     function resetRequirements(){
       reqsEl.innerHTML = "";
-      confirmBtn.disabled = true;
+      registerLink.style.display = "none"; // hide register until new reqs shown
     }
 
     // Load countries
@@ -148,7 +149,10 @@
       if(!country || !visa) return;
       try{
         const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
-        if(!reqs.length){ reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>"; return; }
+        if(!reqs.length){ 
+          reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>"; 
+          return; 
+        }
         reqs.forEach(r=>{
           const row = document.createElement("div");
           row.className = "req";
@@ -156,32 +160,13 @@
                            <span class="tag ${r.is_mandatory ? "req" : "opt"}">${r.is_mandatory ? "Required" : "Optional"}</span>`;
           reqsEl.appendChild(row);
         });
-        confirmBtn.disabled = false;
+
+        // ✅ Show register button after requirements displayed
+        registerLink.style.display = "inline-block";
+
       }catch(e){ console.error(e); }
     });
 
-    // Confirm application
-    confirmBtn.addEventListener("click", async ()=>{
-      const country = countrySel.value;
-      const visa = visaSel.value;
-      try{
-        const app = await fetchJSON(`${API_BASE}/applications/new/`, {
-          method: "POST",
-          body: { country, visa_type: visa }
-        });
-        appResultEl.innerHTML = `<h3>Application Created (ID ${app.id})</h3>`;
-        app.documents.forEach(d=>{
-          const row = document.createElement("div");
-          row.className = "req";
-          row.innerHTML = `<div><strong>${d.requirement_name}</strong></div>
-                           <span class="tag">${d.status}</span>`;
-          appResultEl.appendChild(row);
-        });
-      }catch(e){
-        alert("Failed to create application. Are you logged in?");
-        console.error(e);
-      }
-    });
   </script>
   {% endblock %}
 
