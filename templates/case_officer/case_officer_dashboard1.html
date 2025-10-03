@@ -414,6 +414,7 @@ System auto-assigned 2 applications to you
 <th class="align-middle">Reference No:</th>
 <th class="align-middle">Name</th>
 <th class="align-middle">Email</th>
+<th class="align-middle">Country</th>
 <th class="align-middle">Type</th>
 <th class="align-middle">Status</th>
 <th class="align-middle">Date</th>
@@ -596,6 +597,7 @@ $(document).ready(function () {
             { data: "reference_no" },
             { data: "client_name" },
             { data: "client_email" },
+            { data: "country_display" },
             { data: "visa_type_display" },
             {
                 data: "status_display",
@@ -663,12 +665,23 @@ $(document).ready(function () {
                         </tr>
                     `;
                 }
+                // ✅ Only include Rejection Letter row if present
+                let rejectionLetterRow = "";
+                if (app.rejection_letter) {
+                    rejectionLetterRow = `
+                        <tr>
+                            <th>Rejection Letter</th>
+                            <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+                        </tr>
+                    `;
+                }
               let detailsHtml = `
                 <h5 class="text-info">Application Info</h5>
                 <table class="table table-bordered">
                   <tr><th>Reference</th><td>${app.reference_no}</td></tr>
                   <tr><th>Client</th><td>${app.client_name}</td></tr>
                   <tr><th>Email</th><td>${app.client_email}</td></tr>
+                <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
                   <tr><th>Country</th><td>${app.country_display}</td></tr>
                   <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
                   <tr><th>Status</th>
@@ -690,6 +703,7 @@ $(document).ready(function () {
                   </tr>
                   <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
                   <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                ${rejectionLetterRow}
                 </table>
               `;
 

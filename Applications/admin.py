@@ -7,6 +7,11 @@ class VisaApplicationAdmin(admin.ModelAdmin):
     search_fields = ("reference_no", "client__full_name", "visa_type", "country")
     list_filter = ("reference_no", "status", "country")
 
+@admin.register(PreviousRefusalLetter)
+class PreviousRefusalLetterAdmin(admin.ModelAdmin):
+    list_display = ("application", "file", "uploaded_at")
+    search_fields = ("application", "file")
+    list_filter = ("application", "file")
 
 # @admin.register(FormProcessing)
 # class FormProcessingAdmin(admin.ModelAdmin):

@@ -24,6 +24,7 @@
         <th>Ref No</th>
         <th>Client</th>
         <th>Email</th>
+        <th>Country</th>
         <th>Visa Type</th>
         <th>Status</th>
         <th>Created On</th>
@@ -76,12 +77,14 @@ $(document).ready(function () {
     let table = $('#datatable').DataTable({
         ajax: {
             url: "/api/applications/submitted_list_view/",
-            dataSrc: "" // if your API wraps results in {results: [...]}, change to "results"
+            dataSrc: ""
         },
+        rowId: row => `row-${row.id}`, // ✅ make each row selectable by ID
         columns: [
             { data: "reference_no" },
             { data: "client_name" },
             { data: "client_email" },
+            { data: "country_display" },
             { data: "visa_type_display" },
             {
                 data: "status_display",
@@ -94,12 +97,12 @@ $(document).ready(function () {
             {
                 data: "created_at",
                 render: function (data) {
-                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
+                    return data ? data : "-";
                 }
             },
             {
                 data: "id",
-                render: function (id, type, row) {
+                render: function (id) {
                     return `<button type="button"
                               class="btn btn-primary btn-sm btn-rounded view-details-btn"
                               data-id="${id}"
@@ -115,7 +118,7 @@ $(document).ready(function () {
         ordering: true
     });
 
-    // 🔹 Handle "View Details" button click (event delegation)
+    // 🔹 Handle "View Details" button click
     $('#datatable tbody').on('click', '.view-details-btn', function () {
         let appId = $(this).data('id');
         let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
@@ -125,65 +128,49 @@ $(document).ready(function () {
         fetch(`/api/applications/${appId}/`)
             .then(res => res.json())
             .then(app => {
-            // ✅ Officer row logic with fallback
-            let officerRow = "";
-            if (app.created_by_officer_name) {
-                officerRow = `
-                    <tr>
-                        <th>Initiating Officer</th>
-                        <td>${app.created_by_officer_name ?? '-'}</td>
-                    </tr>
+                let officerRow = "";
+                if (app.created_by_officer_name) {
+                    officerRow = `<tr><th>Initiating Officer</th><td>${app.created_by_officer_name}</td></tr>`;
+                } else if (app.assigned_officer_name) {
+                    officerRow = `<tr><th>Assigned Officer</th><td>${app.assigned_officer_name}</td></tr>`;
+                } else {
+                    officerRow = `<tr><th>Officer</th><td>-</td></tr>`;
+                }
+                let detailsHtml = `
+                    <h5 class="text-info">Application Info</h5>
+                    <table class="table table-bordered">
+                      <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                      <tr><th>Client</th><td>${app.client_name}</td></tr>
+                      <tr><th>Email</th><td>${app.client_email}</td></tr>
+                      <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
+                      <tr><th>Country</th><td>${app.country_display}</td></tr>
+                      <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                      <tr><th>Status</th>
+                        <td><span id="application-status-badge" class="badge ${app.status_badge}">
+                          ${app.status_display}
+                        </span></td>
+                      </tr>
+                      ${officerRow}
+                      <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
+                      <tr><th>Visa Application URL</th>
+                        <td>${app.visa_application_url 
+                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
+                            : '<em>No URL added yet</em>'}
+                        </td>
+                      </tr>
+                      <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                      <tr><th>Decision Date</th><td><span id="application-decision-date">${app.decision_date ?? '-'}</span></td></tr>
+                      <tr><th>Rejection Letter</th>
+                        <td id="rejection-letter-cell">
+                          ${app.rejection_letter ? `<a href="${app.rejection_letter}" target="_blank">View</a>` : '-'}
+                        </td>
+                      </tr>
+                    </table>
                 `;
-            } else if (app.assigned_officer_name) {
-                officerRow = `
-                    <tr>
-                        <th>Assigned Officer</th>
-                        <td>${app.assigned_officer_name ?? '-'}</td>
-                    </tr>
-                `;
-            } else {
-                officerRow = `
-                    <tr>
-                        <th>Officer</th>
-                        <td>-</td>
-                    </tr>
-                `;
-            }
+                 modalBody.innerHTML = detailsHtml;
 
-              let detailsHtml = `
-                <h5 class="text-info">Application Info</h5>
-                <table class="table table-bordered">
-                  <tr><th>Reference</th><td>${app.reference_no}</td></tr>
-                  <tr><th>Client</th><td>${app.client_name}</td></tr>
-                  <tr><th>Email</th><td>${app.client_email}</td></tr>
-                  <tr><th>Country</th><td>${app.country_display}</td></tr>
-                  <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
-                  <tr><th>Status</th>
-                    <td><span id="application-status-badge" class="badge ${app.status_badge}">
-                      ${app.status_display}
-                    </span></td>
-                  </tr>
-                  ${officerRow}
-                  <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
-                  <tr>
-                    <th>Visa Application URL</th>
-                    <td id="visa-url-cell">
-                      ${app.visa_application_url 
-                        ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
-                        <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
-                        : '<em>No URL added yet</em>'
-                      }
-                    </td>
-                  </tr>
-                  <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
-                  <tr><th>Decision Date</th><td><span id="application-decision-date">
-                            {{ application.decision_date|default:"-" }}
-                            </span></td></tr>
-                </table>
-              `;
-
-            /// 🔹 Add Decision button 
-              if (app.status === "SUBMITTED") {
+                if (app.status === "SUBMITTED") {
                     detailsHtml += `
                       <div class="mt-3 text-end">
                         <select id="decision-select-${app.id}" class="form-select d-inline w-auto me-2">
@@ -194,20 +181,17 @@ $(document).ready(function () {
                         <button class="btn btn-primary" id="add-decision-btn" data-id="${app.id}">
                           Save Decision
                         </button>
-                      </div>
-                    `;
+                      </div>`;
                 } else {
                     detailsHtml += `
                       <div class="mt-3 text-end">
                         <button class="btn btn-secondary" disabled>
                           Decision Already Made
                         </button>
-                      </div>
-                    `;
+                      </div>`;
                 }
 
-
-              // Append documents section
+                // Append documents section
               let docsHtml = `
                 <h5 class="mt-4 text-info">Documents</h5>
                 <table class="table table-striped">
@@ -254,7 +238,35 @@ $(document).ready(function () {
 
                 docsHtml += "</tbody></table>"
                 ;
-                modalBody.innerHTML = detailsHtml + docsHtml;
+
+            // === Refusal Letters table ===
+            let refusalsHtml = `
+                <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+
+            if (!app.refusal_letters || app.refusal_letters.length === 0) {
+                refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+            } else {
+                app.refusal_letters.forEach(ref => {
+                    refusalsHtml += `
+                        <tr>
+                          <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+                          <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+            refusalsHtml += "</tbody></table>";
+
+            modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
             });
     });
 
@@ -310,59 +322,11 @@ $(document).ready(function () {
         }
     });
 
-    // document.body.addEventListener("click", function (e) {
-    //       if (e.target.id === "add-decision-btn") {
-    //           let appId = e.target.dataset.id;
-
-    //           fetch(`/api/applications/${appId}/add_decision_view/`, {
-    //               method: "PATCH",
-    //               headers: {
-    //                   "Content-Type": "application/json",
-    //                   "X-CSRFToken": getCookie("csrftoken")
-    //               },
-    //               body: JSON.stringify({ status: "SUBMITTED" })
-    //           })
-    //           .then(res => res.json())
-    //           .then(updatedApp => {
-    //               // Update modal badge
-    //               const modalBadge = document.getElementById("application-status-badge");
-    //               if (modalBadge) {
-    //                   modalBadge.textContent = updatedApp.status_display;
-    //                   modalBadge.className = "badge " + updatedApp.status_badge;
-    //               }
-
-    //               // Replace button with disabled
-    //               const finalizeBtn = document.getElementById("add-decision-btn");
-    //               if (finalizeBtn) {
-    //                   finalizeBtn.outerHTML = `<button class="btn btn-secondary" disabled>✅ Already Finalized</button>`;
-    //               }
-
-    //               // Update main table badge
-    //               const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-    //               if (tableBadgeEl) {
-    //                   tableBadgeEl.textContent = updatedApp.status_display;
-    //                   tableBadgeEl.className = "badge " + updatedApp.status_badge;
-    //               }
-
-    //               // Lock Visa URL cell (remove input if you had one)
-    //               const visaUrlCell = document.getElementById("visa-url-cell");
-    //               if (visaUrlCell) {
-    //                   visaUrlCell.innerHTML = updatedApp.visa_application_url
-    //                       ? `<a href="${updatedApp.visa_application_url}" target="_blank" class="text-primary">${updatedApp.visa_application_url}</a>`
-    //                       : "-";
-    //               }
-    //           })
-    //           .catch(err => console.error("Error finalizing application:", err));
-    //       }
-    //   });
-
     // 🔹 Handle Add Decision button
     document.body.addEventListener("click", function (e) {
         if (e.target.closest("#add-decision-btn")) {
             let btn = e.target.closest("#add-decision-btn");
             let appId = btn.dataset.id;
-
-            // get selected value from dropdown
             let select = document.getElementById(`decision-select-${appId}`);
             if (!select || !select.value) {
                 alert("Please select APPROVED or REJECTED first.");
@@ -370,9 +334,7 @@ $(document).ready(function () {
             }
             let decision = select.value;
 
-            if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) {
-                return;
-            }
+            if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) return;
 
             fetch(`/api/applications/${appId}/add_decision/`, {
                 method: "PATCH",
@@ -391,7 +353,7 @@ $(document).ready(function () {
                     modalBadge.className = "badge " + updatedApp.status_badge;
                 }
 
-                // ✅ Replace dropdown + button with disabled text
+                // ✅ Replace controls
                 if (select) select.disabled = true;
                 btn.outerHTML = `<button class="btn btn-secondary" disabled>
                                     ✅ Decision Recorded: ${updatedApp.status_display}
@@ -404,10 +366,28 @@ $(document).ready(function () {
                     tableBadgeEl.className = "badge " + updatedApp.status_badge;
                 }
 
-                // ✅ Update decision_date in modal (if element exists)
+                // ✅ Update decision date
                 const decisionDateEl = document.getElementById("application-decision-date");
-                if (decisionDateEl && updatedApp.decision_date) {
-                    decisionDateEl.textContent = updatedApp.decision_date;
+                if (decisionDateEl) decisionDateEl.textContent = updatedApp.decision_date ?? '-';
+
+                // ✅ If REJECTED → show upload form
+                if (decision === "REJECTED") {
+                    let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+                    modalBody.insertAdjacentHTML("beforeend", `
+                        <div class="mt-4 p-3 border rounded bg-light">
+                            <h6 class="text-danger">Upload Rejection Letter</h6>
+                            <input type="file" id="rejection-file-${updatedApp.id}" class="form-control mb-2">
+                            <button class="btn btn-danger" id="upload-rejection-btn" data-id="${updatedApp.id}">
+                                Upload Letter
+                            </button>
+                        </div>
+                    `);
+                }
+
+                // ✅ Update DataTable row directly
+                let row = table.row(`#row-${updatedApp.id}`);
+                if (row) {
+                    row.data(updatedApp).draw(false);
                 }
 
                 alert(`Application has been ${updatedApp.status_display}`);
@@ -416,6 +396,50 @@ $(document).ready(function () {
         }
     });
 
+    // 🔹 Handle rejection letter upload
+    document.body.addEventListener("click", function (e) {
+        if (e.target.closest("#upload-rejection-btn")) {
+            let btn = e.target.closest("#upload-rejection-btn");
+            let appId = btn.dataset.id;
+            let fileInput = document.getElementById(`rejection-file-${appId}`);
+            if (!fileInput || !fileInput.files.length) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("rejection_letter", fileInput.files[0]);
+
+            fetch(`/api/applications/${appId}/add_decision/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(updatedApp => {
+                // ✅ Remove upload form
+                btn.parentElement.innerHTML = `
+                        <p class="text-success mb-2">Rejection letter uploaded successfully.</p>
+                    `;
+
+                // ✅ Update modal cell
+                let rejectionCell = document.querySelector("#rejection-letter-cell");
+                if (rejectionCell) {
+                    rejectionCell.innerHTML = updatedApp.rejection_letter
+                        ? `<a href="${updatedApp.rejection_letter}" target="_blank">View</a>` : "-";
+                }
+
+                // ✅ Update DataTable row
+                let row = table.row(`#row-${updatedApp.id}`);
+                if (row) {
+                    row.data(updatedApp).draw(false);
+                }
+            })
+            .catch(err => console.error("Error uploading rejection letter:", err));
+        }
+    });
 
     // 🔹 CSRF Helper
     function getCookie(name) {
@@ -434,5 +458,6 @@ $(document).ready(function () {
     }
 });
 </script>
+
 
 {% endblock %}

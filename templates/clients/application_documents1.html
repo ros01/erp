@@ -498,6 +498,33 @@
 <!-- End Page-content -->
 <!-- </div> -->
 
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
+
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // --- CSRF helper ---
 function getCookie(name) {
@@ -587,5 +614,107 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
     alert("Could not refresh documents.");
   }
 });
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  async function handleUploadSuccess(row, data) {
+    row.querySelector(".status").innerHTML =
+      `<span class="badge bg-success">${data.status}</span>`;
+
+    row.querySelector(".action-cell").innerHTML =
+      `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+
+    if (allDocumentsUploaded()) {
+      const refusalModal = document.getElementById("refusalModal");
+      if (refusalModal) {
+        let modalInstance = new bootstrap.Modal(refusalModal);
+        modalInstance.show();
+      }
+    }
+  }
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+
+
 </script>
 {% endblock %}

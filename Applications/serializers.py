@@ -1,7 +1,7 @@
 # applications/serializers.py
 from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
-from .models import VisaApplication
+from .models import VisaApplication, PreviousRefusalLetter
 from django.contrib.auth import get_user_model
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
@@ -9,15 +9,167 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-# class FormProcessingSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = FormProcessing
-#         fields = [
-#             "id", "application", "file", "application_url",
-#             "visa_application_username", "visa_application_password"
-#         ]
-#         read_only_fields = ["id", "application"]
+class DocumentSerializer(serializers.ModelSerializer):
+    requirement_name = serializers.CharField(source="requirement.name", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_badge = serializers.SerializerMethodField()
+    application = serializers.PrimaryKeyRelatedField(read_only=True)
+    file_url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Document
+        fields = [
+            "id",
+            "application",
+            "requirement_name",
+            "file",
+            "status",            # keep raw status
+            "status_display",
+            "status_badge",
+            "review_comments",
+            "uploaded_at",
+            "file_url"
+        ]
+    
+    def get_file_url(self, obj):
+        return obj.file.url if obj.file else None
+
+        
+    def get_status_badge(self, obj):
+        mapping = {
+            "MISSING": "badge-soft-danger",
+            "UPLOADED": "badge-soft-info",
+            "REVIEWED": "badge-soft-success",
+            "PENDING": "badge-soft-warning",
+            "REJECTED": "badge-soft-danger",
+        }
+        return mapping.get(obj.status, "badge-soft-secondary")
+
+
+# class DocumentSerializer(serializers.ModelSerializer):
+#     requirement_name = serializers.CharField(source="requirement.name", read_only=True)
+#     file_url = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Document
+#         fields = ["id", "requirement_name", "status", "file_url"]
+
+#     def get_file_url(self, obj):
+#         return obj.file.url if obj.file else None
+
+
+class PreviousRefusalLetterSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PreviousRefusalLetter
+        fields = ["id", "file_url", "uploaded_at", "file"]
+
+    def get_file_url(self, obj):
+        return obj.file.url if obj.file else None
+
+
+class VisaApplicationReapplySerializer(serializers.ModelSerializer):
+    documents = DocumentSerializer(many=True, read_only=True)
+    refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VisaApplication
+        fields = [
+            "id", "reference_no", "country", "visa_type", "status",
+            "documents", "refusal_letters"
+        ]
+
+class ReapplyApplicationSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    decision_date = serializers.SerializerMethodField()
+    submission_date = serializers.SerializerMethodField()
+    visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
+    country_display = serializers.CharField(source="get_country_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_badge = serializers.SerializerMethodField()
+    assigned_officer_name = serializers.CharField(read_only=True)
+    created_by_officer_name = serializers.CharField(read_only=True)
+    assigned_officer_name = serializers.CharField(
+        source="assigned_officer.user.get_full_name", read_only=True
+    )
+    created_by_officer_name = serializers.CharField(
+        source="created_by_officer.user.get_full_name", read_only=True
+    )
+    client_name = serializers.CharField(
+        source="client.user.get_full_name", read_only=True
+    )
+    client_email = serializers.CharField(
+        source="client.user.email", read_only=True
+    )
+    passport_number = serializers.CharField(
+        source="client.passport_number", read_only=True
+    )
+    documents = DocumentSerializer(many=True, read_only=True)
+    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
+    refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VisaApplication
+        fields = [
+            "id", "client_name", "client_email",
+            "reference_no", "passport_number",
+            "visa_type", "visa_type_display",
+            "country", "country_display",
+            "status", "status_display", "status_badge",
+            "assigned_officer",
+            "created_by_officer",
+            "assigned_officer_name",
+            "created_by_officer_name",
+            "created_at",
+            "visa_application_url",
+            "submission_date",
+            "decision_date",
+            "documents",
+            "rejection_letter",  
+            "refusal_letters",
+        ]
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return obj.created_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_decision_date(self, obj):
+        if obj.decision_date:
+            return obj.decision_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_submission_date(self, obj):
+        if obj.submission_date:
+            return obj.submission_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_status_badge(self, obj):
+        mapping = {
+            "REJECTED": "badge-soft-danger",
+            "APPROVED": "badge-soft-success",
+            "SUBMITTED": "badge-soft-warning",
+            "ADMIN REVIEW": "badge-soft-info",
+            "REVIEWED": "badge-soft-warning",
+            "ASSIGNED": "badge-soft-primary",
+            "INITIATED": "badge-soft-primary",
+            "QUEUED": "badge-soft-secondary",
+        }
+        return mapping.get(obj.status, "badge-soft-secondary")
+
+# class PreviousRefusalLetterSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = PreviousRefusalLetter
+#         fields = ["id", "file", "uploaded_at", "uploaded_by"]
+
+
+
+
+class ReapplyDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = ["id", "name", "file", "status"]
 
 
 class DocumentRequirementSerializer(serializers.ModelSerializer):
@@ -45,38 +197,7 @@ class DocumentSerializer000(serializers.ModelSerializer):
         return obj.get_status_badge()
 
 
-class DocumentSerializer(serializers.ModelSerializer):
-    requirement_name = serializers.CharField(source="requirement.name", read_only=True)
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
-    status_badge = serializers.SerializerMethodField()
-    application = serializers.PrimaryKeyRelatedField(read_only=True)
 
-    class Meta:
-        model = Document
-        fields = [
-            "id",
-            "application",
-            "requirement_name",
-            "file",
-            "status",            # keep raw status
-            "status_display",
-            "status_badge",
-            "review_comments",
-            "uploaded_at",
-        ]
-    # def get_status_badge(self, obj):
-    #     return obj.get_status_badge()
-
-        
-    def get_status_badge(self, obj):
-        mapping = {
-            "MISSING": "badge-soft-danger",
-            "UPLOADED": "badge-soft-info",
-            "REVIEWED": "badge-soft-success",
-            "PENDING": "badge-soft-warning",
-            "REJECTED": "badge-soft-danger",
-        }
-        return mapping.get(obj.status, "badge-soft-secondary")
 
 
 
@@ -124,15 +245,20 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
     client_email = serializers.CharField(
         source="client.user.email", read_only=True
     )
+    passport_number = serializers.CharField(
+        source="client.passport_number", read_only=True
+    )
     documents = DocumentSerializer(many=True, read_only=True)
+    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
+    refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)  # ✅ include here
 
     class Meta:
         model = VisaApplication
         fields = [
-            "id", "client_name", "client_email", "reference_no", "country", "country_display",
+            "id", "client_name", "client_email", "reference_no", "country", "country_display", "passport_number",
             "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
             "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
-            "submission_date", "decision_date", "documents"
+            "submission_date", "decision_date", "documents", "rejection_letter", "refusal_letters"
         ]
 
     def get_created_at(self, obj):
@@ -162,7 +288,6 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
-
 
 # class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -281,6 +406,8 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
 
 
 
+
+
 class VisaApplicationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
@@ -303,12 +430,16 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     client_email = serializers.CharField(
         source="client.user.email", read_only=True
     )
+    passport_number = serializers.CharField(
+        source="client.passport_number", read_only=True
+    )
     documents = DocumentSerializer(many=True, read_only=True)
+    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
 
     class Meta:
         model = VisaApplication
         fields = [
-            "id", "client_name", "client_email",
+            "id", "client_name", "client_email", "passport_number",
             "reference_no",
             "visa_type", "visa_type_display",
             "country", "country_display",
@@ -322,6 +453,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "submission_date",
             "decision_date",
             "documents",
+            "rejection_letter",  # ✅ include here
         ]
 
     def get_created_at(self, obj):

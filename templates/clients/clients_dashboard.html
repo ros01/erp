@@ -181,6 +181,7 @@
         <thead class="table-light">
             <tr>
                 <th>Ref No:</th>
+                <th>Country</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th>Date</th>
@@ -240,7 +241,7 @@ $(document).ready(function () {
         order: [[3, "desc"]], // column index of "Created On / Date"
         columns: [
             { data: "reference_no" },
-            // { data: "client_name" },
+            { data: "country_display" },
             // { data: "client_email" },
             { data: "visa_type_display" },
             {

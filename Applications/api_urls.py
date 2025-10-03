@@ -28,10 +28,13 @@ urlpatterns = [
     path("applications/<uuid:id>/add-url/", VisaApplicationUrlUpdateAPIView.as_view(), name="application-add-url"),
     path("applications/<uuid:pk>/finalize/", FinalizeVisaApplicationAPIView.as_view(), name="application-finalize"),
     path("applications/<uuid:pk>/add_decision/", AddVisaApplicationDecisionAPIView.as_view(), name="add-visa-decison"),
+    path("applications/<uuid:pk>/upload_rejection_letter/", UploadRejectionLetterAPIView.as_view(), name="upload-rejection-letter"),
+    path("applications/<uuid:pk>/reapply/", ApplicationReapplyView.as_view(), name="application-reapply"),
+    path("applications/<uuid:pk>/upload-refusals/", upload_refusals, name="upload_refusals"),
+
     # path("form-processing/<uuid:pk>/", FormProcessingDetailUpdateAPIView.as_view(), name="form-processing-detail"),
     # path("applications/", VisaApplicationsListAPIView.as_view(), name="application-list"),
     # path("applications/<uuid:id>/", VisaApplicationsListAPIView.as_view(), name="application-detail"),
 ]
-
 
 

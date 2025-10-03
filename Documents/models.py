@@ -111,7 +111,7 @@ class Document(BaseModel):
         """Return (badge_class, label_with_icon) for status."""
         mapping = {
             "MISSING": ("badge-soft-secondary", "⬜ Missing"),
-            "UPLODED": ("badge-soft-info", "📤 Uploaded"),
+            "UPLOADED": ("badge-soft-info", "📤 Uploaded"),
             "PENDING": ("badge-soft-warning", "⏳ Pending"),
             "VERIFIED": ("badge-soft-success", "✅ Verified"),
             "REJECTED": ("badge-soft-danger", "❌ Rejected"),

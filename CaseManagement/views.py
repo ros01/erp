@@ -9,12 +9,17 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db.models import Count, Q
-from Applications.models import VisaApplication
+from Applications.models import VisaApplication, PreviousRefusalLetter
 from Accounts.models import ClientProfile
 from Documents.models import Document
 from django.views.generic import TemplateView, ListView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+
 
 User = get_user_model()
+
 
 
 @login_required
@@ -154,7 +159,55 @@ def application_details(request, pk):
     )
 
 
-# views.py
+
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def upload_refusals(request, pk):
+#     application = get_object_or_404(VisaApplication, id=pk)
+
+#     files = request.FILES.getlist("refusal_files")
+#     uploaded = 0
+
+#     for f in files:
+#         # Save to application's refusal_letter (or create multiple model entries if needed)
+#         Document.objects.create(
+#             application=application,
+#             requirement=None,  # or special "Refusal" requirement
+#             file=f,
+#             status="UPLOADED"
+#         )
+#         uploaded += 1
+
+#     return Response({"success": True, "files_uploaded": uploaded})
+
+
+
+
+@login_required
+def upload_refusal_letters(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    application = get_object_or_404(VisaApplication, id=pk)
+    files = request.FILES.getlist("refusal_files")
+    uploaded = []
+
+    for f in files:
+        obj = PreviousRefusalLetter.objects.create(
+            application=application,
+            file=f,
+            uploaded_by=request.user
+        )
+        uploaded.append({
+            "id": obj.id,
+            "file": obj.file.url,
+            "uploaded_at": obj.uploaded_at.strftime("%Y-%m-%d %H:%M:%S"),
+        })
+
+    return JsonResponse({"success": True, "refusal_letters": uploaded})
+
+
+    
 @login_required
 def form_filled_submission(request, pk):
     app = get_object_or_404(VisaApplication, pk=pk)

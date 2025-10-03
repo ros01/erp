@@ -71,3 +71,8 @@ def admin_review_list(request):
 def submitted_applications_list(request):
     return render(request, "admin/submitted_applications_list.html")
 
+
+@login_required
+def finalized_applications_list(request):
+    return render(request, "admin/finalized_applications_list.html")
+

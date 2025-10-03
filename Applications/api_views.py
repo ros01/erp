@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Q, Value
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
-from .models import VisaApplication
+from .models import VisaApplication, PreviousRefusalLetter
 from Documents.serializers import DocumentRequirementSerializer
 from .serializers import (
     DocumentRequirementSerializer,
@@ -16,6 +16,8 @@ from .serializers import (
     VisaApplicationDetailSerializer,
     DocumentSerializer,
     VisaApplicationUrlUpdateSerializer,
+    ReapplyApplicationSerializer,
+    PreviousRefusalLetterSerializer,
     # FormProcessingSerializer,
 )
 from django.contrib.auth import get_user_model
@@ -35,6 +37,36 @@ from django.utils import timezone
 from django.db.models import Value
 
 
+
+# @api_view(["GET", "POST"])
+# @permission_classes([IsAuthenticated])
+# def reapply_application(request, pk):
+#     app = get_object_or_404(VisaApplication, id=pk)
+
+#     if request.method == "GET":
+#         serializer = VisaApplicationReapplySerializer(app)
+#         return Response(serializer.data)
+
+#     if request.method == "POST":
+#         # handle refusal letters upload if present
+#         refusal_files = request.FILES.getlist("refusal_letters")
+#         uploaded_letters = []
+
+#         for f in refusal_files:
+#             letter = PreviousRefusalLetter.objects.create(application=app, file=f)
+#             uploaded_letters.append(letter)
+
+#         # you can also update documents/form data here if needed
+#         # e.g., request.FILES for document uploads, request.POST for other data
+
+#         return Response({
+#             "success": True,
+#             "reference_no": app.reference_no,
+#             "refusal_letters": PreviousRefusalLetterUploadSerializer(uploaded_letters, many=True).data
+#         }, status=status.HTTP_201_CREATED)
+
+
+
 User = get_user_model()
 
 # class FormProcessingDetailUpdateAPIView(generics.RetrieveUpdateAPIView):
@@ -48,7 +80,265 @@ User = get_user_model()
 #         form_processing, _ = FormProcessing.objects.get_or_create(application=application)
 #         return form_processing
 
+# class ApplicationReapplyView(generics.RetrieveAPIView):
+#     queryset = VisaApplication.objects.all()
+#     serializer_class = ReapplyApplicationSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, pk):
+#         application = get_object_or_404(VisaApplication, pk=pk)
+
+#         # You may want to restrict reapplication only if status is APPROVED/REJECTED
+#         if application.status not in ["APPROVED", "REJECTED"]:
+#             return Response({"error": "Reapplication only allowed for APPROVED or REJECTED applications."}, status=400)
+
+#         serializer = self.get_serializer(application)
+#         return Response(serializer.data)
+
+#     def post(self, request, pk):
+#         application = get_object_or_404(VisaApplication, pk=pk)
+#         # create a new Application instance (copy of old but new status = "PENDING")
+#         new_app = VisaApplication.objects.create(
+#             client_name=request.data.get("client_name"),
+#             client_email=request.data.get("client_email"),
+#             country=request.data.get("country"),
+#             visa_type=request.data.get("visa_type"),
+#             passport_number=request.data.get("passport_number"),
+#             status="PENDING",
+#             created_by=request.user,
+#         )
+
+#         # Handle documents: update existing or replace
+#         doc_ids = request.data.getlist("doc_id[]")
+#         for doc_id in doc_ids:
+#             file_field = request.FILES.get(f"document_{doc_id}")
+#             if file_field:
+#                 Document.objects.create(application=new_app, requirement="Updated Document", file=file_field, status="UPLOADED")
+#             else:
+#                 # Optionally copy old doc
+#                 old_doc = Document.objects.get(pk=doc_id)
+#                 Document.objects.create(application=new_app, requirement=old_doc.requirement_name, file=old_doc.file, status=old_doc.status)
+
+#         return Response({"success": True, "new_application_id": new_app.id})
+
+
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def upload_refusals(request, pk):
+#     application = get_object_or_404(VisaApplication, pk=pk)
+
+#     files = request.FILES.getlist("refusal_files")
+#     uploaded = 0
+
+#     for f in files:
+#         # Save to application's refusal_letter (or create multiple model entries if needed)
+#         Document.objects.create(
+#             application=application,
+#             requirement=None,  # or special "Refusal" requirement
+#             file=f,
+#             status="UPLOADED"
+#         )
+#         uploaded += 1
+
+#     return Response({"success": True, "files_uploaded": uploaded})
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upload_refusals(request, pk):
+    app = get_object_or_404(VisaApplication, id=pk)
+
+    files = request.FILES.getlist("refusal_files")
+    uploaded = []
+
+    for f in files:
+        letter = PreviousRefusalLetter.objects.create(
+            application=app,
+            file=f,
+        )
+        uploaded.append({
+            "id": str(letter.id),
+            "file_url": letter.file.url,
+            "uploaded_at": letter.uploaded_at.isoformat()
+        })
+
+    return Response({
+        "success": True,
+        "files_uploaded": len(uploaded),
+        "refusal_letters": uploaded
+    })
+
+
+class ApplicationReapplyView(generics.RetrieveAPIView):
+    queryset = VisaApplication.objects.all()
+    serializer_class = ReapplyApplicationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        if application.status not in ["APPROVED", "REJECTED"]:
+            return Response(
+                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                status=400
+            )
+
+        serializer = self.get_serializer(application)
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+        staff_profile = getattr(request.user, "staff_profile", None)
+
+        # ✅ Update client profile fields
+        client = application.client
+        client.passport_number = request.data.get("passport_number", client.passport_number)
+        client.save()
+
+        # ✅ Update user fields linked to client
+        user = client.user
+        user.first_name = request.data.get("first_name", user.first_name)
+        user.last_name = request.data.get("last_name", user.last_name)
+        user.email = request.data.get("email", user.email)
+        user.phone = request.data.get("phone", user.phone)
+        user.save()
+
+        # ✅ Create new VisaApplication
+        new_app = VisaApplication.objects.create(
+            client=client,
+            country=request.data.get("country", application.country),
+            visa_type=request.data.get("visa_type", application.visa_type),
+            status="INITIATED",
+            reference_no=generate_reference_no(),
+            created_by_officer=staff_profile,
+        )
+
+        # ✅ Handle refusal letters upload
+        refusal_files = request.FILES.getlist("refusal_letters")
+        uploaded_letters = []
+        for f in refusal_files:
+            letter = PreviousRefusalLetter.objects.create(application=new_app, file=f)
+            uploaded_letters.append(letter)
+
+        # ✅ Handle documents
+        doc_ids = request.data.getlist("doc_id[]")
+        for doc_id in doc_ids:
+            file_field = request.FILES.get(f"document_{doc_id}")
+            old_doc = get_object_or_404(Document, pk=doc_id)
+
+            if file_field:
+                Document.objects.create(
+                    application=new_app,
+                    requirement=old_doc.requirement,
+                    file=file_field,
+                    status="UPLOADED"
+                )
+            else:
+                Document.objects.create(
+                    application=new_app,
+                    requirement=old_doc.requirement,
+                    file=old_doc.file,
+                    status="UPLOADED"
+                )
+
+        return Response({
+            "success": True,
+            "new_application_id": new_app.id,
+            "reference_no": new_app.reference_no,
+            "refusal_letters": PreviousRefusalLetterSerializer(uploaded_letters, many=True).data
+        })
+
+        
+
+class ApplicationCreateAPICaseView(generics.GenericAPIView):
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        client_id = request.data.get("client_id")
+        country = request.data.get("country")
+        visa_type = request.data.get("visa_type")
+
+        if not client_id or not country or not visa_type:
+            return Response(
+                {"detail": "client_id, country, and visa_type required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        client_profile = get_object_or_404(ClientProfile, id=client_id)
+
+        # ✅ assign logged-in officer
+        staff_profile = getattr(request.user, "staff_profile", None)
+
+        application = VisaApplication.objects.create(
+            client=client_profile,
+            country=country,
+            visa_type=visa_type,
+            status="INITIATED",
+            reference_no=generate_reference_no(),
+            # assigned_officer=staff_profile,     # ✅ officer is currently assigned
+            created_by_officer=staff_profile,   # ✅ officer initiated the app
+        )
+
+
+        # Auto-create docs
+        requirements = DocumentRequirement.objects.filter(
+            country=country, visa_type=visa_type
+        )
+        Document.objects.bulk_create([
+            Document(application=application, requirement=req, status="MISSING")
+            for req in requirements
+        ])
+
+        return Response(
+            self.get_serializer(application).data,
+            status=status.HTTP_201_CREATED,
+        )
+
 class AddVisaApplicationDecisionAPIView(APIView):
+    def patch(self, request, pk):
+        """Approve/Reject a visa application"""
+        try:
+            application = VisaApplication.objects.get(pk=pk)
+        except VisaApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
+
+        decision = request.data.get("status")
+        if decision not in ["APPROVED", "REJECTED"]:
+            return Response({"error": "Invalid decision"}, status=400)
+
+        # ✅ Update application decision
+        application.status = decision
+        application.decision_date = timezone.now()
+        application.save(update_fields=["status", "decision_date", "updated_at"])
+
+        # ✅ Decrease workload on officer (initiator or assigned)
+        staff = application.assigned_officer or application.created_by_officer
+        if staff and staff.workload > 0:
+            staff.workload -= 1
+            staff.save(update_fields=["workload"])
+
+        return Response(VisaApplicationSerializer(application).data, status=200)
+
+    def post(self, request, pk):
+        """Upload a rejection letter for a rejected application"""
+        try:
+            application = VisaApplication.objects.get(pk=pk)
+        except VisaApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
+
+        if "rejection_letter" not in request.FILES:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        # ✅ Save rejection letter
+        application.rejection_letter = request.FILES["rejection_letter"]
+        application.save(update_fields=["rejection_letter", "updated_at"])
+
+        return Response(
+            {"rejection_letter": application.rejection_letter.url},
+            status=200
+        )
+
+
+class AddVisaApplicationDecisionAPIView00(APIView):
     def patch(self, request, pk):
         try:
             application = VisaApplication.objects.get(pk=pk)
@@ -69,6 +359,23 @@ class AddVisaApplicationDecisionAPIView(APIView):
         if staff and staff.workload > 0:
             staff.workload -= 1
             staff.save(update_fields=["workload"])
+
+        return Response(VisaApplicationSerializer(application).data)
+
+
+class UploadRejectionLetterAPIView(APIView):
+    def patch(self, request, pk):
+        try:
+            application = VisaApplication.objects.get(pk=pk)
+        except VisaApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
+
+        file = request.FILES.get("rejection_letter")
+        if not file:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        application.rejection_letter = file
+        application.save(update_fields=["rejection_letter", "updated_at"])
 
         return Response(VisaApplicationSerializer(application).data)
 

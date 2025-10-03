@@ -47,6 +47,7 @@ class BaseModel(models.Model):
 #     def __str__(self):
 #         return f"VisaApplication {self.id} - {self.client.username} ({self.status})"
 
+# applications/models.py
 
 class VisaApplication(BaseModel):
     VISA_TYPES = [
@@ -107,8 +108,8 @@ class VisaApplication(BaseModel):
     visa_application_url = models.URLField(blank=True, null=True)
     submission_date = models.DateTimeField(blank=True, null=True)
     decision_date = models.DateTimeField(blank=True, null=True)
-    # reference_no = models.CharField(max_length=50, unique=True)
     reference_no = models.CharField(max_length=50, unique=True)
+    rejection_letter = models.FileField(upload_to="rejection_letters/", blank=True, null=True)
 
     # @property
     # def assigned_officer_name(self):
@@ -135,56 +136,34 @@ class VisaApplication(BaseModel):
     # def __str__(self):
     #     return f"{self.client.username} | {self.get_country_display()} | {self.get_visa_type_display()} | {self.get_status_display()}"
 
-# class VisaApplication(BaseModel):
-#     STATUS_CHOICES = [
-#         ("Pending", "Pending"),
-#         ("Submitted", "Submitted"),
-#         ("Under Review", "Under Review"),
-#         ("Approved", "Approved"),
-#         ("Rejected", "Rejected"),
-#     ]
-
-#     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="applications")
-#     visa_type = models.CharField(max_length=100)
-#     destination_country = models.CharField(max_length=100)
-#     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Pending")
-#     submission_date = models.DateField(blank=True, null=True)
-#     decision_date = models.DateField(blank=True, null=True)
-#     reference_no = models.CharField(max_length=50, unique=True)
-
-#     def __str__(self):
-#         return f"{self.reference_no} - {self.client.full_name}"
-
-#     class Meta:
-#         indexes = [models.Index(fields=["reference_no", "status"])]
-
-# models.py
-# class FormProcessing(BaseModel):
-#     application = models.OneToOneField(
-#         "VisaApplication",
-#         on_delete=models.CASCADE,
-#         related_name="form_processing"
+# class PreviousRefusalLetter(BaseModel):
+#     application = models.ForeignKey(
+#         VisaApplication,
+#         related_name="refusal_letters",
+#         on_delete=models.CASCADE
 #     )
-#     application_url = models.URLField()
-#     visa_application_username = models.CharField(max_length=255)
-#     visa_application_password = models.CharField(max_length=255)
-#     file = models.FileField(
-#         upload_to="visa_forms/",
-#         blank=True,
-#         null=True,
-#         help_text="Upload a PDF copy of the filled visa form"
+#     file = models.FileField(upload_to="refusals/")
+#     uploaded_at = models.DateTimeField(auto_now_add=True)
+#     uploaded_by = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         null=True, blank=True,
+#         on_delete=models.SET_NULL
 #     )
 
-#     def save(self, *args, **kwargs):
-#         super().save(*args, **kwargs)
-#         # 🔑 Automatically update VisaApplication status
-#         if self.application.status != "ADMIN REVIEW":
-#             self.application.status = "ADMIN REVIEW"
-#             self.application.save(update_fields=["status"])
-
 #     def __str__(self):
-#         return f"FormFilled for {self.application.reference_no}"
+#         return f"Refusal Letter for {self.application.reference_no} ({self.id})"
 
+class PreviousRefusalLetter(BaseModel):
+    application = models.ForeignKey(
+        VisaApplication,
+        on_delete=models.CASCADE,
+        related_name="refusal_letters"
+    )
+    file = models.FileField(upload_to="refusal_letters/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Refusal Letter for {self.application.reference_no}"
 
 class EmbassySubmission(BaseModel):
     application = models.OneToOneField(VisaApplication, on_delete=models.CASCADE, related_name="submission")

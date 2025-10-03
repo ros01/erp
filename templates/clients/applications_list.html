@@ -11,14 +11,6 @@
 
 {% block content %}
 
-
-<!-- ============================================================== -->
-<!-- Start right Content here -->
-<!-- ============================================================== -->
-
-
-
-
 <div class="col-xl-9">
 <div class="card pb-3">
 <div class="card-body">
@@ -30,9 +22,8 @@
 <table id="datatable" class="table table-bordered dt-responsive">
    <thead class="table-light">
       <tr>
-        <th class="align-middle">Ref No</th>
-        <!-- <th class="align-middle">Client</th>
-        <th class="align-middle">Email</th> -->
+        <th class="align-middle">Ref No:</th>
+        <th class="align-middle">Country</th>
         <th class="align-middle">Visa Type</th>
         <th class="align-middle">Status</th>
         <th class="align-middle">Created On</th>
@@ -149,6 +140,7 @@ $(document).ready(function () {
                   return `<a href="javascript:void(0);" class="text-body fw-bold">${data}</a>`;
               }
             },
+            { data: "country_display" },
             { data: "visa_type_display" },
             { data: "status_display",
               render: function (data, type, row) {

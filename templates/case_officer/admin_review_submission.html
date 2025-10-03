@@ -19,6 +19,7 @@
 <th class="align-middle">Ref No:</th>
 <th class="align-middle">Name</th>
 <th class="align-middle">Email</th>
+<th class="align-middle">Country</th>
 <th class="align-middle">Type</th>
 <th class="align-middle">Status</th>
 <th class="align-middle">Date</th>
@@ -81,6 +82,7 @@ $(document).ready(function () {
             { data: "reference_no" },
             { data: "client_name" },
             { data: "client_email" },
+            { data: "country_display" },
             { data: "visa_type_display" },
             {
                 data: "status_display",
@@ -161,6 +163,7 @@ $('#datatable tbody').on('click', '.view-details-btn', function () {
                   <tr><th>Reference</th><td>${app.reference_no}</td></tr>
                   <tr><th>Client</th><td>${app.client_name}</td></tr>
                   <tr><th>Email</th><td>${app.client_email}</td></tr>
+                <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
                   <tr><th>Country</th><td>${app.country_display}</td></tr>
                   <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
                   <tr><th>Status</th>
@@ -232,7 +235,34 @@ $('#datatable tbody').on('click', '.view-details-btn', function () {
             }
 
             docsHtml += "</tbody></table>";
-            modalBody.innerHTML = detailsHtml + docsHtml;
+
+            // === Refusal Letters table ===
+            let refusalsHtml = `
+                <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+
+            if (!app.refusal_letters || app.refusal_letters.length === 0) {
+                refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+            } else {
+                app.refusal_letters.forEach(ref => {
+                    refusalsHtml += `
+                        <tr>
+                          <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+                          <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+            refusalsHtml += "</tbody></table>";
+            modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
         });
 });
 
