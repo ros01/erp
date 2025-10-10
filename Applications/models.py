@@ -51,7 +51,8 @@ class BaseModel(models.Model):
 
 class VisaApplication(BaseModel):
     VISA_TYPES = [
-        ("TOURIST", "Tourist Visa"),
+        ("TOURIST - EMPLOYED", "Tourist Visa - Employed"),
+        ("TOURIST - SELF EMPLOYED", "Tourist Visa - Self Employed"),
         ("STUDENT", "Student Visa"),
         ("WORK", "Work Visa"),
         ("BUSINESS", "Business Visa"),
@@ -65,9 +66,10 @@ class VisaApplication(BaseModel):
         ("UK", "United Kingdom"),
         ("USA", "United States"),
         ("CANADA", "Canada"),
-        ("SCHENGEN", "Schengen"),
+        ("FRANCE", "France"),
         ("QATAR", "Qatar"),
         ("DUBAI", "Dubai"),
+        ("SOUTH AFRICA", "South Africa"),
     ]
 
     STATUS_CHOICES = [

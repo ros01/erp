@@ -319,27 +319,50 @@ document.getElementById("country").addEventListener("change", async function() {
 
 // === Load Required Docs once Visa Type selected ===
 document.getElementById("visa-type").addEventListener("change", async function() {
-    const country = document.getElementById("country").value;
-    const visaType = this.value;
-    if (!country || !visaType) return;
+  const country = document.getElementById("country").value;
+  const visaType = this.value;
+  if (!country || !visaType) return;
 
-    const res = await fetch(`/api/requirements/?country=${country}&visa_type=${visaType}`);
-    requiredDocs = await res.json();
+  try {
+    const res = await fetch(`/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`);
+    const requiredDocs = await res.json();
 
     const list = document.getElementById("required-docs-list");
     list.innerHTML = "";
-    requiredDocs.forEach(doc => {
-        const li = document.createElement("li");
-        li.className = "list-group-item";
-        li.textContent = doc.name;
-        list.appendChild(li);
-    });
+
+    if (!requiredDocs.length) {
+      list.innerHTML = "<div class='text-muted'>No requirements found.</div>";
+    } else {
+      requiredDocs.forEach(doc => {
+        const row = document.createElement("div");
+        row.className = "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
+
+        row.innerHTML = `
+          <div>
+            <strong>${doc.name}</strong><br/>
+            <small class="text-muted">${doc.description || "—"}</small>
+          </div>
+          <span class="badge ${doc.is_mandatory ? "bg-danger" : "bg-secondary"}">
+            ${doc.is_mandatory ? "Required" : "Optional"}
+          </span>
+        `;
+
+        list.appendChild(row);
+      });
+    }
 
     document.getElementById("required-docs-container").classList.remove("d-none");
+
+    // Enable create button only if a client is selected
     if (selectedClientId) {
-        document.getElementById("create-application-btn").disabled = false;
+      document.getElementById("create-application-btn").disabled = false;
     }
+
+  } catch (err) {
+    console.error("Failed to load visa requirements:", err);
+  }
 });
+
 
 // === Client Search ===
 document.getElementById("client-search").addEventListener("input", async function() {

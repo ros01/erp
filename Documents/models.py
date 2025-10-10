@@ -29,7 +29,8 @@ class DocumentRequirement(BaseModel):
     ]
 
     VISA_TYPES = [
-        ("TOURIST", "Tourist Visa"),
+        ("TOURIST - EMPLOYED", "Tourist Visa - Employed"),
+        ("TOURIST - SELF EMPLOYED", "Tourist Visa - Self Employed"),
         ("STUDENT", "Student Visa"),
         ("WORK", "Work Visa"),
         ("BUSINESS", "Business Visa"),
@@ -43,9 +44,10 @@ class DocumentRequirement(BaseModel):
         ("UK", "United Kingdom"),
         ("USA", "United States"),
         ("CANADA", "Canada"),
-        ("SCHENGEN", "Schengen"),
+        ("FRANCE", "France"),
         ("QATAR", "Qatar"),
         ("DUBAI", "Dubai"),
+        ("SOUTH AFRICA", "South Africa"),
     ]
 
     country = models.CharField(max_length=20, choices=COUNTRIES)

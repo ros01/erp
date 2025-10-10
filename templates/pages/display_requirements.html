@@ -156,7 +156,7 @@
         reqs.forEach(r=>{
           const row = document.createElement("div");
           row.className = "req";
-          row.innerHTML = `<div><strong>${r.name}</strong><br/><small class="muted">${r.category || "—"}</small></div>
+          row.innerHTML = `<div><strong>${r.name}</strong><br/><small class="muted">${r.description || "—"}</small></div>
                            <span class="tag ${r.is_mandatory ? "req" : "opt"}">${r.is_mandatory ? "Required" : "Optional"}</span>`;
           reqsEl.appendChild(row);
         });
