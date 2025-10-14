@@ -6,7 +6,13 @@ from Accounts.views import ClientRegistrationView
 
 app_name = "Applications"
 
+
 urlpatterns = [
+    # path("requirements/", api_views.get_requirements, name="requirements"),
+    path("user/", CurrentUserView.as_view(), name="current_user"),
+    # path("pdf-form-fill/", pdf_form_fill, name="pdf-form-fill"),
+    path("pdf-form-fill/", AutoFilledPDFView.as_view(), name="pdf-form-fill"),
+    path("pdf-form/", api_views.pdf_form, name="pdf-form"),
     path("clients/register/", ClientRegistrationView.as_view(), name="client-register"),
     path("country/", api_views.CountryChoicesView.as_view(), name="country-choices"),
     path("countries/", api_views.CountryListAPIView.as_view(), name="country-list"),

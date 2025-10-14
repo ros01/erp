@@ -35,6 +35,20 @@ from django.shortcuts import get_object_or_404
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.db.models import Value
+from django.http import FileResponse, HttpResponseNotFound, JsonResponse, Http404
+from django.views import View
+from pathlib import Path
+from rest_framework.decorators import api_view
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from pdfrw import PdfReader, PdfWriter, PdfDict
+from PyPDF2.generic import NameObject, TextStringObject
+from django.contrib.auth import get_user_model
+from django.conf import settings
+import io, os
+from io import BytesIO
+
+User = get_user_model()
 
 
 
@@ -64,10 +78,6 @@ from django.db.models import Value
 #             "reference_no": app.reference_no,
 #             "refusal_letters": PreviousRefusalLetterUploadSerializer(uploaded_letters, many=True).data
 #         }, status=status.HTTP_201_CREATED)
-
-
-
-User = get_user_model()
 
 # class FormProcessingDetailUpdateAPIView(generics.RetrieveUpdateAPIView):
 #     serializer_class = FormProcessingSerializer
@@ -141,6 +151,738 @@ User = get_user_model()
 #         uploaded += 1
 
 #     return Response({"success": True, "files_uploaded": uploaded})
+
+
+
+
+# @method_decorator(login_required, name='dispatch')
+# class AutoFilledPDFView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, *args, **kwargs):
+#         country = request.query_params.get("country")
+#         visa_type = request.query_params.get("visa_type")
+
+#         # Find the matching requirement that has a form
+#         req = DocumentRequirement.objects.filter(
+#             country=country, visa_type=visa_type, form_file__isnull=False
+#         ).first()
+
+#         if not req or not req.form_file:
+#             raise Http404("Form not found for this visa type")
+
+#         # Read the blank form
+#         template_path = req.form_file.path
+#         pdf = PdfReader(template_path)
+
+#         # Prepare applicant data (replace these with your actual model fields)
+#         user = request.user
+#         applicant_data = {
+#             "Full Name:": getattr(user, "full_name", user.get_full_name() or user.username),
+#             "Passport Number:": getattr(user.profile, "passport_number", "N/A"),
+#             "Email:": user.email or "N/A",
+#         }
+
+#         # Fill fields in the form (assuming AcroForm field names match the keys above)
+#         for page in pdf.pages:
+#             annotations = page.Annots
+#             if not annotations:
+#                 continue
+#             for annotation in annotations:
+#                 if annotation.Subtype == "/Widget" and annotation.T:
+#                     key = annotation.T[1:-1]  # remove parentheses
+#                     if key in applicant_data:
+#                         annotation.update(
+#                             PdfDict(V=f"{applicant_data[key]}",  # value
+#                                     AS=f"{applicant_data[key]}")
+#                         )
+
+#         # Write output PDF to memory
+#         output_stream = io.BytesIO()
+#         PdfWriter(output_stream, trailer=pdf).write()
+#         output_stream.seek(0)
+
+#         filename = f"{country}_{visa_type}_filled_form.pdf".replace(" ", "_")
+
+#         return FileResponse(output_stream, as_attachment=True, filename=filename)
+
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.get_full_name,
+            "role": user.role,
+        }
+        return Response(data)
+
+
+
+@login_required
+def pdf_form_fill(request):
+    user = request.user
+    client_profile = getattr(user, "clientprofile", None)
+
+    template_path = os.path.join(
+    settings.BASE_DIR, "media", "pdf_forms", "UK_Application_Fillable_tNuNy6m.pdf"
+    )
+
+    with open(template_path, "rb") as f:
+        reader = PdfReader(f)
+        writer = PdfWriter()
+
+        page = reader.pages[0]
+
+        # Try to fill PDF fields
+        try:
+            writer.update_page_form_field_values(page, {
+                "Full Name": user.get_full_name,
+                "Passport Number": getattr(client, "passport_number", "N/A"),
+                "Email": user.email,
+            })
+        except Exception:
+            pass  # ignore if fields don't exist
+
+        writer.add_page(page)
+
+        output_stream = io.BytesIO()
+        writer.write(output_stream)
+        output_stream.seek(0)
+
+    filename = f"{user.last_name}_VisaForm.pdf"
+    return FileResponse(output_stream, as_attachment=True, filename=filename)
+
+class AutoFilledPDFView0(View):
+    def get(self, request, *args, **kwargs):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        if not request.user.is_authenticated:
+            return HttpResponseNotFound("User not authenticated.")
+
+        # 🔹 Find matching requirement with form file
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+
+        if not req:
+            return HttpResponseNotFound("No PDF form record found for this visa type.")
+        if not req.form_file or not req.form_file.name:
+            return HttpResponseNotFound("Form file field is empty or missing.")
+        if not os.path.exists(req.form_file.path):
+            return HttpResponseNotFound(f"Form file not found on disk: {req.form_file.path}")
+
+        try:
+            reader = PdfReader(req.form_file.path)
+            writer = PdfWriter()
+
+            # 🔹 Applicant data
+            profile = getattr(request.user, "client_profile", None)
+            data = {
+                "Full Name": f"{request.user.first_name} {request.user.last_name}",
+                "Passport Number": getattr(profile, "passport_number", ""),
+                "Email": request.user.email,
+                # "Nationality": getattr(profile, "nationality", ""),
+            }
+
+            # 🔹 Loop through form fields manually (old PyPDF2 compatible)
+            for page in reader.pages:
+                writer.addPage(page)  # ✅ old PyPDF2 syntax
+                if "/Annots" in page:
+                    for annot in page["/Annots"]:
+                        obj = annot.getObject()
+                        if obj.get("/Subtype") == "/Widget" and obj.get("/T"):
+                            key = obj["/T"][1:-1]  # remove parentheses
+                            if key in data:
+                                obj.update({
+                                    NameObject("/V"): TextStringObject(data[key])
+                                })
+
+            # 🔹 Write to memory
+            output = io.BytesIO()
+            writer.write(output)
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_Filled_Form.pdf".replace(" ", "_")
+            return FileResponse(output, as_attachment=True, filename=filename)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+
+class AutoFilledPDFView(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Find form file
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        try:
+            reader = PdfReader(form_path)
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to open PDF: {e}"}, status=500)
+
+        writer = PdfWriter()
+
+        # 2️⃣ Add all pages safely
+        for page in reader.pages:
+            if hasattr(writer, "add_page"):
+                writer.add_page(page)
+            else:
+                writer.addPage(page)
+
+        # 3️⃣ Get user data safely
+        user = request.user if request.user.is_authenticated else None
+        if user:
+            full_name = getattr(user, "full_name", "") or (
+                f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            )
+            email = getattr(user, "email", "")
+            passport_no = (
+                getattr(user.client_profile, "passport_number", "")
+                if hasattr(user, "client_profile")
+                else ""
+            )
+        else:
+            full_name = email = passport_no = ""
+
+        # 4️⃣ Handle get_fields differences (property vs method)
+        fields = None
+        if hasattr(reader, "get_fields"):
+            if callable(reader.get_fields):
+                fields = reader.get_fields()
+            else:
+                fields = reader.get_fields
+        elif hasattr(reader, "fields"):
+            fields = reader.fields
+
+
+        # 🧩 Debug: safely print available form fields
+        try:
+            fields_info = reader.get_fields() if callable(reader.get_fields) else reader.get_fields
+            if fields_info:
+                print("Form field names:", list(fields_info.keys()))
+            else:
+                print("⚠️ No form fields found in this PDF.")
+        except Exception as e:
+            print("Error checking fields:", e)
+
+
+        # 5️⃣ Fill form fields if found
+        if fields:
+            field_data = {}
+            for field_name in fields.keys():
+                name_lower = field_name.lower()
+                if "name" in name_lower:
+                    field_data[field_name] = full_name
+                elif "email" in name_lower:
+                    field_data[field_name] = email
+                elif "passport" in name_lower:
+                    field_data[field_name] = passport_no
+
+            if field_data:
+                first_page = writer.pages[0] if writer.pages else None
+                if first_page:
+                    writer.update_page_form_field_values(first_page, field_data)
+
+        # 6️⃣ Return filled PDF
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+
+        filename = f"{country}_{visa_type}_filled.pdf".replace(" ", "_")
+        return FileResponse(output, as_attachment=True, filename=filename)
+
+
+class AutoFilledPDFView008(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Find form file
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        try:
+            reader = PdfReader(form_path)
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to open PDF: {e}"}, status=500)
+
+        writer = PdfWriter()
+
+        # 2️⃣ Add pages safely (compatible with all PyPDF2 versions)
+        for page in reader.pages:
+            if hasattr(writer, "add_page"):
+                writer.add_page(page)
+            else:
+                writer.addPage(page)
+
+        # 3️⃣ Read logged-in user data
+        user = request.user if request.user.is_authenticated else None
+        full_name = getattr(user, "get_full_name", lambda: "")()
+        email = getattr(user, "email", "")
+        passport_no = (
+            getattr(user.client_profile, "passport_number", "")
+            if hasattr(user, "client_profile")
+            else ""
+        )
+
+        # 4️⃣ Get form fields (handle both property/function cases)
+        fields = None
+        if hasattr(reader, "get_fields"):
+            if callable(reader.get_fields):
+                fields = reader.get_fields()
+            else:
+                fields = reader.get_fields
+        elif hasattr(reader, "fields"):
+            fields = reader.fields
+
+        # 5️⃣ Fill form fields if present
+        if fields:
+            field_data = {}
+            for field_name in fields.keys():
+                name_lower = field_name.lower()
+                if "name" in name_lower:
+                    field_data[field_name] = full_name
+                elif "email" in name_lower:
+                    field_data[field_name] = email
+                elif "passport" in name_lower:
+                    field_data[field_name] = passport_no
+
+            if field_data:
+                writer.update_page_form_field_values(writer.pages[0], field_data)
+
+        # 6️⃣ Write the filled PDF to memory
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+
+        filename = f"{country}_{visa_type}_filled.pdf".replace(" ", "_")
+        return FileResponse(output, as_attachment=True, filename=filename)
+
+
+class AutoFilledPDFView007(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Find the form for this country & visa type
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        # 2️⃣ Load the source PDF
+        reader = PdfReader(form_path)
+        writer = PdfWriter()
+
+        # 3️⃣ Get current logged-in user data
+        user = request.user if request.user.is_authenticated else None
+        full_name = getattr(user, "full_name", "")
+        email = getattr(user, "email", "")
+        passport_no = getattr(user, "passport_no", "") if hasattr(user, "passport_no") else ""
+
+        # 4️⃣ Add all pages to writer
+        for page in reader.pages:
+            if hasattr(writer, "add_page"):
+                writer.add_page(page)
+            else:
+                writer.addPage(page)
+
+            # ✅ Works in PyPDF2 3.x and pypdf
+            # writer.addPage(page)
+
+        # 5️⃣ Fill form fields if any exist
+        fields = reader.get_fields() or {}
+
+        if fields:
+            field_data = {}
+            for field_name in fields.keys():
+                name_lower = field_name.lower()
+                if "name" in name_lower:
+                    field_data[field_name] = full_name
+                elif "email" in name_lower:
+                    field_data[field_name] = email
+                elif "passport" in name_lower or "passportno" in name_lower:
+                    field_data[field_name] = passport_no
+
+            if field_data:
+                writer.update_page_form_field_values(
+                    writer.pages[0],
+                    field_data
+                )
+
+        # 6️⃣ Write to memory and return as file
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+
+        return FileResponse(output, as_attachment=True, filename="auto_filled_form.pdf")
+
+class AutoFilledPDFView10(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Get the correct form dynamically
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        # 2️⃣ Load PDF
+        reader = PdfReader(form_path)
+        writer = PdfWriter()
+
+        # 3️⃣ Get user info (if logged in)
+        user = request.user if request.user.is_authenticated else None
+        full_name = getattr(user, "full_name", "")
+        email = getattr(user, "email", "")
+
+        # 4️⃣ Fill PDF form fields
+        for page in reader.pages:
+            writer.add_page(page)
+
+        if reader.get_fields():
+            fields = reader.get_fields()
+
+            for field_name, field_obj in fields.items():
+                field_value = None
+
+                # 🧠 Match field names dynamically
+                if "name" in field_name.lower():
+                    field_value = full_name
+                elif "email" in field_name.lower():
+                    field_value = email
+
+                if field_value:
+                    writer.update_page_form_field_values(
+                        writer.pages[0],
+                        {field_name: field_value}
+                    )
+
+        # 5️⃣ Output to memory
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+
+        return FileResponse(output, as_attachment=True, filename="filled_form.pdf")
+
+
+
+class AutoFilledPDFView00(View):
+    def get(self, request, *args, **kwargs):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        if not request.user.is_authenticated:
+            return HttpResponseNotFound("User not authenticated.")
+
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .first()
+        )
+
+        if not req:
+            return HttpResponseNotFound("No PDF form record found for this visa type.")
+        if not req.form_file or not req.form_file.name:
+            return HttpResponseNotFound("Form file field is empty or missing.")
+        if not os.path.exists(req.form_file.path):
+            return HttpResponseNotFound(f"Form file not found on disk: {req.form_file.path}")
+
+        try:
+            reader = PdfReader(req.form_file.path)
+            writer = PdfWriter()
+
+            # Applicant data
+            profile = getattr(request.user, "client_profile", None)
+            data = {
+                "Full Name:": f"{request.user.first_name} {request.user.last_name}",
+                "Passport Number:": getattr(profile, "passport_number", ""),
+                "Email:": request.user.email,
+                # "Nationality": getattr(profile, "nationality", ""),
+            }
+
+            for page in reader.pages:
+                writer.add_page(page)
+            writer.update_page_form_field_values(writer.pages[0], data)
+
+            output = io.BytesIO()
+            writer.write(output)
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_Filled_Form.pdf".replace(" ", "_")
+            return FileResponse(output, as_attachment=True, filename=filename)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+class AutoFilledPDFView1(View):
+    def get(self, request, *args, **kwargs):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        if not request.user.is_authenticated:
+            return HttpResponseNotFound("User not authenticated.")
+
+        # 🔹 Use .filter().first() to avoid MultipleObjectsReturned
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")      # Exclude blank file paths
+            .exclude(form_file__isnull=True)   # Exclude nulls
+            .first()
+        )
+
+        if not req:
+            return HttpResponseNotFound("No PDF form record found for this visa type.")
+
+        # 🔹 Ensure a file actually exists on disk
+        if not req.form_file or not req.form_file.name:
+            return HttpResponseNotFound("Form file field is empty or missing.")
+        if not os.path.exists(req.form_file.path):
+            return HttpResponseNotFound(f"Form file not found on disk: {req.form_file.path}")
+
+        form_path = req.form_file.path
+
+
+        try:
+            reader = PdfReader(form_path)
+            writer = PdfWriter()
+
+            # 🔹 Example fields — adjust to match your PDF’s actual field names
+            profile = getattr(request.user, "client_profile", None)
+            data = {
+                "Full Name": f"{request.user.first_name} {request.user.last_name}",
+                "Passport Number": getattr(profile, "passport_number", ""),
+                "Email": request.user.email,
+                # "Nationality": getattr(profile, "nationality", ""),
+            }
+
+            for page in reader.pages:
+                writer.add_page(page)
+            writer.update_page_form_field_values(writer.pages[0], data)
+
+            output = io.BytesIO()
+            writer.write(output)
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_Filled_Form.pdf".replace(" ", "_")
+            return FileResponse(
+                output,
+                as_attachment=True,
+                filename=filename,
+                content_type="application/pdf",
+            )
+
+        except FileNotFoundError:
+            return HttpResponseNotFound(f"Form file not found: {form_path}")
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+
+class AutoFilledPDFView2(View):
+    def get(self, request, *args, **kwargs):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        if not request.user.is_authenticated:
+            return HttpResponseNotFound("User not authenticated.")
+
+        # 🔹 Try to find a matching document requirement
+        try:
+            req = DocumentRequirement.objects.get(
+                country=country,
+                visa_type=visa_type
+            )
+        except DocumentRequirement.DoesNotExist:
+            return HttpResponseNotFound("No form found for this visa type.")
+
+        # 🔹 Ensure the requirement has an uploaded form file
+        if not req.form_file:
+            return HttpResponseNotFound("No PDF form uploaded for this visa type.")
+
+        # 🔹 Use the actual uploaded file path
+        form_path = req.form_file.path
+
+        try:
+            reader = PdfReader(form_path)
+            writer = PdfWriter()
+
+            # ✅ Example auto-fill fields — adapt these to your real PDF form fields
+            data = {
+                "Name": f"{request.user.first_name} {request.user.last_name}",
+                "Passport Number": getattr(request.user.profile, "passport_no", ""),
+                "Email": request.user.email,
+            }
+
+            # 🔹 Fill each field
+            for page in reader.pages:
+                writer.add_page(page)
+            writer.update_page_form_field_values(writer.pages[0], data)
+
+            # 🔹 Write filled form to memory
+            output = io.BytesIO()
+            writer.write(output)
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_Filled_Form.pdf"
+            return FileResponse(
+                output,
+                as_attachment=True,
+                filename=filename,
+                content_type="application/pdf"
+            )
+
+        except FileNotFoundError:
+            return HttpResponseNotFound(f"File not found: {form_path}")
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+
+# @method_decorator(login_required, name='dispatch')
+# class AutoFilledPDFView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, *args, **kwargs):
+#         country = request.query_params.get("country")
+#         visa_type = request.query_params.get("visa_type")
+
+#         # 1️⃣ Fetch the form file requirement
+#         req = DocumentRequirement.objects.filter(
+#             country=country, visa_type=visa_type, form_file__isnull=False
+#         ).first()
+
+#         if not req or not req.form_file:
+#             raise Http404("Form not found for this visa type")
+
+#         template_path = req.form_file.path
+
+#         # 2️⃣ Load the PDF template
+#         reader = PdfReader(template_path)
+#         writer = PdfWriter()
+
+#         # 3️⃣ Get applicant info
+#         user = request.user
+#         client = getattr(user, "client_profile", None)
+#         applicant_data = {
+#             "Full Name": user.get_full_name,
+#             "Passport Number": getattr(client, "passport_number", "N/A"),
+#             "Email": user.email,
+#         }
+
+#         # 4️⃣ Fill form fields
+#         for page in reader.pages:
+#             writer.add_page(page)
+
+#         if reader.get_fields():
+#             fields = reader.get_fields()
+#             for key, field in fields.items():
+#                 if key in applicant_data:
+#                     writer.update_page_form_field_values(
+#                         writer.pages[0], {key: applicant_data[key]}
+#                     )
+
+#         # Preserve AcroForm
+#         if "/AcroForm" in reader.trailer["/Root"]:
+#             writer._root_object.update({
+#                 NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]
+#             })
+
+#         # 5️⃣ Output to memory and return
+#         output_stream = io.BytesIO()
+#         writer.write(output_stream)
+#         output_stream.seek(0)
+
+#         filename = f"{country}_{visa_type}_filled_form.pdf".replace(" ", "_")
+#         return FileResponse(output_stream, as_attachment=True, filename=filename)
+
+
+
+@api_view(["GET"])
+def get_requirements(request):
+    country = request.GET.get("country")
+    visa_type = request.GET.get("visa_type")
+
+    qs = DocumentRequirement.objects.filter(country=country, visa_type=visa_type, is_active=True)
+    serializer = DocumentRequirementSerializer(qs, many=True, context={"request": request})
+    return Response(serializer.data)
+
+
+
+@api_view(["GET"])
+def pdf_form(request):
+    country = request.GET.get("country")
+    visa_type = request.GET.get("visa_type")
+    if not (country and visa_type):
+        return Response({"error": "Missing parameters"}, status=400)
+
+    pdf_path = Path(f"media/pdf_forms/{country}_{visa_type}.pdf")
+    if not pdf_path.exists():
+        raise Http404("Form not found")
+
+    return FileResponse(open(pdf_path, "rb"), as_attachment=True, filename=pdf_path.name)
+
+
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_refusals(request, pk):

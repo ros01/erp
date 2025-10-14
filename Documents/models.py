@@ -57,6 +57,15 @@ class DocumentRequirement(BaseModel):
     category = models.CharField(max_length=20, choices=DOCUMENT_CATEGORIES, default="OTHER")
     is_mandatory = models.BooleanField(default=True)
 
+
+    # 🆕 Optional visa form upload for this requirement
+    form_file = models.FileField(
+        upload_to="pdf_forms/",
+        blank=True,
+        null=True,
+        help_text="Optional PDF form to download or fill for this requirement."
+    )
+
     def __str__(self):
         return f"{self.get_country_display()} | {self.get_visa_type_display()} | {self.name}"
 

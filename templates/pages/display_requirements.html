@@ -23,6 +23,51 @@
     .spinner{display:inline-block;width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:var(--b);border-radius:50%;animation:spin 1s linear infinite;margin-right:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
     @media (max-width:680px){.row{grid-template-columns:1fr}}
+
+    /* 🔸 Flashing Download Form Button */
+  .flash-button {
+    animation: flash 1.5s infinite;
+    border-color: #dc3545 !important;
+    color: #dc3545 !important;
+  }
+
+  .flash-button:hover {
+    animation: none;
+    background-color: #dc3545 !important;
+    color: #fff !important;
+  }
+
+  @keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  /* ⚡ Flashing Yellow Download Button */
+  /*.flash-button {
+    animation: flash-yellow 1.2s infinite;
+    border-color: #ffeb3b !important;
+    background-color: #fff9c4 !important;
+    color: #000 !important;
+    font-weight: 600;
+    box-shadow: 0 0 10px #ffeb3b;
+    transition: all 0.3s ease;
+  }
+
+  .flash-button:hover {
+    animation: none;
+    background-color: #ffeb3b !important;
+    box-shadow: 0 0 20px #ffee58;
+    color: #000 !important;
+  }
+
+  @keyframes flash-yellow {
+    0% { background-color: #fff9c4; box-shadow: 0 0 8px #ffeb3b; }
+    50% { background-color: #ffeb3b; box-shadow: 0 0 20px #fff176; }
+    100% { background-color: #fff9c4; box-shadow: 0 0 8px #ffeb3b; }
+  }*/
+
+
   </style>
 
 <main class="main">
@@ -56,13 +101,28 @@
       <div class="reqs" id="requirements" aria-live="polite"></div>
 
       <!-- Register CTA, hidden until requirements are loaded -->
-      <div class="d-flex justify-content-end" style="margin-top:20px"> 
+      <!-- <div class="d-flex justify-content-end" style="margin-top:20px"> 
+      <a id="registerLink" href="{% url 'Clients:client-register' %}" 
+      class="btn btn-primary file-dl-toast" 
+      style="display:none">
+      <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
+      </a>
+      </div> -->
+
+
+      <div class="d-flex justify-content-end gap-2" style="margin-top:20px">
+      <a id="downloadPdfBtn" href="#" class="btn btn-outline-secondary" style="display:none">
+      <i class="bx bxs-file-pdf align-middle me-1"></i> Download PDF
+      </a>
+
       <a id="registerLink" href="{% url 'Clients:client-register' %}" 
       class="btn btn-primary file-dl-toast" 
       style="display:none">
       <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
       </a>
       </div>
+
+
 
       <div id="appResult" class="reqs"></div>
 
@@ -75,99 +135,147 @@
   </div>
   </main>
 
-  <script>
-    const API_BASE = "/api";
-    const countrySel = document.getElementById("country");
-    const visaSel = document.getElementById("visaType");
-    const showBtn = document.getElementById("showBtn");
-    const statusEl = document.getElementById("status");
-    const reqsEl = document.getElementById("requirements");
-    const registerLink = document.getElementById("registerLink");
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const API_BASE = "/api";
+  const countrySel = document.getElementById("country");
+  const visaSel = document.getElementById("visaType");
+  const showBtn = document.getElementById("showBtn");
+  const reqsEl = document.getElementById("requirements");
+  const registerLink = document.getElementById("registerLink");
 
-    async function fetchJSON(url, opts={}){
-      const res = await fetch(url, {
-        headers: { "Content-Type": "application/json", ...opts.headers },
-        credentials: "include",
-        method: opts.method || "GET",
-        body: opts.body ? JSON.stringify(opts.body) : undefined
+  let currentUser = null;
+
+  async function fetchJSON(url, opts = {}) {
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json", ...opts.headers },
+      credentials: "include",
+      method: opts.method || "GET",
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function resetVisaTypes(disabled = true) {
+    visaSel.innerHTML = `<option value="">— Select visa type —</option>`;
+    visaSel.disabled = disabled;
+  }
+
+  function resetRequirements() {
+    reqsEl.innerHTML = "";
+    registerLink.style.display = "none";
+  }
+
+  // 🟢 Fetch current user info
+  async function checkLoginStatus() {
+    try {
+      currentUser = await fetchJSON(`${API_BASE}/user/`);
+      console.log("User logged in:", currentUser);
+    } catch {
+      currentUser = null;
+      console.log("No logged-in user.");
+    }
+  }
+
+  // 🟢 Load countries
+  (async function loadCountries() {
+    try {
+      await checkLoginStatus();
+      const countries = await fetchJSON(`${API_BASE}/countries/`);
+      countries.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = c.name;
+        countrySel.appendChild(opt);
       });
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    }
+    } catch (e) { console.error(e); }
+  })();
 
-    function resetVisaTypes(disabled=true){
-      visaSel.innerHTML = `<option value="">— Select visa type —</option>`;
-      visaSel.disabled = disabled;
-    }
+  // 🟢 Country → visa types
+  countrySel.addEventListener("change", async () => {
+    resetVisaTypes();
+    resetRequirements();
+    const country = countrySel.value;
+    if (!country) { resetVisaTypes(true); return; }
+    try {
+      const visaTypes = await fetchJSON(`${API_BASE}/visa-types/?country=${encodeURIComponent(country)}`);
+      visaTypes.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.code;
+        opt.textContent = v.name;
+        visaSel.appendChild(opt);
+      });
+      visaSel.disabled = false;
+    } catch (e) { console.error(e); }
+  });
 
-    function resetRequirements(){
-      reqsEl.innerHTML = "";
-      registerLink.style.display = "none"; // hide register until new reqs shown
-    }
+  visaSel.addEventListener("change", () => {
+    showBtn.disabled = !(countrySel.value && visaSel.value);
+    resetRequirements();
+  });
 
-    // Load countries
-    (async function loadCountries(){
-      try{
-        const countries = await fetchJSON(`${API_BASE}/countries/`);
-        countries.forEach(c=>{
-          const opt = document.createElement("option");
-          opt.value = c.code;
-          opt.textContent = c.name;
-          countrySel.appendChild(opt);
-        });
-      }catch(e){ console.error(e); }
-    })();
+  // 🟢 Show requirements
+  showBtn.addEventListener("click", async () => {
+    resetRequirements();
+    const country = countrySel.value;
+    const visa = visaSel.value;
+    if (!country || !visa) return;
 
-    // Country → visa types
-    countrySel.addEventListener("change", async ()=>{
-      resetVisaTypes();
-      resetRequirements();
-      const country = countrySel.value;
-      if(!country){ resetVisaTypes(true); return; }
-      try{
-        const visaTypes = await fetchJSON(`${API_BASE}/visa-types/?country=${encodeURIComponent(country)}`);
-        visaTypes.forEach(v=>{
-          const opt = document.createElement("option");
-          opt.value = v.code;
-          opt.textContent = v.name;
-          visaSel.appendChild(opt);
-        });
-        visaSel.disabled = false;
-      }catch(e){ console.error(e); }
-    });
+    try {
+      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+      if (!reqs.length) {
+        reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+        return;
+      }
 
-    visaSel.addEventListener("change", ()=>{
-      showBtn.disabled = !(countrySel.value && visaSel.value);
-      resetRequirements();
-    });
+      reqs.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "req";
 
-    // Show requirements
-    showBtn.addEventListener("click", async ()=>{
-      resetRequirements();
-      const country = countrySel.value;
-      const visa = visaSel.value;
-      if(!country || !visa) return;
-      try{
-        const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
-        if(!reqs.length){ 
-          reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>"; 
-          return; 
+        let pdfLink = "";
+        if (r.form_file_url) {
+          // Auto-fill if logged in, else static link
+          const pdfUrl = currentUser
+            ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+            : r.form_file_url;
+
+          pdfLink = `<a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-danger flash-button" style="margin-left:10px">
+                       <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+                     </a>`;
         }
-        reqs.forEach(r=>{
-          const row = document.createElement("div");
-          row.className = "req";
-          row.innerHTML = `<div><strong>${r.name}</strong><br/><small class="muted">${r.description || "—"}</small></div>
-                           <span class="tag ${r.is_mandatory ? "req" : "opt"}">${r.is_mandatory ? "Required" : "Optional"}</span>`;
-          reqsEl.appendChild(row);
-        });
 
-        // ✅ Show register button after requirements displayed
-        registerLink.style.display = "inline-block";
+        row.innerHTML = `
+          <div>
+            <strong>${r.name}</strong><br/>
+            <small class="muted">${r.description || "—"}</small>
+          </div>
+          ${pdfLink}
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          </div>
+        `;
+        reqsEl.appendChild(row);
+      });
 
-      }catch(e){ console.error(e); }
-    });
+      // Show Register to Continue button
+      registerLink.style.display = "inline-block";
 
-  </script>
-  {% endblock %}
+    } catch (e) {
+      console.error(e);
+    }
+  });
+});
+</script>
+
+
+
+
+
+
+
+  {% endblock %} 
 
 

@@ -173,12 +173,36 @@ class ReapplyDocumentSerializer(serializers.ModelSerializer):
 
 
 class DocumentRequirementSerializer(serializers.ModelSerializer):
+    form_file_url = serializers.SerializerMethodField()
+
     class Meta:
         model = DocumentRequirement
         fields = [
-            "id", "country", "visa_type",
-            "name", "description", "category", "is_mandatory"
+            "id",
+            "country",
+            "visa_type",
+            "name",
+            "description",
+            "is_mandatory",
+            "form_file_url",  # ✅ include this
         ]
+
+    def get_form_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.form_file and hasattr(obj.form_file, "url"):
+            if request:
+                return request.build_absolute_uri(obj.form_file.url)
+            return obj.form_file.url
+        return None
+
+        
+# class DocumentRequirementSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = DocumentRequirement
+#         fields = [
+#             "id", "country", "visa_type",
+#             "name", "description", "category", "is_mandatory"
+#         ]
 
 
 class DocumentSerializer000(serializers.ModelSerializer):
