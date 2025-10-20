@@ -41,15 +41,117 @@ from pathlib import Path
 from rest_framework.decorators import api_view
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from pdfrw import PdfReader, PdfWriter, PdfDict
-from PyPDF2.generic import NameObject, TextStringObject
+#from pdfrw import PdfReader, PdfWriter, PdfDict
+#from PyPDF2.generic import NameObject, TextStringObject
 from django.contrib.auth import get_user_model
 from django.conf import settings
 import io, os
 from io import BytesIO
+from pypdf import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import pypdf
+from pypdf.generic import NameObject 
+
+
 
 User = get_user_model()
 
+
+
+class AutoFilledPDFView(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Get matching document requirement that has a form file
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by("-id")
+            .first()
+        )
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        try:
+            reader = PdfReader(form_path)
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to open PDF: {e}"}, status=500)
+
+        writer = PdfWriter()
+
+        # Copy all pages from reader
+        for page in reader.pages:
+            writer.add_page(page)
+
+        # ✅ Copy the /AcroForm dictionary so that form fields are preserved
+        if "/AcroForm" in reader.trailer["/Root"]:
+            writer._root_object.update({
+                NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]
+            })
+
+        # 2️⃣ Prepare user info
+        user = request.user if request.user.is_authenticated else None
+        if user:
+            full_name = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            email = getattr(user, "email", "")
+            passport_no = (
+                getattr(user.client_profile, "passport_number", "")
+                if hasattr(user, "client_profile")
+                else ""
+            )
+        else:
+            full_name = email = passport_no = ""
+
+        # 3️⃣ Try to fill the form if fields exist
+        try:
+            fields = reader.get_fields() or {}
+            if fields:
+                field_data = {}
+                for field_name in fields.keys():
+                    lname = field_name.lower()
+                    if "name" in lname:
+                        field_data[field_name] = full_name
+                    elif "email" in lname:
+                        field_data[field_name] = email
+                    elif "passport" in lname:
+                        field_data[field_name] = passport_no
+
+                if field_data:
+                    first_page = writer.pages[0]
+                    writer.update_page_form_field_values(first_page, field_data)
+            else:
+                raise ValueError("No form fields found")
+        except Exception as e:
+            # 🟡 Hybrid fallback: generate a simple summary PDF with reportlab
+            output = BytesIO()
+            c = canvas.Canvas(output, pagesize=A4)
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(100, 780, f"Visa Application Form - {country} / {visa_type}")
+            c.setFont("Helvetica", 12)
+            c.drawString(100, 740, f"Full Name: {full_name}")
+            c.drawString(100, 720, f"Email: {email}")
+            c.drawString(100, 700, f"Passport Number: {passport_no}")
+            c.setFont("Helvetica-Oblique", 10)
+            c.drawString(100, 660, "(Auto-generated because the original PDF form was not fillable.)")
+            c.showPage()
+            c.save()
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_summary.pdf".replace(" ", "_")
+            return FileResponse(output, as_attachment=True, filename=filename)
+
+        # 4️⃣ Return filled form
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+        filename = f"{country}_{visa_type}_filled.pdf".replace(" ", "_")
+        return FileResponse(output, as_attachment=True, filename=filename)
 
 
 # @api_view(["GET", "POST"])
@@ -256,6 +358,207 @@ def pdf_form_fill(request):
     filename = f"{user.last_name}_VisaForm.pdf"
     return FileResponse(output_stream, as_attachment=True, filename=filename)
 
+
+
+
+
+
+class AutoFilledPDFViewL0(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Get matching requirement
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by("-id")
+            .first()
+        )
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        try:
+            reader = PdfReader(form_path)
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to open PDF: {e}"}, status=500)
+
+        writer = PdfWriter()
+
+        # Copy pages from reader
+        for page in reader.pages:
+            writer.add_page(page)
+
+        # ✅ Explicitly copy the AcroForm dictionary
+        if "/AcroForm" in reader.trailer["/Root"]:
+            writer._root_object.update(
+                {
+                    NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]
+                }
+            )
+
+        # 2️⃣ Collect user info
+        user = request.user if request.user.is_authenticated else None
+        if user:
+            full_name = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            email = getattr(user, "email", "")
+            passport_no = (
+                getattr(user.client_profile, "passport_number", "")
+                if hasattr(user, "client_profile")
+                else ""
+            )
+        else:
+            full_name = email = passport_no = ""
+
+        # 3️⃣ Try to fill the form fields
+        try:
+            fields = reader.get_fields() or {}
+            if fields:
+                field_data = {}
+                for field_name in fields.keys():
+                    lname = field_name.lower()
+                    if "name" in lname:
+                        field_data[field_name] = full_name
+                    elif "email" in lname:
+                        field_data[field_name] = email
+                    elif "passport" in lname:
+                        field_data[field_name] = passport_no
+
+                if field_data:
+                    first_page = writer.pages[0]
+                    writer.update_page_form_field_values(first_page, field_data)
+            else:
+                raise ValueError("No form fields found")
+        except Exception as e:
+            # 🟡 Hybrid fallback: generate a basic PDF with user info
+            output = BytesIO()
+            c = canvas.Canvas(output, pagesize=A4)
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(100, 780, f"Visa Application Form - {country} / {visa_type}")
+            c.setFont("Helvetica", 12)
+            c.drawString(100, 740, f"Full Name: {full_name}")
+            c.drawString(100, 720, f"Email: {email}")
+            c.drawString(100, 700, f"Passport Number: {passport_no}")
+            c.drawString(100, 660, "(This is an auto-generated summary because the original form is not fillable.)")
+            c.showPage()
+            c.save()
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_summary.pdf".replace(" ", "_")
+            return FileResponse(output, as_attachment=True, filename=filename)
+
+        # 4️⃣ Return filled PDF
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+        filename = f"{country}_{visa_type}_filled.pdf".replace(" ", "_")
+        return FileResponse(output, as_attachment=True, filename=filename)
+
+
+
+
+class AutoFilledPDFViewL(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # ✅ 1. Locate the correct PDF form for this visa type
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by("-id")
+            .first()
+        )
+
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        # ✅ 2. Collect user data safely
+        user = request.user if request.user.is_authenticated else None
+        if user:
+            full_name = getattr(user, "full_name", "") or (
+                f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            )
+            email = getattr(user, "email", "")
+            passport_no = (
+                getattr(user.client_profile, "passport_number", "")
+                if hasattr(user, "client_profile")
+                else ""
+            )
+        else:
+            full_name = email = passport_no = ""
+
+        # ✅ 3. Try opening and checking the PDF form
+        try:
+            reader = PdfReader(form_path)
+            writer = PdfWriter()
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to open PDF: {e}"}, status=500)
+
+        fields = None
+        try:
+            fields = reader.get_fields()  # Works in pypdf
+        except Exception:
+            pass
+
+        # ✅ 4. If form has fields → fill them
+        if fields:
+            for page in reader.pages:
+                writer.add_page(page)
+
+            field_data = {}
+            for field_name in fields.keys():
+                name_lower = field_name.lower()
+                if "name" in name_lower:
+                    field_data[field_name] = full_name
+                elif "email" in name_lower:
+                    field_data[field_name] = email
+                elif "passport" in name_lower:
+                    field_data[field_name] = passport_no
+
+            if field_data:
+                first_page = writer.pages[0] if writer.pages else None
+                if first_page:
+                    writer.update_page_form_field_values(first_page, field_data)
+
+            output = BytesIO()
+            writer.write(output)
+            output.seek(0)
+
+            filename = f"{country}_{visa_type}_filled.pdf".replace(" ", "_")
+            return FileResponse(output, as_attachment=True, filename=filename)
+
+        # ✅ 5. Otherwise → auto-generate a simple PDF summary
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, 780, f"{country} - {visa_type} Visa Form Summary")
+
+        c.setFont("Helvetica", 12)
+        c.drawString(100, 740, f"Full Name: {full_name or 'N/A'}")
+        c.drawString(100, 720, f"Email: {email or 'N/A'}")
+        c.drawString(100, 700, f"Passport Number: {passport_no or 'N/A'}")
+
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawString(100, 660, "(This is an auto-generated summary because the original form is not fillable.)")
+
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+
+        filename = f"{country}_{visa_type}_auto_generated.pdf".replace(" ", "_")
+        return FileResponse(buffer, as_attachment=True, filename=filename)
+
+
+
 class AutoFilledPDFView0(View):
     def get(self, request, *args, **kwargs):
         country = request.GET.get("country")
@@ -320,7 +623,117 @@ class AutoFilledPDFView0(View):
 
 
 
-class AutoFilledPDFView(View):
+
+
+class AutoFilledPDFView111(View):
+    def get(self, request):
+        country = request.GET.get("country")
+        visa_type = request.GET.get("visa_type")
+
+        # 1️⃣ Find the correct requirement file
+        req = (
+            DocumentRequirement.objects
+            .filter(country=country, visa_type=visa_type)
+            .exclude(form_file__exact="")
+            .exclude(form_file__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+
+        if not req or not req.form_file:
+            return HttpResponseNotFound("No PDF form found for this visa type.")
+
+        form_path = req.form_file.path
+
+        # 2️⃣ Prepare user info
+        user = request.user if request.user.is_authenticated else None
+        full_name = (
+            f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            if user else ""
+        )
+        email = getattr(user, "email", "") if user else ""
+        passport_no = (
+            getattr(user.client_profile, "passport_number", "")
+            if user and hasattr(user, "client_profile") else ""
+        )
+
+        # 3️⃣ Try to open the uploaded PDF form
+        try:
+            reader = PdfReader(form_path)
+            writer = PdfWriter()
+
+            # Copy all pages
+            for page in reader.pages:
+                if hasattr(writer, "add_page"):
+                    writer.add_page(page)
+                else:
+                    writer.addPage(page)
+
+            # Detect form fields
+            fields = None
+            if hasattr(reader, "get_fields"):
+                fields = reader.get_fields() if callable(reader.get_fields) else reader.get_fields
+
+            if fields:
+                field_data = {}
+                for field_name in fields.keys():
+                    name_lower = field_name.lower()
+                    if "name" in name_lower:
+                        field_data[field_name] = full_name
+                    elif "email" in name_lower:
+                        field_data[field_name] = email
+                    elif "passport" in name_lower:
+                        field_data[field_name] = passport_no
+
+                if field_data:
+                    first_page = writer.pages[0] if writer.pages else None
+                    if first_page:
+                        writer.update_page_form_field_values(first_page, field_data)
+
+                    # Write filled version
+                    output = BytesIO()
+                    writer.write(output)
+                    output.seek(0)
+
+                    filename = f"{country}_{visa_type}_filled_form.pdf".replace(" ", "_")
+                    return FileResponse(output, as_attachment=True, filename=filename)
+
+            # ⚠️ If we reached here, no fillable fields exist
+            print("⚠️ No form fields found — generating fallback PDF")
+
+        except Exception as e:
+            print(f"PDF processing error: {e}")
+
+        # 4️⃣ Fallback → Generate a simple auto-filled PDF
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(100, 780, f"Visa Application - {country} ({visa_type})")
+
+        p.setFont("Helvetica", 12)
+        y = 740
+        p.drawString(100, y, f"Full Name: {full_name}")
+        y -= 20
+        p.drawString(100, y, f"Email: {email}")
+        y -= 20
+        p.drawString(100, y, f"Passport Number: {passport_no}")
+
+        y -= 40
+        p.setFont("Helvetica-Oblique", 11)
+        p.drawString(100, y, "Note: This form was auto-generated because no fillable fields were found.")
+
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+
+        filename = f"{country}_{visa_type}_autofilled_summary.pdf".replace(" ", "_")
+        return FileResponse(buffer, as_attachment=True, filename=filename)
+
+
+
+
+class AutoFilledPDFView1(View):
     def get(self, request):
         country = request.GET.get("country")
         visa_type = request.GET.get("visa_type")
