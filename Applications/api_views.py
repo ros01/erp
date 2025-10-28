@@ -2,6 +2,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Q, Value
@@ -57,7 +58,19 @@ from pypdf.generic import NameObject
 
 User = get_user_model()
 
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        user = request.user
+        data = {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.get_full_name,
+            "role": user.role,
+        }
+        return Response(data)
+        
 
 class AutoFilledPDFView(View):
     def get(self, request):
@@ -309,18 +322,7 @@ class AutoFilledPDFView(View):
 #         return FileResponse(output_stream, as_attachment=True, filename=filename)
 
 
-class CurrentUserView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
-        data = {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.get_full_name,
-            "role": user.role,
-        }
-        return Response(data)
 
 
 
@@ -2015,11 +2017,15 @@ class ApplicationCreateAPICaseView(generics.GenericAPIView):
         )
 
 
+
+
+
 class ApplicationCreateAPIView(generics.GenericAPIView):
     """
     Confirm Application:
     Creates VisaApplication + auto-generates Document placeholders
     """
+    authentication_classes = [SessionAuthentication]
     serializer_class = VisaApplicationSerializer
     permission_classes = [IsAuthenticated]
 

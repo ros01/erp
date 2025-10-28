@@ -7,6 +7,18 @@ from django.views.generic import TemplateView, ListView
 from Applications.models import VisaApplication
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q
+from rest_framework.decorators import api_view, permission_classes
+from django.views.decorators.csrf import ensure_csrf_cookie
+
+# @ensure_csrf_cookie
+# @api_view(["GET"])
+# @permission_classes([])
+# def current_user(request):
+#     if request.user.is_authenticated:
+#         return Response({"username": request.user.username})
+#     return Response({"detail": "Not logged in"}, status=401)
+
+    
 
 class ClientRegisterPage(View):
     template_name = "clients/register.html"

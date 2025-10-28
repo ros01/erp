@@ -169,10 +169,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let userIsLoggedIn = false;
 
   // --- CSRF helper ---
-  function getCSRFToken() {
-    const match = document.cookie.match(/(^|;)\\s*csrftoken=([^;]+)/);
+  // function getCSRFToken() {
+  //   const match = document.cookie.match(/(^|;)\\s*csrftoken=([^;]+)/);
+  //   return match ? decodeURIComponent(match[2]) : "";
+  // }
+
+    function getCSRFToken() {
+    const match = document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/);
     return match ? decodeURIComponent(match[2]) : "";
   }
+
 
   // --- JSON fetch wrapper with CSRF + credentials ---
   async function fetchJSON(url, opts = {}) {
