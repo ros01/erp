@@ -1,111 +1,83 @@
-{% extends 'clients/clients_dashboard_base1.html' %}
+{% extends 'clients/clients_dashboard_base1.html'%}
 {% load static %}
-{% load dict_extras %}
+{% block title%}| Welcome {% endblock %}
 
-{% block title %}| Application Documents{% endblock %}
+{% block styles %}
+
+
+
+{% endblock %}
+
 
 {% block content %}
+
+
 <div class="col-xl-9">
 <div class="card pb-3">
 <div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<h4 class="card-title text-info mb-2">Visa Application Documents</h4>
+</div>
 
-<h4 class="card-title text-info mb-4">
-  Visa Application Documents — {{ application.reference_no }}
-</h4>
-
-<table class="table table-bordered w-100">
+<table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
 <thead class="table-light">
 <tr>
-  <th>Requirement</th>
-  <th>Status</th>
-  <th>Upload / View</th>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
 </tr>
 </thead>
-
 <tbody id="documentsBody">
-
-{% for stage in stage_sequence %}
-
-  <!-- 🔹 STAGE HEADER -->
-  <tr class="table-light">
-    <td colspan="3">
-      <strong>{{ stage|title }}</strong>
-
-      {% if stage == current_stage %}
-        <span class="badge bg-primary ms-2">Current Stage</span>
-      {% elif stage_sequence|slice:":forloop.counter0"|last == stage %}
-        <span class="badge bg-success ms-2">Completed</span>
-      {% elif stage_sequence|slice:":forloop.counter0"|join:"," and stage != current_stage %}
-        <span class="badge bg-success ms-2">Completed</span>
-      {% else %}
-        <span class="badge bg-secondary ms-2">Locked</span>
-      {% endif %}
-    </td>
-  </tr>
-
-  <!-- 🟢 CURRENT STAGE (UPLOAD ENABLED) -->
-  {% if stage == current_stage %}
-    {% for doc in documents_by_stage|dict_get:stage %}
-    <tr data-doc-id="{{ doc.id }}">
-      <td>{{ doc.requirement.name }}</td>
-      <td class="status">
-        <span class="badge bg-warning">{{ doc.status }}</span>
-      </td>
-      <td class="action-cell">
-        {% if doc.file %}
-          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
-            View File
-          </a>
-        {% else %}
-          <div class="d-flex gap-2">
-            <input type="file" class="form-control form-control-sm file-input" />
-            <button class="btn btn-sm btn-primary upload-btn">Upload</button>
-          </div>
-        {% endif %}
-      </td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="3" class="text-muted">No documents for this stage.</td>
-    </tr>
-    {% endfor %}
-
-  <!-- ✅ COMPLETED STAGES (VIEW ONLY) -->
-  {% elif stage in stage_sequence and stage_sequence|slice:":forloop.counter0" %}
-    {% for doc in documents_by_stage|dict_get:stage %}
-    <tr>
-      <td>{{ doc.requirement.name }}</td>
-      <td>
-        <span class="badge bg-success">{{ doc.status }}</span>
-      </td>
-      <td>
-        {% if doc.file %}
-          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
-            View
-          </a>
-        {% else %}
-          —
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  {% endif %}
-
+{% for doc in application.documents.all %}
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
 {% endfor %}
-
 </tbody>
 </table>
 
-<div class="d-flex justify-content-end mt-4">
-  <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
-    ← Back to Applications
-  </a>
+
+
+
+<div class="d-flex justify-content-end"> 
+
+<a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i>  Return to Applications</a>`
+</div>
+
+
+
 </div>
 
 </div>
-</div>
-</div>
 
+</div> 
+</div> 
+</div>
 
 
 <!-- Refusal Modal -->

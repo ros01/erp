@@ -14,6 +14,8 @@ import environ
 from pathlib import Path
 from django.contrib.messages import constants as messages
 from django.contrib.messages import constants as message_constants
+
+
 # from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -181,4 +183,26 @@ except ImportError:
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
+
+#EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.sendgrid.net"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'apikey' # Name for all the SenGrid accounts
+EMAIL_HOST_PASSWORD = env('SENDGRID_API_KEY')
+
+
+
+
+DEFAULT_FROM_EMAIL = env('FROM_EMAIL', default='visas@scvisas.com')
+LOGIN_REDIRECT_URL = 'success'
+
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+

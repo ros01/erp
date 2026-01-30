@@ -1,7 +1,7 @@
 # applications/serializers.py
 from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
-from .models import VisaApplication, PreviousRefusalLetter
+from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline
 from django.contrib.auth import get_user_model
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
@@ -9,8 +9,16 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+# serializers.py
+class StudentPipelineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentApplicationPipeline
+        fields = "__all__"
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     requirement_name = serializers.CharField(source="requirement.name", read_only=True)
+    stage = serializers.CharField(source="requirement.stage")
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     status_badge = serializers.SerializerMethodField()
     application = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -24,6 +32,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             "requirement_name",
             "file",
             "status",            # keep raw status
+            "stage",   
             "status_display",
             "status_badge",
             "review_comments",
@@ -175,17 +184,25 @@ class ReapplyDocumentSerializer(serializers.ModelSerializer):
 class DocumentRequirementSerializer(serializers.ModelSerializer):
     form_file_url = serializers.SerializerMethodField()
 
+    stage_display = serializers.CharField(
+        source="get_stage_display",
+        read_only=True
+    )
+
     class Meta:
         model = DocumentRequirement
         fields = [
             "id",
             "country",
             "visa_type",
+            "stage",           # 🔥 REQUIRED
+            "stage_display",   # 🔥 REQUIRED
             "name",
             "description",
             "is_mandatory",
-            "form_file_url",  # ✅ include this
+            "form_file_url",
         ]
+
 
     def get_form_file_url(self, obj):
         request = self.context.get("request")
@@ -194,6 +211,7 @@ class DocumentRequirementSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.form_file.url)
             return obj.form_file.url
         return None
+
 
         
 # class DocumentRequirementSerializer(serializers.ModelSerializer):

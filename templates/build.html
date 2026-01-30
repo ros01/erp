@@ -1,3 +1,525 @@
+
+class BaseModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        abstract = True
+
+
+
+class VisaApplication(BaseModel):
+    VISA_TYPES = [
+        ("TOURIST", "Tourist Visa"),
+        ("STUDENT", "Student Visa"),
+        ("WORK", "Work Visa"),
+        ("BUSINESS", "Business Visa"),
+        ("TRANSIT", "Transit Visa"),
+        ("RESIDENCY", "Residency / PR"),
+        ("DIPLOMATIC", "Diplomatic Visa"),
+        ("OTHER", "Other"),
+    ]
+
+    COUNTRIES = [
+        ("UK", "United Kingdom"),
+        ("USA", "United States"),
+        ("CANADA", "Canada"),
+        ("SCHENGEN", "Schengen"),
+        ("QATAR", "Qatar"),
+        ("DUBAI", "Dubai"),
+    ]
+
+    STATUS_CHOICES = [
+      # ("DRAFT", "Draft"),
+      # ("DOCUMENTS SUBMITTED", "Documents Submitted"),
+        ("QUEUED", "Queued"),
+        ("INITIATED", "Initiated by Officer"),
+        ("ASSIGNED", "Assigned to Officer"),
+        ("REVIEWED", "Reviewed"),
+        ("FORM FILLED", "Form Filled"),
+        ("ADMIN REVIEW", "Admin Review"),
+        ("SUBMITTED", "Awaiting Embassy Decision"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+    client = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="visa_applications")
+    country = models.CharField(max_length=20, choices=COUNTRIES)
+    visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
+    created_by_officer = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="initiated_applications"
+    )
+
+    assigned_officer = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_applications"   # ✅ add this
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
+    form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
+    visa_application_url = models.URLField(blank=True, null=True)
+    submission_date = models.DateTimeField(blank=True, null=True)
+    decision_date = models.DateTimeField(blank=True, null=True)
+    reference_no = models.CharField(max_length=50, unique=True)
+    rejection_letter = models.FileField(upload_to="rejection_letters/", blank=True, null=True)
+
+
+    def __str__(self):
+         return f"{self.reference_no} ({self.country}, {self.visa_type})"
+
+
+
+    class Meta:
+        indexes = [models.Index(fields=["reference_no", "status"])]
+
+class DocumentRequirement(BaseModel):
+    """
+    Defines which documents are required for a given visa type & country.
+    e.g., Passport, Bank Statement, Employment Letter, etc.
+    """
+    DOCUMENT_CATEGORIES = [
+        ("IDENTITY", "Identity Document"),
+        ("FINANCIAL", "Financial Document"),
+        ("EMPLOYMENT", "Employment Document"),
+        ("ADMISSION", "Admission Document"),
+        ("FAMILY", "Family/Dependent Document"),
+        ("OTHER", "Other"),
+    ]
+
+    VISA_TYPES = [
+        ("TOURIST", "Tourist Visa"),
+        ("STUDENT", "Student Visa"),
+        ("WORK", "Work Visa"),
+        ("BUSINESS", "Business Visa"),
+        ("TRANSIT", "Transit Visa"),
+        ("RESIDENCY", "Residency / PR"),
+        ("DIPLOMATIC", "Diplomatic Visa"),
+        ("OTHER", "Other"),
+    ]
+
+    COUNTRIES = [
+        ("UK", "United Kingdom"),
+        ("USA", "United States"),
+        ("CANADA", "Canada"),
+        ("SCHENGEN", "Schengen"),
+        ("QATAR", "Qatar"),
+        ("DUBAI", "Dubai"),
+    ]
+
+    country = models.CharField(max_length=20, choices=COUNTRIES)
+    visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
+    name = models.CharField(max_length=255)  # e.g. "Passport", "Bank Statement"
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=20, choices=DOCUMENT_CATEGORIES, default="OTHER")
+    is_mandatory = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.get_country_display()} | {self.get_visa_type_display()} | {self.name}"
+
+
+class Document(BaseModel):
+    """
+    Represents a client’s actual uploaded file for a given requirement.
+    Auto-created as placeholders when VisaApplication is created.
+    """
+    STATUS_CHOICES = [
+        ("MISSING", "Missing"),
+        ("UPLOADED", "Uploaded"),
+        ("PENDING", "Pending Review"),
+        ("REVIEWED", "Reviewed"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    application = models.ForeignKey(
+        VisaApplication,
+        on_delete=models.CASCADE,
+        related_name="documents"
+    )
+    requirement = models.ForeignKey(
+        DocumentRequirement,
+        on_delete=models.CASCADE,
+        related_name="documents"
+    )
+    file = models.FileField(upload_to="documents/", blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="MISSING")
+    uploaded_at = models.DateTimeField(auto_now=True)
+    verified = models.BooleanField(default=False)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="verified_documents"
+    )
+    review_comments = models.TextField(blank=True, null=True)
+
+    # class Meta:
+    #     unique_together = ("application", "requirement")  # 1 requirement per app → 1 doc slot
+    @property
+    def get_status_badge(self):
+        """Return (badge_class, label_with_icon) for status."""
+        mapping = {
+            "MISSING": ("badge-soft-secondary", "⬜ Missing"),
+            "UPLODED": ("badge-soft-info", "📤 Uploaded"),
+            "PENDING": ("badge-soft-warning", "⏳ Pending"),
+            "VERIFIED": ("badge-soft-success", "✅ Verified"),
+            "REJECTED": ("badge-soft-danger", "❌ Rejected"),
+        }
+        return mapping.get(self.status, ("badge-soft-success", self.status))
+
+    def __str__(self):
+        return f"{self.application} - {self.requirement.name} ({self.status})"
+
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    """
+    Custom user model for the ERP system.
+    Inherits username, email, first_name, last_name, password, etc.
+    """
+    ROLE_CHOICES = [
+        ("Admin", "Admin"),
+        ("Case Officer", "Case Officer"),
+        ("Finance", "Finance"),
+        ("Support", "Support"),
+        ("Client", "Client"),
+    ]
+
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="Client")
+    # Example extra fields if needed:
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    middle_name = models.CharField(max_length=30, blank=True)
+    slug  = models.SlugField(blank=True, null=True, unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    is_staff = models.BooleanField(
+        _('staff status'),
+        default=False,
+        help_text=_('Designates whether the user can log into this site.'),
+    )
+    is_active = models.BooleanField(
+        _('active'),
+        default=True,
+        help_text=_(
+            'Designates whether this user should be treated as active. '
+            'Unselect this instead of deleting accounts.'
+        ),
+    )
+    must_reset_password = models.BooleanField(default=False)
+    USERNAME_FIELD = 'email'
+    objects = MyUserManager()
+
+    def __str__(self):
+        return f"{self.email} ({self.role})"
+
+    @property 
+    def get_full_name(self):
+        '''
+        Returns the first_name plus the last_name, with a space in between.
+        '''
+        full_name = '%s %s' % (self.first_name, self.last_name)
+        return full_name.strip()
+
+
+    def get_short_name(self):
+        return self.email
+
+class ClientProfile(models.Model):
+    # full_name = models.CharField(max_length=255)
+    # email = models.EmailField(unique=True)
+    # phone = models.CharField(max_length=20, blank=True, null=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="client_profile")
+    passport_number = models.CharField(max_length=50, unique=True)
+    nationality = models.CharField(max_length=100)
+    date_of_birth = models.DateField()
+    address = models.TextField(blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.last_name} ({self.passport_number})"
+
+    class Meta:
+        indexes = [models.Index(fields=["passport_number", "user"])]
+
+#api_urls.py
+app_name = "Applications"
+
+
+urlpatterns = [
+    # path("requirements/", api_views.get_requirements, name="requirements"),
+    path("user/", CurrentUserView.as_view(), name="current_user"),
+    # path("pdf-form-fill/", pdf_form_fill, name="pdf-form-fill"),
+    path("pdf-form-fill/", AutoFilledPDFView.as_view(), name="pdf-form-fill"),
+    path("pdf-form/", api_views.pdf_form, name="pdf-form"),
+    path("clients/register/", ClientRegistrationView.as_view(), name="client-register"),
+    path("country/", api_views.CountryChoicesView.as_view(), name="country-choices"),
+    path("countries/", api_views.CountryListAPIView.as_view(), name="country-list"),
+    path("visa-types/", api_views.VisaTypeListAPIView.as_view(), name="visa-type-list"),
+    path("requirements/", api_views.RequirementListAPIView.as_view(), name="requirement-list"),
+    path("applications/new/", api_views.ApplicationCreateAPIView.as_view(), name="application-create"),
+    path("clients/search/", api_views.ClientSearchAPIView.as_view(), name="client-search"),
+    path("clients/new/", api_views.ClientCreateAPIView.as_view(), name="client-create"),
+    path("applications/new_case/", api_views.ApplicationCreateAPICaseView.as_view(), name="application-case-create"),
+    path("documents/<uuid:pk>/upload/", DocumentUploadAPIView.as_view(), name="document-upload"),
+    path("applications/", VisaApplicationListAPIView.as_view(), name="application-list"),
+    path("applications/review/", VisaApplicationListReviewAPIView.as_view(), name="application-list-review"),
+    path("applications/<uuid:id>/", VisaApplicationDetailAPIView.as_view(), name="applications-detail"),
+    path("documents/<uuid:id>/review/", DocumentReviewAPIView.as_view(), name="document-review"),
+    path("applications/reviewed/", ReviewedVisaApplicationListAPIView.as_view(), name="reviewed-application-list"),
+    path("applications/admin_view/", AdminVisaApplicationListAPIView.as_view(), name="admin-application-list"),
+    path("applications/submitted_list_view/", SubmittedVisaApplicationListAPIView.as_view(), name="submitted-application-list"),
+    path("applications/finalized_applications_list/", FinalizedVisaApplicationsListAPIView.as_view(), name="finalized-applications-list"),
+    path("applications/<uuid:id>/add-url/", VisaApplicationUrlUpdateAPIView.as_view(), name="application-add-url"),
+    path("applications/<uuid:pk>/finalize/", FinalizeVisaApplicationAPIView.as_view(), name="application-finalize"),
+    path("applications/<uuid:pk>/add_decision/", AddVisaApplicationDecisionAPIView.as_view(), name="add-visa-decison"),
+    path("applications/<uuid:pk>/upload_rejection_letter/", UploadRejectionLetterAPIView.as_view(), name="upload-rejection-letter"),
+    path("applications/<uuid:pk>/reapply/", ApplicationReapplyView.as_view(), name="application-reapply"),
+    path("applications/<uuid:pk>/upload-refusals/", upload_refusals, name="upload_refusals"),
+
+
+
+Amend visa application process to accomodate models, views for a client who is a student to start the visa application by first undergoing the process to secure admisssion before proceeding to the visa application stage:
+
+
+
+1. DOCUMENTS NEEDED TO GET AN OFFER LETTER (ADMISSION APPLICATION STAGE- AN OFFER LETTER — EITHER CONDITIONAL OR UNCONDITIONAL)
+Required Documents
+1.  International Passport (bio-data page) - 
+2.  Academic Qualifications - Undergraduate applicants: - WAEC / NECO / GCE results (with English & relevant subjects passed). -Foundation or diploma certificate (if applicable). Postgraduate applicants: - Degree certificate and academic transcript, statement of results or an official transcript request letter.
+3.  Curriculum Vitae (CV) / Résumé 
+4.  Personal Statement / Statement of Purpose (SOP) -
+5.  Reference Letters (usually two) - Academic references (lecturers or employers) should be on headed paper, signed, and dated.
+6.  English Language Proficiency Proof - IELTS, TOEFL, PTE, or WAEC English result 
+7.  Application Form or Online Application Portal Submission -Some schools may also request a small application fee and its payment receipt.
+8.  Portfolio (for creative courses) - Required for courses in art, design, or architecture
+2. DOCUMENTS NEEDED FOR CONFIRMATION OF ACCEPTANCE FOR STUDIES (CAS STAGE)
+REQUIRED DOCUMENTS
+1.  Valid International Passport 
+2.  Unconditional Offer Letter 
+3.  Tuition Fee Payment Proof 
+4.  Proof of Funds (Maintenance Requirement), Recent bank statement (yours or sponsor’s), 28 consecutive days 
+5.  Sponsor Documents (if applicable)-Letter of Sponsorship / Affidavit of Support, Sponsor’s bank statement and Relationship evidence (birth certificate or affidavit if sponsor is a relative).
+6.  TB Test Certificate - IOM-approved clinic 
+7.  Previous Academic Documents -.
+8.  Payment Receipt - Proof of CAS request fee (if required by the school).
+9.  Interview Readiness (Credibility Interview) - Some schools conduct a short interview before issuing CAS to confirm your genuine study intent and funding readiness
+3. FOR STUDENT VISA APPLICATION (AFTER OFFER OF ADMISSION)
+1. Valid International Passport - Must have at least 6 months’ validity beyond the study period.
+2. Letter of Admission / Offer Letter -From the university or college.
+3. Proof of Tuition Fee Payment - Evidence you’ve paid part or all of your tuition.
+4. Proof of Funds / Financial Statement - Recent bank statement (28days) showing sufficient balance or sponsor’s bank statement + sponsor’s affidavit/letter of sponsorship.
+5. CAS (Confirmation of Acceptance for Studies) - For UK students only – issued by your university after payment.
+6. Medical / TB Test Certificate - Required for the UK, Canada, Australia, and some other countries.
+7. Visa Application Form - Completed online (country-specific).
+8. Passport Photograph - Recent and passport-size, per embassy specifications.
+9. Academic Documents - WAEC/NECO/GCE results (for undergraduate applicants), Degree certificates and transcripts (for postgraduate applicants), Foundation or diploma certificate (if applicable), Statement of results (if original certificate not yet issued).
+10. Police Clearance Certificate -To prove good conduct (some countries require this).
+11. Travel History / Previous Visas - If you have travelled before, and if you have been refused any visa for any country before
+12. Accommodation Proof - Hostel booking or housing arrangement letter.
+13. Letter of Intent / Study Plan - Explains why you want to study in that country and how it fits your career plan.
+14. Personal Statement / Statement of Purpose (SOP) -Explains your motivation for the course, academic background, and future goals.
+15. Reference / Recommendation Letters - Usually two academic references, or one academic + one professional
+16. Proof of English- IELTS, TOEFL, PTE, or WAEC English (depending on school policy).
+17. Curriculum Vitae (CV) / Résumé - For postgraduate applications or mature applicants.
+
+
+
+python manage.py migrate Documents 0006_seed_student_requirements
+python manage.py migrate Documents
+
+
+
+# migrations/00xx_reseed_student_requirements.py
+from django.db import migrations
+
+def reseed_requirements(apps, schema_editor):
+    DocumentRequirement = apps.get_model("Applications", "DocumentRequirement")
+
+    COUNTRIES = ["UK", "USA", "CANADA", "SCHENGEN", "QATAR", "DUBAI"]
+    VISA_TYPE = "STUDENT"
+
+    DATA = {
+        "ADMISSION": [
+            ("International Passport", "Bio-data page"),
+            ("Academic Qualifications", "Certificates and transcripts"),
+            ("Curriculum Vitae", "Recent CV"),
+            ("Statement of Purpose", "Why you chose the course"),
+        ],
+        "CAS": [
+            ("Unconditional Offer Letter", "Issued by school"),
+            ("Proof of Funds", "28 days statement"),
+        ],
+        "VISA": [
+            ("CAS Letter", "Issued by university"),
+            ("Visa Application Form", "Completed online"),
+        ],
+    }
+
+    for country in COUNTRIES:
+        for stage, items in DATA.items():
+            for name, desc in items:
+                DocumentRequirement.objects.get_or_create(
+                    country=country,
+                    visa_type=VISA_TYPE,
+                    stage=stage,
+                    name=name,
+                    defaults={
+                        "description": desc,
+                        "is_mandatory": True,
+                    }
+                )
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("Applications", "00xx_previous_migration"),
+    ]
+
+    operations = [
+        migrations.RunPython(reseed_requirements),
+    ]
+
+
+
+python manage.py startapp core
+mkdir management/commands
+touch Applications/management/commands/seed_requirements.py
+
+
+from django.core.management.base import BaseCommand
+from Documents.models import DocumentRequirement
+
+class Command(BaseCommand):
+    help = "Seed student document requirements"
+
+    def handle(self, *args, **kwargs):
+        COUNTRIES = ["UK", "CANADA", "USA"]
+
+        COUNTRY_OVERRIDES = {
+            
+        }
+
+     
+        VISA_TYPE = "STUDENT"
+
+        DATA = {
+            "ADMISSION": [
+                ("International Passport (Bio-data page)", "Passport bio-data page"),
+                ("Academic Qualifications", "WAEC / NECO / Degree / Transcript"),
+                ("Curriculum Vitae (CV)", "Recent CV or résumé"),
+                ("Statement of Purpose (SOP)", "Why you want to study this course"),
+                ("Reference Letters", "Two academic or professional references"),
+                ("English Language Proof", "IELTS / TOEFL / WAEC English"),
+                ("Application Form Evidence", "School application submission"),
+                ("Portfolio", "For creative courses only"),
+            ],
+
+            "CAS": [
+                ("Valid International Passport", "Must be valid"),
+                ("Unconditional Offer Letter", "Issued by school"),
+                ("Tuition Fee Payment Proof", "Receipt or confirmation"),
+                ("Proof of Funds", "28 consecutive days bank statement"),
+                ("Sponsor Documents", "If sponsored"),
+                ("TB Test Certificate", "IOM approved clinic"),
+                ("Previous Academic Documents", "Certificates and transcripts"),
+                ("CAS Payment Receipt", "If required"),
+                ("Interview Readiness", "Credibility interview checklist"),
+            ],
+
+            "VISA": [
+                ("Valid International Passport", "At least 6 months validity"),
+                ("Offer Letter", "Admission letter"),
+                ("Tuition Fee Payment Proof", "Paid fees"),
+                ("Proof of Funds", "Financial statements"),
+                ("CAS Letter", "Issued by university"),
+                ("Medical / TB Certificate", "If required"),
+                ("Visa Application Form", "Completed online"),
+                ("Passport Photograph", "Embassy specification"),
+                ("Academic Documents", "Certificates and transcripts"),
+                ("Police Clearance Certificate", "If required"),
+                ("Travel History", "Previous visas"),
+                ("Accommodation Proof", "Hostel or tenancy"),
+                ("Study Plan", "Career alignment"),
+                ("Statement of Purpose", "Academic motivation"),
+                ("Reference Letters", "Academic or professional"),
+                ("English Language Proof", "IELTS / TOEFL / WAEC"),
+                ("Curriculum Vitae", "If applicable"),
+            ],
+        }
+
+        for country in COUNTRIES:
+            for stage, items in DATA.items():
+                final_items = items + COUNTRY_OVERRIDES.get(country, {}).get(stage, [])
+                for name, desc in final_items:
+                    DocumentRequirement.objects.get_or_create(
+                        country=country,
+                        visa_type=VISA_TYPE,
+                        stage=stage,
+                        name=name,
+                        defaults={
+                            "description": desc,
+                            "is_mandatory": True,
+                        }
+                    )
+
+            self.stdout.write(self.style.SUCCESS("Document requirements seeded"))
+
+
+
+Since only UK required CAS, CAS documents should be skipped for all other countries
+
+
+
+#urls.py
+app_name = "Clients"
+
+urlpatterns = [
+    path('start/', StartApplication.as_view(), name='start-application'),
+    path("applications/", applications_list, name="applications-list"),
+    path("applications/<uuid:pk>/documents/", application_documents, name="application_documents"),
+
+]
+
+
+#views.py
+class StartApplication(TemplateView):
+    template_name = "clients/display_requirements.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Template URL with placeholder {pk}, replaced by JS after application creation
+        context["application_documents_url"] = "/Clients/applications/{pk}/documents/"
+        return context
+
+
+
+#clients/display_requirements.html
+
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- ============================================================== -->
+<!-- Start right Content here -->
+<!-- ============================================================== -->
+
 <style>
     :root { --c:#1f2937; --m:#6b7280; --b:#2563eb; --bg:#f8fafc; --card:#ffffff; }
     body{margin:0;background:var(--bg);color:var(--c);font-family:system-ui,Segoe UI,Roboto,Arial}
@@ -20,171 +542,3829 @@
     @media (max-width:680px){.row{grid-template-columns:1fr}}
   </style>
 
-<main class="main">
-<div class="container">
-  <div class="wrap">
-    <h3 class="text-warning">Start Your Visa Application</h3>
-    <p>Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p>
 
+<div class="col-xl-9">
     <div class="card">
-
-      <div class="row2">
-        <div>
-          <label for="country">Country of Interest</label>
-          <select id="country">
+        <div class="card-body border-bottom">
+            <div class="d-flex">
+                    <h5 class="fw-semibold text-info">Start Your Visa Application</h5>
+                    
+            </div>
+        </div>
+        <div class="card-body">
+            <h5 class="fw-semibold mb-3">Description</h5>
+            <p class="text-muted">Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p>
+            
+            <div class="row2">
+            <div>
+            <label for="country">Country of Interest</label>
+            <select id="country">
             <option value="">— Select country —</option>
-          </select>
-        </div>
-        <div>
-          <label for="visaType">Visa Type</label>
-          <select id="visaType" disabled>
+            </select>
+            </div>
+            <div>
+            <label for="visaType">Visa Type</label>
+            <select id="visaType" disabled>
             <option value="">— Select visa type —</option>
-          </select>
+            </select>
+            </div>
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button id="showBtn" type="button" disabled>Show Requirements</button>
+            <span id="status" class="muted" aria-live="polite"></span>
+            </div>
+
+            <div class="reqs" id="requirements" aria-live="polite"></div>
+
+            <!-- Confirm Application button -->
+            <div class="d-flex justify-content-end pr-4" style="margin-top:20px">
+            <button id="confirmBtn" type="button" disabled>✅ Confirm & Start Application</button>
+
+            </div>
+
+
+
+
+            <div id="appResult" class="reqs"></div>
+
+
+
+        </div>
+    </div>
+</div><!--end col-->
+</div><!--end row-->
+
+</div> <!-- container-fluid -->
+
+<!-- </div>  -->
+<!-- End Page-content -->
+<!-- </div> -->
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      // Does this cookie string begin with the name we want?
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const API_BASE = "/api";
+  const countrySel = document.getElementById("country");
+  const visaSel = document.getElementById("visaType");
+  const showBtn = document.getElementById("showBtn");
+  const confirmBtn = document.getElementById("confirmBtn");
+  const reqsEl = document.getElementById("requirements");
+  const appResultEl = document.getElementById("appResult");
+
+  let currentUser = null;
+  let userIsLoggedIn = false;
+
+
+    function getCSRFToken() {
+    const match = document.cookie.match(/(^|;)\s*csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[2]) : "";
+  }
+
+
+  // --- JSON fetch wrapper with CSRF + credentials ---
+  async function fetchJSON(url, opts = {}) {
+    const res = await fetch(url, {
+      headers: { 
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+        ...opts.headers
+      },
+      credentials: "include",
+      method: opts.method || "GET",
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  function resetVisaTypes(disabled = true) {
+    visaSel.innerHTML = `<option value="">— Select visa type —</option>`;
+    visaSel.disabled = disabled;
+  }
+
+  function resetRequirements() {
+    reqsEl.innerHTML = "";
+    confirmBtn.disabled = true;
+  }
+
+  // 🟢 Fetch current user info
+  async function checkLoginStatus() {
+    try {
+      currentUser = await fetchJSON(`${API_BASE}/user/`);
+      userIsLoggedIn = !!currentUser;
+      console.log("User logged in:", currentUser);
+    } catch {
+      currentUser = null;
+      userIsLoggedIn = false;
+      console.log("No logged-in user.");
+    }
+  }
+
+  // 🟢 Load countries
+  (async function loadCountries() {
+    try {
+      await checkLoginStatus();
+      const countries = await fetchJSON(`${API_BASE}/countries/`);
+      countries.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = c.name;
+        countrySel.appendChild(opt);
+      });
+    } catch (e) { console.error("Countries load failed", e); }
+  })();
+
+  // 🟢 Country → visa types
+  countrySel.addEventListener("change", async () => {
+    resetVisaTypes();
+    resetRequirements();
+    const country = countrySel.value;
+    if (!country) { resetVisaTypes(true); return; }
+    try {
+      const visaTypes = await fetchJSON(`${API_BASE}/visa-types/?country=${encodeURIComponent(country)}`);
+      visaTypes.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.code;
+        opt.textContent = v.name;
+        visaSel.appendChild(opt);
+      });
+      visaSel.disabled = false;
+    } catch (e) { console.error("Visa types load failed", e); }
+  });
+
+  visaSel.addEventListener("change", () => {
+    showBtn.disabled = !(countrySel.value && visaSel.value);
+    resetRequirements();
+  });
+
+  // 🟢 Show requirements with inline PDF download
+  showBtn.addEventListener("click", async () => {
+    resetRequirements();
+    const country = countrySel.value;
+    const visa = visaSel.value;
+    if (!country || !visa) return;
+
+    try {
+      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+      if (!reqs.length) {
+        reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+        return;
+      }
+
+      reqs.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "req";
+
+        let pdfLink = "";
+        if (r.form_file_url) {
+          // Auto-fill if logged in, else static link
+          const pdfUrl = currentUser
+            ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+            : r.form_file_url;
+
+          pdfLink = `<a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-danger flash-button" style="margin-left:10px">
+                       <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+                     </a>`;
+        }
+
+        row.innerHTML = `
+          <div>
+            <strong>${r.name}</strong><br/>
+            <small class="muted">${r.description || "—"}</small>
+          </div>
+          ${pdfLink}
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          </div>
+        `;
+        reqsEl.appendChild(row);
+      });
+
+      confirmBtn.disabled = false;
+
+    } catch (e) {
+      console.error("Requirements fetch failed", e);
+    }
+  });
+
+  // 🟢 Confirm Application
+  const applicationDocumentsUrl = "{{ application_documents_url }}";
+  confirmBtn.addEventListener("click", async () => {
+    const country = countrySel.value;
+    const visa = visaSel.value;
+
+    const sure = confirm(`Are you sure you want to start a ${visa} visa application for ${country}?`);
+    if (!sure) return;
+
+    try {
+      const app = await fetchJSON(`${API_BASE}/applications/new/`, {
+        method: "POST",
+        body: { country, visa_type: visa }
+      });
+
+      appResultEl.innerHTML = `<div class="alert alert-success">
+        Application submitted successfully!<br/>
+        Reference: <strong>${app.reference_no}</strong>
+      </div>`;
+
+      setTimeout(() => {
+        const redirectUrl = applicationDocumentsUrl.replace("{pk}", app.id);
+        window.location.href = redirectUrl;
+      }, 1500);
+
+    } catch (e) {
+      alert("Failed to create application. Are you logged in?");
+      console.error("Application create failed", e);
+    }
+  });
+});
+</script>
+
+<style>
+/* 🟡 Bright flashing yellow effect for Download PDF */
+.flash-yellow {
+  animation: flashYellow 1s infinite;
+  border: 2px solid gold;
+  box-shadow: 0 0 10px gold;
+}
+
+@keyframes flashYellow {
+  0% { background-color: gold; color: black; }
+  50% { background-color: #ffea00; color: #111; box-shadow: 0 0 25px yellow; }
+  100% { background-color: gold; color: black; }
+}
+</style>
+
+{% endblock %}
+
+
+showBtn.addEventListener("click", async () => {
+  // handler code
+}, { once: true });
+
+
+
+
+RelatedObjectDoesNotExist at /Clients/client_dashboard/
+User has no client_profile.
+Request Method: GET
+Request URL:    http://127.0.0.1:8000/Clients/client_dashboard/
+Django Version: 4.2.23
+Exception Type: RelatedObjectDoesNotExist
+Exception Value:    
+User has no client_profile.
+Exception Location: /Users/chigozieokaro/Downloads/dev/suaveerp/venv/lib/python3.8/site-packages/django/db/models/fields/related_descriptors.py, line 492, in __get__
+Raised during:  Clients.views.client_dashboard_view
+Python Executable:  /Users/chigozieokaro/Downloads/dev/suaveerp/venv/bin/python
+Python Version: 3.8.1
+Python Path:    
+['/Users/chigozieokaro/Downloads/dev/suaveerp/src',
+ '/Library/Frameworks/Python.framework/Versions/3.8/lib/python38.zip',
+ '/Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8',
+ '/Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/lib-dynload',
+ '/Users/chigozieokaro/Downloads/dev/suaveerp/venv/lib/python3.8/site-packages']
+Server time:    Fri, 23 Jan 2026 07:05:32 +0000
+
+
+
+Show Requirements on clients/display_requirements.html for visa_type "Student" for a selected country should show requirements marked by stage 
+
+
+class DocumentRequirementSerializer(serializers.ModelSerializer):
+    stage_display = serializers.CharField(
+        source="get_stage_display",
+        read_only=True
+    )
+
+    class Meta:
+        model = DocumentRequirement
+        fields = [
+            "id",
+            "country",
+            "visa_type",
+            "stage",           # 🔥 REQUIRED
+            "stage_display",   # 🔥 REQUIRED
+            "name",
+            "description",
+            "is_mandatory",
+            "form_file_url",
+        ]
+
+
+Lock logic into workflow by:
+Prevent moving to VISA stage unless CAS is completed (UK only)
+Auto-advance stages when documents are verified
+Show a Student Journey Timeline UI
+Enforce country-specific stage sequences
+Student journey stepper
+Completion percentage per stage
+Officer review per stage
+
+Enforce country-specific stage sequences
+Lock stages until previous stage is completed (also ensure only documentrequirements for each stage shows under document uploads)
+Show a student journey timeline (Admission → CAS → Visa)
+Add progress % per application
+Officer approval per stage
+Re-application flow
+
+
+#urls.py
+app_name = "Clients"
+
+urlpatterns = [
+    path('start/', StartApplication.as_view(), name='start-application'),
+    path("applications/", applications_list, name="applications-list"),
+    path("applications/<uuid:pk>/documents/", application_documents, name="application_documents")
+] 
+
+
+#views.py
+class StartApplication(TemplateView):
+    template_name = "clients/display_requirements.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Template URL with placeholder {pk}, replaced by JS after application creation
+        context["application_documents_url"] = "/Clients/applications/{pk}/documents/"
+        return context
+
+
+@login_required
+def application_documents(request, pk):
+    app = get_object_or_404(VisaApplication, id=pk, client=request.user.client_profile)
+    return render(request, "clients/application_documents1.html", {"application": app})
+
+
+#clients/application_documents1.html
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+{% endblock %}
+
+{% block content %}
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<h4 class="card-title text-info mb-2">Visa Application Documents</h4>
+</div>
+
+<table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+<!-- <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a> -->
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+
+
+
+<div class="d-flex justify-content-end"> 
+
+<a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i>  Return to Applications</a>`
+</div>
+
+
+
+</div>
+<!--end col-->
+</div><!--end row-->
+
+</div> <!-- container-fluid -->
+</div> 
+</div>
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
+
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
-      <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-      <button id="showBtn" type="button" disabled>Show Requirements</button>
-      <span id="status" class="muted" aria-live="polite"></span>
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      // update status cell
+      row.querySelector(".status").innerHTML =
+        `<span class="badge bg-success">${data.status}</span>`;
+
+      // update action cell to show "View"
+      row.querySelector(".action-cell").innerHTML =
+        `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  async function handleUploadSuccess(row, data) {
+    row.querySelector(".status").innerHTML =
+      `<span class="badge bg-success">${data.status}</span>`;
+
+    row.querySelector(".action-cell").innerHTML =
+      `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+
+    if (allDocumentsUploaded()) {
+      const refusalModal = document.getElementById("refusalModal");
+      if (refusalModal) {
+        let modalInstance = new bootstrap.Modal(refusalModal);
+        modalInstance.show();
+      }
+    }
+  }
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+
+
+</script>
+{% endblock %}
+
+
+Amend def application_documents(request, pk) to show documentrequirements sequentially by stage
+
+
+
+NameError at /Clients/applications/ff9a7e13-83ca-4dbb-be1a-22fa9d63f16a/documents/
+name 'StageDefinition' is not defined
+Request Method: GET
+Request URL:    http://127.0.0.1:8000/Clients/applications/ff9a7e13-83ca-4dbb-be1a-22fa9d63f16a/documents/
+Django Version: 4.2.23
+Exception Type: NameError
+Exception Value:    
+name 'StageDefinition' is not defined
+Exception Location: /Users/c/Downloads/dev/suaveerp/src/Clients/views.py, line 101, in get_stage_sequence
+Raised during: Clients.views.application_documents
+
+
+
+
+
+
+
+
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<!-- <h2>Visa Application Documents</h2> -->
+<h4 class="card-title text-info mb-2">Visa Application Documents</h4>
+<!-- <button id="refreshBtn" class="btn btn-outline-secondary btn-sm">🔄 Refresh Checklist</button> -->
+</div>
+
+<table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+<!-- <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a> -->
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+
+
+
+
+
+
+
+</tbody>
+</table>
+
+
+
+
+<div class="d-flex justify-content-end"> 
+<!-- <a href="{{request.META.HTTP_REFERER}}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i> Go Back</a>  -->
+
+<a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i>  Return to Applications</a>`
+</div>
+
+
+
+</div>
+<!--end col-->
+</div><!--end row-->
+
+</div> <!-- container-fluid -->
+</div> 
+</div>
+<!-- End Page-content -->
+<!-- </div> -->
+
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
 
-      <div class="reqs" id="requirements" aria-live="polite"></div>
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-      <!-- Register CTA, hidden until requirements are loaded -->
-      <div class="d-flex justify-content-end" style="margin-top:20px"> 
-      <a id="registerLink" href="{% url 'Clients:client-register' %}" 
-      class="btn btn-primary file-dl-toast" 
-      style="display:none">
-      <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      // update status cell
+      row.querySelector(".status").innerHTML =
+        `<span class="badge bg-success">${data.status}</span>`;
+
+      // update action cell to show "View"
+      row.querySelector(".action-cell").innerHTML =
+        `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  async function handleUploadSuccess(row, data) {
+    row.querySelector(".status").innerHTML =
+      `<span class="badge bg-success">${data.status}</span>`;
+
+    row.querySelector(".action-cell").innerHTML =
+      `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+
+    if (allDocumentsUploaded()) {
+      const refusalModal = document.getElementById("refusalModal");
+      if (refusalModal) {
+        let modalInstance = new bootstrap.Modal(refusalModal);
+        modalInstance.show();
+      }
+    }
+  }
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+
+
+</script>
+{% endblock %}
+
+
+
+Show full #clients/application_documents1.html 
+
+with: 
+{% for doc in application.documents.all %}
+
+replaced with:
+{% for stage in stage_sequence %}
+  <tr class="table-light">
+    <td colspan="3">
+      <strong>
+        {{ stage|title }}
+        {% if stage == current_stage %}
+          <span class="badge bg-primary ms-2">Current Stage</span>
+        {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+          <span class="badge bg-success ms-2">Completed</span>
+        {% else %}
+          <span class="badge bg-secondary ms-2">Locked</span>
+        {% endif %}
+      </strong>
+    </td>
+  </tr>
+
+  {% if stage == current_stage %}
+    {% for doc in documents_by_stage.stage %}
+      <!-- FULL upload UI (existing row markup) -->
+    {% endfor %}
+
+  {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+    {% for doc in documents_by_stage.stage %}
+      <!-- VIEW ONLY -->
+      <tr>
+        <td>{{ doc.requirement.name }}</td>
+        <td><span class="badge bg-success">{{ doc.status }}</span></td>
+        <td>
+          {% if doc.file %}
+            <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">View</a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+
+
+
+<style>
+.timeline {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  gap: 12px;
+}
+
+.timeline li {
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.timeline li.active {
+  background: #2563eb;
+  color: white;
+}
+
+.timeline li.completed {
+  background: #6b7280;
+  color: white;
+}
+
+.timeline li.locked {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+</style> 
+
+
+
+
+Amend this:
+<ul class="timeline mb-4">
+  {% for stage in stage_sequence %}
+    <li class="
+      {% if stage == current_stage %}
+        active
+      {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+        completed
+      {% else %}
+        locked
+      {% endif %}
+    ">
+      {{ stage|title }} 
+    </li>
+  {% endfor %}
+</ul>
+
+To use badge-style like this:
+
+<div class="mb-4">
+  <span class="badge {% if stage == current_stage %}bg-primary{% else %}bg-success{% endif %}">
+    Admission
+  </span>
+  →
+  <span class="badge {% if current_stage == 'CAS' %}bg-primary{% elif current_stage == 'VISA' %}bg-success{% else %}bg-secondary{% endif %}">
+    CAS
+  </span>
+  →
+  <span class="badge {% if current_stage == 'VISA' %}bg-primary{% else %}bg-secondary{% endif %}">
+    Visa
+  </span>
+</div>
+
+
+
+WHAT YOU CAN ADD NEXT (I can implement any)
+✅ Officer Approve Stage button
+📊 Progress % (33 / 66 / 100)
+🔁 Re-apply using previous documents
+🔔 Notifications on stage change
+
+
+
+
+{{ stage|title }}
+{% if stage == current_stage %} 🔵
+{% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %} ✅
+{% else %} 🔒
+{% endif %}
+
+Automatically move application to next stage once all required documents for current stage have been uploaded
+
+Show auto-advance animation
+
+
+
+
+
+
+{% extends 'clients/clients_dashboard_base1.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}| Application Documents{% endblock %}
+
+{% block content %}
+
+<style>
+.stage-advance {
+  animation: slidePulse 1.2s ease-in-out;
+}
+
+@keyframes slidePulse {
+  0% { opacity: 0; transform: translateX(40px); }
+  60% { opacity: 1; transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+</style>
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+<h4 class="card-title text-info mb-3">
+  {{ application.country }} Visa Application Documents for Application Reference No: {{ application.reference_no }}
+</h4>
+
+<h6 class="card-title text-info mb-2">
+Visa Application Stages
+</h6>
+
+<div class="mb-4 d-flex align-items-center flex-wrap gap-2">
+  {% for stage in stage_sequence %}
+
+    {% if stage == current_stage %} ✅
+    {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %} 🔒
+    {% else %} 🔒
+    {% endif %}
+
+    <!-- {{ stage|title }} -->
+
+
+    <span class="badge
+      {% if stage == current_stage %}
+        bg-success 
+      {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+        bg-primary
+      {% else %}
+        bg-secondary
+      {% endif %}
+    ">
+      {{ stage|title }}
+    </span>
+
+    {% if not forloop.last %}
+      <span class="mx-0">→</span>
+    {% endif %}
+
+  {% endfor %}
+</div>
+
+<h6 class="text-info mb-3">
+  {{ current_stage|title }} Stage Documents
+</h6>
+
+<table class="table table-bordered">
+<thead>
+<tr>
+  <th>Requirement</th>
+  <th>Status</th>
+  <th>Upload / View</th>
+</tr>
+</thead>
+
+<tbody id="documentsBody">
+{% for doc in documents %}
+<tr data-doc-id="{{ doc.id }}">
+  <td>{{ doc.requirement.name }}</td>
+
+  <td class="status">
+    <span class="badge 
+      {% if doc.status == 'MISSING' %} bg-danger
+      {% elif doc.status == 'REJECTED' %} bg-warning
+      {% elif doc.status == 'UPLOADED' %} bg-success
+      {% else %} bg-secondary {% endif %}">
+      {{ doc.status }}
+    </span>
+  </td>
+
+  <td class="action-cell">
+    {% if doc.file %}
+      <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
+        View File
       </a>
+    {% else %}
+      <div class="d-flex gap-2">
+        <input type="file" class="form-control form-control-sm file-input" />
+        <button class="btn btn-sm btn-primary upload-btn">Upload</button>
       </div>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="3" class="text-center text-muted">
+    No documents required at this stage.
+  </td>
+</tr>
+{% endfor %}
+</tbody>
 
-      <div id="appResult" class="reqs"></div>
+</table>
 
 
-     <!--  <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-        <button id="showBtn" type="button" disabled>Show Requirements</button>
-        <span id="status" class="muted" aria-live="polite"></span>
+<div class="d-flex justify-content-end mt-4">
+  <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
+    ← Back to Applications
+  </a>
+</div>
+
+</div>
+</div>
+</div>
+
+
+
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
 
-      <div class="reqs" id="requirements" aria-live="polite"></div> -->
-
-      <!-- Confirm Application button -->
-      <!-- <div style="margin-top:20px">
-        <button id="confirmBtn" type="button" disabled>✅ Confirm & Start Application</button> -->
-
-        <!-- <a href="{% url 'Clients:client-register' %}" class="btn btn-primary file-dl-toast">Register</a> -->
-
-      <!-- </div>
-
-      <div class="d-flex justify-content-end"> 
-      <a href="{% url 'Clients:client-register' %}" class="btn btn-primary file-dl-toast"><i class="bx bxs-log-out align-middle me-1"></i> Register to Continue</a>`
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      // update status cell
+      row.querySelector(".status").innerHTML =
+        `<span class="badge bg-success">${data.status}</span>`;
+
+      // update action cell to show "View"
+      row.querySelector(".action-cell").innerHTML =
+        `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  
+
+  async function handleUploadSuccess(row, data) {
+  row.querySelector(".status").innerHTML =
+    `<span class="badge bg-success">${data.status}</span>`;
+
+  row.querySelector(".action-cell").innerHTML =
+    `<a href="${data.file_url}" target="_blank"
+        class="btn btn-soft-success"> <i class="bx bxs-folder-open align-middle me-1"></i>
+        View File
+     </a>`;
+
+  if (data.new_stage) {
+    showStageAdvance(data.new_stage, data.progress);
+  }
+}
 
 
-      <div id="appResult" class="reqs"></div> -->
+function showStageAdvance(newStage, progress) {
+  const container = document.querySelector(".card-body");
+  container.classList.add("stage-advance");
 
-      
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info mt-3";
+  banner.innerHTML = `
+    🎉 <strong>Stage advanced!</strong><br>
+    You are now in <strong>${newStage}</strong> stage.
+    <div class="progress mt-2">
+      <div class="progress-bar bg-success"
+           style="width:${progress}%">
+        ${progress}%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  setTimeout(() => {
+    location.reload(); // reload to show next stage docs
+  }, 1500);
+}
+
+
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+</script>
+{% endblock %}
+
+
+When Student uploads last required document eventhough Stage auto-advances, Animated confirmation does not work, progress bar does not auto update without page reload and next stage documents upload page does not appear without page reload
+
+
+
+function showStageAdvance triggers after every document upload. Also need to add button to close progress bar
+
+
+
+🔥 Optional Next Enhancements
+If you want, I can add:
+Officer approval gate before stage advance
+Auto-email on stage change
+Timeline progress animation
+“Stage completed” certificate
+Re-application resets per stage
+
+
+
+
+class DocumentUploadAPIView(APIView):
+    """
+    Upload a file for a specific Document.
+    Clients: can upload only their own application documents.
+    Case Officers: can upload for any client.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        user = request.user
+        file = request.FILES.get("file")
+
+        if not file:
+            return Response({"detail": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Case Officer or Admin -> full access
+        if user.role in ["Case Officer", "Admin"]:
+            doc = get_object_or_404(Document, pk=pk)
+
+        # Client -> restricted to their own documents
+        elif user.role == "Client":
+            try:
+                client_profile = user.client_profile
+            except ClientProfile.DoesNotExist:
+                return Response({"detail": "Client profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+            doc = get_object_or_404(Document, pk=pk, application__client=client_profile)
+
+        else:
+            return Response({"detail": "You do not have permission to upload files."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Save uploaded file
+        doc.file = file
+        doc.status = "UPLOADED"
+        doc.save()
+
+        try_advance_stage(doc.application)
+
+
+        return Response({
+            "id": str(doc.id),
+            "requirement": doc.requirement.name,
+            "status": doc.status,
+            "file_url": doc.file.url if doc.file else None,
+            "new_stage": doc.application.stage,
+            "progress": doc.application.progress,
+        }, status=status.HTTP_200_OK)
+
+
+Amend to evaluate for data.stage_advanced === 
+
+
+
+
+
+def try_advance_stage(application):
+    current_stage = application.stage
+
+    # check if all required docs for current stage are uploaded
+    required_docs = application.documents.filter(
+        requirement__stage=current_stage,
+        requirement__is_mandatory=True
+    )
+
+    if required_docs.exists() and all(
+        doc.status == "UPLOADED" for doc in required_docs
+    ):
+        next_stage = application.get_next_stage()
+        if next_stage:
+            application.stage = next_stage
+            application.save(update_fields=["stage"])
+            return True  # ✅ STAGE ADVANCED
+
+    return False  # ❌ STAGE DID NOT ADVANCE
+
+
+
+
+
+
+def try_advance_stage(application):
+next_stage = application.get_next_stage()
+
+
+AttributeError: 'VisaApplication' object has no attribute 'get_next_stage'
+
+
+
+Why do I need to add this inside VisaApplication:
+# models.py
+
+    COUNTRY_STAGE_SEQUENCES = {
+        "UK": ["ADMISSION", "CAS", "VISA"],
+        "CANADA": ["ADMISSION", "VISA"],
+        "USA": ["ADMISSION", "VISA"],
+    }
+
+
+
+When I already have:
+class StageDefinition(models.Model):
+    STAGES = [
+        ("ADMISSION", "Admission"),
+        ("CAS", "CAS"),
+        ("VISA", "Visa"),
+    ]
+
+    country = models.CharField(max_length=20)
+    stage = models.CharField(max_length=20, choices=STAGES)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = ("country", "stage")
+        ordering = ["order"]
+
+    def __str__(self):
+        return f"{self.country} → {self.stage} ({self.order})"
+
+
+as a seperate model and both country, associated stages and order have already been seeded into the database
+
+Also this is my current VisaApplication model:
+
+
+class VisaApplication(BaseModel):
+    VISA_TYPES = [
+        ("TOURIST - EMPLOYED", "Tourist Visa - Employed"),
+        ("TOURIST - SELF EMPLOYED", "Tourist Visa - Self Employed"),
+        ("STUDENT", "Student Visa"),
+        ("WORK", "Work Visa"),
+        ("BUSINESS", "Business Visa"),
+        ("TRANSIT", "Transit Visa"),
+        ("RESIDENCY", "Residency / PR"),
+        ("DIPLOMATIC", "Diplomatic Visa"),
+        ("OTHER", "Other"),
+    ]
+
+    COUNTRIES = [
+        ("UK", "United Kingdom"),
+        ("USA", "United States"),
+        ("CANADA", "Canada"),
+        ("FRANCE", "France"),
+        ("QATAR", "Qatar"),
+        ("DUBAI", "Dubai"),
+        ("SOUTH AFRICA", "South Africa"),
+    ]
+
+    STATUS_CHOICES = [
+        # ("DRAFT", "Draft"),
+        # ("DOCUMENTS SUBMITTED", "Documents Submitted"),
+        ("QUEUED", "Queued"),
+        ("INITIATED", "Initiated by Officer"),
+        ("ASSIGNED", "Assigned to Officer"),
+        ("REVIEWED", "Reviewed"),
+        ("FORM FILLED", "Form Filled"),
+        ("ADMIN REVIEW", "Admin Review"),
+        ("SUBMITTED", "Awaiting Embassy Decision"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+
+
+    client = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="visa_applications")
+    country = models.CharField(max_length=20, choices=COUNTRIES)
+    visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
+
+    stage = models.CharField(
+        max_length=20,
+        choices=[
+            ("ADMISSION", "Admission"),
+            ("CAS", "CAS"),
+            ("VISA", "Visa"),
+        ],
+        default="ADMISSION",
+    )
+
+
+
+    progress = models.PositiveIntegerField(default=0)  # 0–100
+
+    created_by_officer = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="initiated_applications"
+    )
+
+    assigned_officer = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_applications"   # ✅ add this
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
+    form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
+    visa_application_url = models.URLField(blank=True, null=True)
+    submission_date = models.DateTimeField(blank=True, null=True)
+    decision_date = models.DateTimeField(blank=True, null=True)
+    reference_no = models.CharField(max_length=50, unique=True)
+    rejection_letter = models.FileField(upload_to="rejection_letters/", blank=True, null=True)
+
+
+    def __str__(self):
+         return f"{self.reference_no} ({self.country}, {self.visa_type})"
+
+
+    class Meta:
+        indexes = [models.Index(fields=["reference_no", "status"])]
+
+
+
+
+{% for stage in stage_sequence %}
+
+    {% if stage == current_stage %} ✅
+    {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %} 🔒
+    {% else %} 🔒
+    {% endif %}
+
+    <!-- {{ stage|title }} -->
+
+
+    <span class="badge
+      {% if stage == current_stage %}
+        bg-success 
+      {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+        bg-primary
+      {% else %}
+        bg-secondary
+      {% endif %}
+    ">
+      {{ stage|title }}
+    </span>
+
+    {% if not forloop.last %}
+      <span class="mx-0">→</span>
+    {% endif %}
+
+  {% endfor %}
+</div>
+
+
+<h6 class="text-info mb-3">
+  {{ current_stage|title }} Stage Documents
+</h6>
+
+
+
+
+// 🟢 Show requirements grouped by stage and inline PDF download
+      showBtn.addEventListener(
+        "click",
+        async () => {
+          // 🔁 Always reset UI first
+          reqsEl.innerHTML = "";
+          confirmBtn.disabled = true;
+
+          const country = countrySel.value;
+          const visa = visaSel.value;
+          if (!country || !visa) return;
+
+          try {
+            const reqs = await fetchJSON(
+              `${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+            );
+
+            if (!reqs.length) {
+              reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+              return;
+            }
+
+            // 🔥 GROUP REQUIREMENTS BY STAGE
+            const grouped = {};
+            reqs.forEach(r => {
+              if (!grouped[r.stage]) grouped[r.stage] = [];
+              grouped[r.stage].push(r);
+            });
+
+            // 🔥 RENDER EACH STAGE
+            Object.values(grouped).forEach(stageItems => {
+              const stageTitle = document.createElement("h5");
+              stageTitle.style.marginTop = "20px";
+              stageTitle.style.color = "#2563eb";
+              stageTitle.textContent = stageItems[0].stage_display;
+              reqsEl.appendChild(stageTitle);
+
+              stageItems.forEach(r => {
+                const row = document.createElement("div");
+                row.className = "req";
+
+                let pdfLink = "";
+                if (r.form_file_url) {
+                  const pdfUrl = userIsLoggedIn
+                    ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+                    : r.form_file_url;
+
+                  pdfLink = `
+                    <a href="${pdfUrl}" target="_blank"
+                       class="btn btn-sm btn-outline-danger flash-yellow"
+                       style="margin-left:10px">
+                      <i class="bx bxs-file-pdf me-1"></i> Download Form
+                    </a>
+                  `;
+                }
+
+                row.innerHTML = `
+                  <div>
+                    <strong>${r.name}</strong><br/>
+                    <small class="muted">${r.description || "—"}</small>
+                  </div>
+                  ${pdfLink}
+                  <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+                    ${r.is_mandatory ? "Required" : "Optional"}
+                  </span>
+                `;
+
+                reqsEl.appendChild(row);
+              });
+            });
+
+            // ✅ Enable confirmation button
+            confirmBtn.disabled = false;
+
+          } catch (err) {
+            console.error("Failed to load requirements:", err);
+            reqsEl.innerHTML =
+              "<div class='muted'>Failed to load requirements.</div>";
+          }
+        },
+        { once: true } // 🚫 prevents duplicate rendering
+      );
+
+
+
+      confirmBtn.disabled = false;
+
+    } catch (e) {
+      console.error("Requirements fetch failed", e);
+    }
+  });
+
+
+
+
+// 🟢 Show requirements with inline PDF download
+  showBtn.addEventListener("click", async () => {
+    resetRequirements();
+    const country = countrySel.value;
+    const visa = visaSel.value;
+    if (!country || !visa) return;
+
+    try {
+      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+      if (!reqs.length) {
+        reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+        return;
+      }
+
+      reqs.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "req";
+
+        let pdfLink = "";
+        if (r.form_file_url) {
+          // Auto-fill if logged in, else static link
+          const pdfUrl = currentUser
+            ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+            : r.form_file_url;
+
+          pdfLink = `<a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-danger flash-button" style="margin-left:10px">
+                       <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+                     </a>`;
+        }
+
+        row.innerHTML = `
+          <div>
+            <strong>${r.name}</strong><br/>
+            <small class="muted">${r.description || "—"}</small>
+          </div>
+          ${pdfLink}
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          </div>
+        `;
+        reqsEl.appendChild(row);
+      });
+
+      confirmBtn.disabled = false;
+
+    } catch (e) {
+      console.error("Requirements fetch failed", e);
+    }
+  });
+
+
+Merge the two scripts above: script one is for only student visa_type and script two is for other visa_types without the student visa_type stage sequence 
+
+
+
+
+
+@login_required
+def application_documentsold(request, pk):
+    app = get_object_or_404(VisaApplication, id=pk, client=request.user.client_profile)
+    return render(request, "clients/application_documents1.html", {"application": app})
+
+
+@login_required
+def application_documents(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk,
+        client=request.user.client_profile
+    )
+
+    stage_sequence = application.get_stage_sequence()
+    current_stage = application.stage
+
+    documents = application.documents.filter(
+        requirement__stage=current_stage
+    ).select_related("requirement")
+
+    
+    completed_stages = stage_sequence[:stage_sequence.index(current_stage)]
+
+    return render(request, "clients/visa_requirements_merged.html", {
+    # return render(request, "clients/application_stage_documents.html", {
+        "application": application,
+        "documents": documents,
+        "stage_sequence": stage_sequence,
+        "current_stage": current_stage,
+        "completed_stages": completed_stages,
+    })
+
+#application_documents1.html
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<!-- <h2>Visa Application Documents</h2> -->
+<h4 class="card-title text-info mb-2">Visa Application Documents</h4>
+<!-- <button id="refreshBtn" class="btn btn-outline-secondary btn-sm">🔄 Refresh Checklist</button> -->
+</div>
+
+<table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
+<thead class="table-light">
+<tr>
+<th>Requirement</th>
+<th>Status</th>
+<th>Upload / View</th>
+</tr>
+</thead>
+<tbody id="documentsBody">
+{% for doc in application.documents.all %}
+
+<tr data-doc-id="{{ doc.id }}">
+<td>{{ doc.requirement.name }}</td>
+<td class="status">
+<span class="badge 
+{% if doc.status == 'MISSING' %} bg-danger 
+{% elif doc.status == 'REJECTED' %} bg-warning 
+{% elif doc.status == 'APPROVED' or doc.status == 'UPLOADED' %} bg-success 
+{% else %} bg-secondary {% endif %}">
+{{ doc.status }}
+</span>
+</td>
+<td class="action-cell">
+{% if doc.file %}
+<a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>
+<!-- <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a> -->
+{% elif doc.status == "MISSING" or doc.status == "REJECTED" %}
+<div class="d-flex gap-2">
+<input type="file" class="form-control form-control-sm file-input" />
+<button class="btn btn-sm btn-primary upload-btn">Upload</button>
+</div>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
+</td>
+</tr>
+{% empty %}
+<tr>
+<td colspan="3" class="text-center">No required documents found.</td>
+</tr>
+{% endfor %}
+
+
+
+
+
+
+
+</tbody>
+</table>
+
+
+
+
+<div class="d-flex justify-content-end"> 
+<!-- <a href="{{request.META.HTTP_REFERER}}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i> Go Back</a>  -->
+
+<a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-success mt-4 mr-3"><i class="fas fa-angle-double-left"></i>  Return to Applications</a>`
+</div>
+
+
+
+</div>
+<!--end col-->
+</div><!--end row-->
+
+</div> <!-- container-fluid -->
+</div> 
+</div>
+<!-- End Page-content -->
+<!-- </div> -->
+
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
+
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      // update status cell
+      row.querySelector(".status").innerHTML =
+        `<span class="badge bg-success">${data.status}</span>`;
+
+      // update action cell to show "View"
+      row.querySelector(".action-cell").innerHTML =
+        `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  async function handleUploadSuccess(row, data) {
+    row.querySelector(".status").innerHTML =
+      `<span class="badge bg-success">${data.status}</span>`;
+
+    row.querySelector(".action-cell").innerHTML =
+      `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+
+    if (allDocumentsUploaded()) {
+      const refusalModal = document.getElementById("refusalModal");
+      if (refusalModal) {
+        let modalInstance = new bootstrap.Modal(refusalModal);
+        modalInstance.show();
+      }
+    }
+  }
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+
+
+</script>
+{% endblock %}
+
+
+
+
+
+
+#visa_requirements_merged.html
+{% extends 'clients/clients_dashboard_base1.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}| Application Documents{% endblock %}
+
+{% block content %}
+
+<style>
+.stage-advance {
+  animation: slidePulse 1.2s ease-in-out;
+}
+
+@keyframes slidePulse {
+  0% { opacity: 0; transform: translateX(40px); }
+  60% { opacity: 1; transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+</style>
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+<h4 class="card-title text-info mb-3">
+  {{ application.country }} Visa Application Documents for Application Reference No: {{ application.reference_no }}
+</h4>
+
+<h6 class="card-title text-info mb-2">
+Visa Application Stages
+</h6>
+
+
+
+<div class="mb-4 d-flex align-items-center flex-wrap gap-2 stage-timeline">
+  {% for stage in stage_sequence %}
+    <span class="badge
+      {% if stage == current_stage %}
+        bg-success
+      {% elif stage in completed_stages %}
+        bg-primary
+      {% else %}
+        bg-secondary
+      {% endif %}
+    ">
+      {{ stage|title }}
+    </span>
+
+    {% if not forloop.last %}
+      <span>→</span>
+    {% endif %}
+  {% endfor %}
+</div>
+
+
+<h6 class="text-info mb-3 current-stage-heading">
+  {{ current_stage|title }} Stage Documents
+</h6>
+
+
+<table class="table table-bordered">
+<thead>
+<tr>
+  <th>Requirement</th>
+  <th>Status</th>
+  <th>Upload / View</th>
+</tr>
+</thead>
+
+<tbody id="documentsBody">
+{% for doc in documents %}
+<tr data-doc-id="{{ doc.id }}">
+  <td>{{ doc.requirement.name }}</td>
+
+  <td class="status">
+    <span class="badge 
+      {% if doc.status == 'MISSING' %} bg-danger
+      {% elif doc.status == 'REJECTED' %} bg-warning
+      {% elif doc.status == 'UPLOADED' %} bg-success
+      {% else %} bg-secondary {% endif %}">
+      {{ doc.status }}
+    </span>
+  </td>
+
+  <td class="action-cell">
+    {% if doc.file %}
+      <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
+        View File
+      </a>
+    {% else %}
+      <div class="d-flex gap-2">
+        <input type="file" class="form-control form-control-sm file-input" />
+        <button class="btn btn-sm btn-primary upload-btn">Upload</button>
+      </div>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="3" class="text-center text-muted">
+    No documents required at this stage.
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+
+<div class="d-flex justify-content-end mt-4">
+  <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
+    ← Back to Applications
+  </a>
+</div>
+
+</div>
+</div>
+</div>
+
+
+
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
+
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      handleUploadSuccess(row, data);
+
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+
+async function handleUploadSuccess(row, data) {
+  // Update row UI
+  row.querySelector(".status").innerHTML =
+    `<span class="badge bg-success">UPLOADED</span>`;
+
+  row.querySelector(".action-cell").innerHTML =
+    `<a href="${data.file_url}" target="_blank"
+        class="btn btn-soft-success">
+        <i class="bx bxs-folder-open me-1"></i> View File
+     </a>`;
+
+  if (data.stage_advanced === true) {
+  showStageAdvance(data.new_stage, data.progress);
+}
+
+if (data.final_stage_completed === true) {
+  showFinalVisaCompletion();
+}
+}
+
+
+async function reloadStageUI() {
+  console.log("🔄 Reloading stage UI");
+
+  const res = await fetch(window.location.href, {
+    headers: { "X-Requested-With": "XMLHttpRequest" }
+  });
+
+  if (!res.ok) {
+    console.error("❌ Failed to reload stage UI");
+    return;
+  }
+
+  const html = await res.text();
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+
+  // 🔁 Replace stage badges
+  const newStageBlock = temp.querySelector(".stage-timeline");
+  const oldStageBlock = document.querySelector(".stage-timeline");
+  if (newStageBlock && oldStageBlock) {
+    oldStageBlock.replaceWith(newStageBlock);
+  }
+
+  // 🔁 Replace stage heading
+  const newHeading = temp.querySelector(".current-stage-heading");
+  const oldHeading = document.querySelector(".current-stage-heading");
+  if (newHeading && oldHeading) {
+    oldHeading.replaceWith(newHeading);
+  }
+
+  // 🔁 Replace documents table
+  const newTable = temp.querySelector("table");
+  const oldTable = document.querySelector("table");
+  if (newTable && oldTable) {
+    oldTable.replaceWith(newTable);
+  }
+
+  console.log("✅ Stage UI updated");
+}
+
+
+
+function showStageAdvance(newStage, progress) {
+  console.log("🎉 Stage auto-advanced to:", newStage);
+
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Stage advanced!</strong>
+    <div class="mt-1">
+      You are now in <strong>${newStage}</strong> stage.
+    </div>
+    <div class="progress mt-2">
+      <div class="progress-bar bg-success"
+           style="width:${progress}%">
+        ${progress}%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Auto-refresh stage UI + documents
+  setTimeout(async () => {
+    await reloadStageUI();
+    banner.remove();
+  }, 1200);
+}
+
+
+
+function showFinalVisaCompletion() {
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-success mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Documents upload complete!</strong>
+    <div class="mt-2">
+      Your student visa application documents upload is complete.<br>
+      <strong>You have now been assigned to a case officer.</strong>
     </div>
 
+    <div class="progress mt-3">
+      <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+           style="width:100%">
+        100%
+      </div>
+    </div>
+  `;
 
-  </div>
-  </div>
-  </main>
+  container.prepend(banner);
 
-  <script>
-   const API_BASE = "/api";
-    const countrySel = document.getElementById("country");
-    const visaSel = document.getElementById("visaType");
-    const showBtn = document.getElementById("showBtn");
-    const statusEl = document.getElementById("status");
-    const reqsEl = document.getElementById("requirements");
-    const registerLink = document.getElementById("registerLink");
+  // ⏳ Redirect after animation
+  setTimeout(() => {
+    window.location.href = "/Clients/applications/";
+  }, 1800);
+}
 
-    async function fetchJSON(url, opts={}){
-      const res = await fetch(url, {
-        headers: { "Content-Type": "application/json", ...opts.headers },
-        credentials: "include",
-        method: opts.method || "GET",
-        body: opts.body ? JSON.stringify(opts.body) : undefined
-      });
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    }
 
-    function resetVisaTypes(disabled=true){
-      visaSel.innerHTML = `<option value="">— Select visa type —</option>`;
-      visaSel.disabled = disabled;
-    }
+function closeStageBanner() {
+  const banner = document.getElementById("stageAdvanceBanner");
+  if (banner) banner.remove();
+}
 
-    function resetRequirements(){
-      reqsEl.innerHTML = "";
-      registerLink.style.display = "none"; // hide register until new reqs shown
-    }
 
-    // Load countries
-    (async function loadCountries(){
-      try{
-        const countries = await fetchJSON(`${API_BASE}/countries/`);
-        countries.forEach(c=>{
-          const opt = document.createElement("option");
-          opt.value = c.code;
-          opt.textContent = c.name;
-          countrySel.appendChild(opt);
-        });
-      }catch(e){ console.error(e); }
-    })();
-
-    // Country → visa types
-    countrySel.addEventListener("change", async ()=>{
-      resetVisaTypes();
-      resetRequirements();
-      const country = countrySel.value;
-      if(!country){ resetVisaTypes(true); return; }
-      try{
-        const visaTypes = await fetchJSON(`${API_BASE}/visa-types/?country=${encodeURIComponent(country)}`);
-        visaTypes.forEach(v=>{
-          const opt = document.createElement("option");
-          opt.value = v.code;
-          opt.textContent = v.name;
-          visaSel.appendChild(opt);
-        });
-        visaSel.disabled = false;
-      }catch(e){ console.error(e); }
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
     });
+  }
 
-    visaSel.addEventListener("change", ()=>{
-      showBtn.disabled = !(countrySel.value && visaSel.value);
-      resetRequirements();
-    });
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
 
-    // Show requirements
-    showBtn.addEventListener("click", async ()=>{
-      resetRequirements();
-      const country = countrySel.value;
-      const visa = visaSel.value;
-      if(!country || !visa) return;
-      try{
-        const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
-        if(!reqs.length){ 
-          reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>"; 
-          return; 
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
         }
-        reqs.forEach(r=>{
-          const row = document.createElement("div");
-          row.className = "req";
-          row.innerHTML = `<div><strong>${r.name}</strong><br/><small class="muted">${r.category || "—"}</small></div>
-                           <span class="tag ${r.is_mandatory ? "req" : "opt"}">${r.is_mandatory ? "Required" : "Optional"}</span>`;
-          reqsEl.appendChild(row);
-        });
 
-        // ✅ Show register button after requirements displayed
-        registerLink.style.display = "inline-block";
-
-      }catch(e){ console.error(e); }
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
     });
 
-  </script>
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+</script>
+{% endblock %}
 
 
-  I tried removing Confirm & Start Application and Select Visa Type became inactivated. Amend script so once requirements are displayed one can Register to Start. Confirm & Start Application btn and related logic is no longer required
+
+def application_documentsold references view and template (clients/application_documents1.html) for visa applications before the amendment to group student visa application by stage.
+
+Amend clients/visa_requirements_merged.html template used in current view (def application_documents) to accomodate other visa applications reflected in clients/application_documents1.html
+
+
+
+
+
+{% extends 'clients/clients_dashboard_base1.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}| Application Documents{% endblock %}
+
+{% block content %}
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+<h4 class="card-title text-info mb-3">
+  {{ application.country }} Visa Application Documents
+  (Ref: {{ application.reference_no }})
+</h4>
+
+{% if application.visa_type == "STUDENT" %}
+  {# ===================================================== #}
+  {# 🎓 STUDENT VISA — STAGE-BASED UI #}
+  {# ===================================================== #}
+
+  <h6 class="text-info mb-2">Visa Application Stages</h6>
+
+  <div class="mb-4 d-flex align-items-center flex-wrap gap-2 stage-timeline">
+    {% for stage in stage_sequence %}
+      <span class="badge
+        {% if stage == current_stage %}
+          bg-success
+        {% elif stage in completed_stages %}
+          bg-primary
+        {% else %}
+          bg-secondary
+        {% endif %}
+      ">
+        {{ stage|title }}
+      </span>
+      {% if not forloop.last %}<span>→</span>{% endif %}
+    {% endfor %}
+  </div>
+
+  <h6 class="text-info mb-3 current-stage-heading">
+    {{ current_stage|title }} Stage Documents
+  </h6>
+
+  {% include "clients/partials/document_table.html" with documents=documents %}
+
+{% else %}
+  {# ===================================================== #}
+  {# 🧳 NON-STUDENT VISA — LEGACY FLAT UI #}
+  {# ===================================================== #}
+
+  <h6 class="text-info mb-3">Required Documents</h6>
+
+  {% include "clients/partials/document_table.html" with documents=application.documents.all %}
+
+{% endif %}
+
+<div class="d-flex justify-content-end mt-4">
+  <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
+    ← Back to Applications
+  </a>
+</div>
+
+</div>
+</div>
+</div>
+{% endblock %}
+
+
+
+
+#services.py
+def try_advance_stage(application):
+    """
+    Advances application stage ONLY if all required documents
+    for the current stage are uploaded.
+    Returns a dict consumed by frontend.
+    """
+
+    current_stage = application.stage
+
+    # Documents required for THIS stage
+    required_docs = application.documents.filter(
+        requirement__stage=current_stage,
+        requirement__is_mandatory=True,
+    )
+
+    # Still missing something → do nothing
+    if required_docs.filter(status__in=["MISSING", "REJECTED"]).exists():
+        return {
+            "stage_advanced": False,
+            "final_stage_completed": False,
+            "stage": application.stage,
+            "progress": application.progress,
+        }
+
+    # 🚀 Try to advance
+    advanced = application.advance_stage()
+
+    if not advanced:
+        # This means we were already at FINAL stage
+        application.progress = 100
+        application.save(update_fields=["progress"])
+
+        # ✅ FINAL COMPLETION NOTIFICATION
+        notify_final_completion(application)
+
+        return {
+            "stage_advanced": False,
+            "final_stage_completed": True,
+            "stage": application.stage,
+            "progress": 100,
+        }
+
+    # ✅ STAGE ADVANCED → SEND NOTIFICATION
+    notify_stage_advanced(application)
+
+    return {
+        "stage_advanced": True,
+        "final_stage_completed": False,
+        "stage": application.stage,
+        "progress": application.progress,
+    }
+
+
+#api_views.py
+class DocumentUploadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        user = request.user
+        file = request.FILES.get("file")
+
+        if not file:
+            return Response(
+                {"detail": "No file uploaded"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🔐 Resolve document based on role
+        if user.role in ["Case Officer", "Admin"]:
+            doc = get_object_or_404(Document, pk=pk)
+
+        elif user.role == "Client":
+            try:
+                client_profile = user.client_profile
+            except ClientProfile.DoesNotExist:
+                return Response(
+                    {"detail": "Client profile not found."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            doc = get_object_or_404(
+                Document,
+                pk=pk,
+                application__client=client_profile
+            )
+        else:
+            return Response(
+                {"detail": "You do not have permission to upload files."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 💾 Save uploaded file
+        doc.file = file
+        doc.status = "UPLOADED"
+        doc.save(update_fields=["file", "status"])
+
+        # 🚀 Attempt automatic stage advancement
+        advance_result = try_advance_stage(doc.application)
+
+        # ✅ Single, consistent response for frontend
+        return Response(
+            {
+                "id": str(doc.id),
+                "requirement": doc.requirement.name,
+                "status": doc.status,
+                "file_url": doc.file.url if doc.file else None,
+
+                # 🔑 stage logic
+                "stage_advanced": advance_result["stage_advanced"],
+                "final_stage_completed": advance_result["final_stage_completed"],
+                "new_stage": advance_result["stage"],
+                "progress": advance_result["progress"],
+            },
+            status=status.HTTP_200_OK
+        )
+
+        
+
+#notifications.py
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+logger = logging.getLogger(__name__)
+
+
+
+def send_email(subject, message, recipient):
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [recipient],
+        fail_silently=False,
+    )
+
+
+
+def notify_stage_advanced(application):
+    user = application.client.user
+
+    subject = "Visa Application Stage Updated"
+    message = f"""
+Dear {user.get_full_name},
+
+Your visa application ({application.reference_no}) has progressed.
+
+Current Stage: {application.stage}
+Progress: {application.progress}%
+
+Please log in to continue.
+"""
+
+    send_email(subject, message, user.email)
+
+
+def notify_final_completion(application):
+    user = application.client.user
+
+    subject = "🎉 Visa Application Documents Completed"
+    message = f"""
+Dear {user.get_full_name},
+
+Congratulations!
+
+You have successfully completed ALL required documents for your
+Student Visa Application.
+
+Reference No: {application.reference_no}
+
+✅ Status: Assigned to a Case Officer
+📌 Next step: Review & submission
+
+You will be contacted shortly.
+
+— Suave ERP
+"""
+
+    send_email(subject, message, user.email)
+
+
+
+#visa_requirements_merged.html
+<script>
+async function handleUploadSuccess(row, data) {
+  // Update row UI
+  row.querySelector(".status").innerHTML =
+    `<span class="badge bg-success">UPLOADED</span>`;
+
+  row.querySelector(".action-cell").innerHTML =
+    `<a href="${data.file_url}" target="_blank"
+        class="btn btn-soft-success">
+        <i class="bx bxs-folder-open me-1"></i> View File
+     </a>`;
+
+  if (data.stage_advanced === true) {
+  showStageAdvance(data.new_stage, data.progress);
+}
+
+if (data.final_stage_completed === true) {
+  showFinalVisaCompletion();
+}
+}
+
+
+async function reloadStageUI() {
+  console.log("🔄 Reloading stage UI");
+
+  const res = await fetch(window.location.href, {
+    headers: { "X-Requested-With": "XMLHttpRequest" }
+  });
+
+  if (!res.ok) {
+    console.error("❌ Failed to reload stage UI");
+    return;
+  }
+
+  const html = await res.text();
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+
+  // 🔁 Replace stage badges
+  const newStageBlock = temp.querySelector(".stage-timeline");
+  const oldStageBlock = document.querySelector(".stage-timeline");
+  if (newStageBlock && oldStageBlock) {
+    oldStageBlock.replaceWith(newStageBlock);
+  }
+
+  // 🔁 Replace stage heading
+  const newHeading = temp.querySelector(".current-stage-heading");
+  const oldHeading = document.querySelector(".current-stage-heading");
+  if (newHeading && oldHeading) {
+    oldHeading.replaceWith(newHeading);
+  }
+
+  // 🔁 Replace documents table
+  const newTable = temp.querySelector("table");
+  const oldTable = document.querySelector("table");
+  if (newTable && oldTable) {
+    oldTable.replaceWith(newTable);
+  }
+
+  console.log("✅ Stage UI updated");
+}
+
+
+
+function showStageAdvance(newStage, progress) {
+  console.log("🎉 Stage auto-advanced to:", newStage);
+
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Stage advanced!</strong>
+    <div class="mt-1">
+      You are now in <strong>${newStage}</strong> stage.
+    </div>
+    <div class="progress mt-2">
+      <div class="progress-bar bg-success"
+           style="width:${progress}%">
+        ${progress}%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Auto-refresh stage UI + documents
+  setTimeout(async () => {
+    await reloadStageUI();
+    banner.remove();
+  }, 1200);
+}
+
+
+
+function showFinalVisaCompletion() {
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-success mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Documents upload complete!</strong>
+    <div class="mt-2">
+      Your student visa application documents upload is complete.<br>
+      <strong>You have now been assigned to a case officer.</strong>
+    </div>
+
+    <div class="progress mt-3">
+      <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+           style="width:100%">
+        100%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Redirect after animation
+  setTimeout(() => {
+    window.location.href = "/Clients/applications/";
+  }, 1800);
+}
+
+
+function closeStageBanner() {
+  const banner = document.getElementById("stageAdvanceBanner");
+  if (banner) banner.remove();
+}
+
+</script>
+
+
+
+
+function showStageAdvance and function showFinalVisaCompletion still being triggered during documents upload for non-student visa types.  While maintaining the student visa process as is, amend such that for non-student visa types, upon final required document upload, progress bar notification shows "You have successfully submitted all required documents.  Your application has been assigned to a case officer".  Email should also be sent to client
+
+#urls.py
+app_name = "Clients"
+
+urlpatterns = [
+    path("applications/", applications_list, name="applications-list"),
+]
+
+#views.py
+@login_required
+def applications_list(request):
+    return render(request, "clients/applications_list.html")
+
+#clients/applications_list.html
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+  
+
+{% block content %}
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<h4 class="card-title text-info mb-4">My Visa Applications</h4>
+<div class="table-responsive">
+
+<table id="datatable" class="table table-bordered dt-responsive">
+   <thead class="table-light">
+      <tr>
+        <th class="align-middle">Ref No:</th>
+        <th class="align-middle">Country</th>
+        <th class="align-middle">Visa Type</th>
+        <th class="align-middle">Status</th>
+        <th class="align-middle">Created On</th>
+        <th class="align-middle">Action</th>
+      </tr>
+    </thead>
+    <tbody id="datatable-tbody">
+  <tr>
+    <td colspan="8" class="text-center text-muted">Loading applications...</td>
+  </tr>
+</tbody>
+  </table>
+  </div>
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'Clients:client_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-4"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+</div>
+</div> 
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="application-detail-content">
+          <p class="text-muted">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jQuery (must come first) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('#datatable').DataTable({
+        processing: true,
+        serverSide: false,   // change to true if you want Django API to handle paging
+        ajax: {
+            url: "/api/applications/",
+            dataSrc: ""  // use "results" if your API wraps data as {results: [...]}
+        },
+        order: [[3, "desc"]], // column index of "Created On / Date"
+
+        columns: [
+            { data: "reference_no",
+              render: function (data) {
+                  return `<a href="javascript:void(0);" class="text-body fw-bold">${data}</a>`;
+              }
+            },
+            { data: "country_display" },
+            { data: "visa_type_display" },
+            { data: "status_display",
+              render: function (data, type, row) {
+                  return `<span class="badge ${row.status_badge}">${data}</span>`;
+              }
+            },
+            {
+                data: "created_at",
+                render: function (data, type, row) {
+                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
+                }
+            },
+            {
+              data: "id",
+              render: function (id, type, row) {
+                  let missingDocs = (row.documents || []).filter(
+                      doc => doc.status.toLowerCase() === "missing"
+                  );
+
+          if (missingDocs.length >= 1) {
+              return `
+                  <div class="dropdown">
+                      <button class="btn btn-primary btn-sm btn-rounded dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                          Select an Action
+                      </button>
+                      <ul class="dropdown-menu">
+                          <li>
+                              <a href="{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                                 class="dropdown-item upload-docs-btn"
+                                 data-id="${id}">
+                                 Upload Documents
+                              </a>
+                          </li>
+                          <li>
+                              <a href="javascript:void(0);" 
+                                 class="dropdown-item view-details-btn"
+                                 data-id="${id}"
+                                 data-bs-toggle="modal"
+                                 data-bs-target="#applicationDetailModal">
+                                 View Details
+                              </a>
+                          </li>
+                      </ul>
+                  </div>
+              `;
+          } else {
+              return `
+                  <button type="button"
+                      class="btn btn-primary btn-sm btn-rounded view-details-btn"
+                      data-id="${id}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#applicationDetailModal">
+                      View Details
+                  </button>
+              `;
+
+          }
+        }
+        }
+
+        ],
+        pageLength: 10,
+        responsive: true,
+        ordering: true
+    });
+
+    // 🔹 Fix Upload Documents links after table draw
+    $('#datatable').on('draw.dt', function () {
+        document.querySelectorAll(".upload-docs-btn").forEach(link => {
+            let appId = link.dataset.id;
+            link.href = "{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                          .replace("00000000-0000-0000-0000-000000000000", appId);
+        });
+    });
+
+    // 🔹 Handle View Details button clicks
+    $('#datatable').on('click', '.view-details-btn', function () {
+        let appId = $(this).data('id');
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+              // ✅ Officer row logic with fallback
+                let officerRow = "";
+                if (app.created_by_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Initiating Officer</th>
+                            <td>${app.created_by_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else if (app.assigned_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Assigned Officer</th>
+                            <td>${app.assigned_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else {
+                    officerRow = `
+                        <tr>
+                            <th>Officer</th>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+                let detailsHtml = `
+                  <h5 class="text-info">Application Info</h5>
+                  <table class="table table-bordered">
+                    <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                    <tr><th>Country</th><td>${app.country_display}</td></tr>
+                    <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                    <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                    ${officerRow}
+                    <tr><th>Created At</th><td>${app.created_at ?? '-'}</td></tr>
+                    <tr><th>Visa Application URL</th>
+                        <td>
+                          ${app.visa_application_url 
+                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Go To URL</a>` 
+                            : '-'}
+                        </td>
+                    </tr>
+                    <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                    <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                  </table>
+                `;
+
+                let docsHtml = `
+                  <h5 class="mt-4 text-info">Documents</h5>
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Status</th>
+                        <th>File</th>
+                        <th>Comments</th>
+                        <th>Uploaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                `;
+
+                if (app.documents.length === 0) {
+                    docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+                } else {
+                    app.documents.forEach(doc => {
+                        docsHtml += `
+                          <tr>
+                            <td>${doc.requirement_name}</td>
+                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+                            <td>${doc.review_comments ?? '-'}</td>
+                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+                          </tr>
+                        `;
+                    });
+                }
+
+                docsHtml += "</tbody></table>";
+                modalBody.innerHTML = detailsHtml + docsHtml;
+            });
+    });
+});
+</script>
+
+{% endblock %}
+
+
+
+Amend so that in #applicationDetailModal required documents for student visa type are displayed grouped in stages possibly across different pages while other visa types remain as is 
+
+
+
+
+
+{% extends 'clients/clients_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+
+
+
+{% endblock %}
+  
+
+{% block content %}
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+<!-- <div class="d-flex justify-content-between align-items-center mb-3"> -->
+<h4 class="card-title text-info mb-4">My Visa Applications</h4>
+<!-- </div> -->
+<div class="table-responsive">
+
+<table id="datatable" class="table table-bordered dt-responsive">
+   <thead class="table-light">
+      <tr>
+        <th class="align-middle">Ref No:</th>
+        <th class="align-middle">Country</th>
+        <th class="align-middle">Visa Type</th>
+        <th class="align-middle">Status</th>
+        <th class="align-middle">Created On</th>
+        <th class="align-middle">Action</th>
+      </tr>
+    </thead>
+    <tbody id="datatable-tbody">
+  <tr>
+    <td colspan="8" class="text-center text-muted">Loading applications...</td>
+  </tr>
+</tbody>
+  </table>
+  </div>
+
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'Clients:client_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-4"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+<!--end col-->
+</div><!--end row-->
+
+
+</div> <!-- container-fluid -->
+</div>
+
+
+
+
+
+<!-- Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="application-detail-content">
+          <p class="text-muted">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jQuery (must come first) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+<script>
+$(document).ready(function () {
+    $('#datatable').DataTable({
+        processing: true,
+        serverSide: false,   // change to true if you want Django API to handle paging
+        ajax: {
+            url: "/api/applications/",
+            dataSrc: ""  // use "results" if your API wraps data as {results: [...]}
+        },
+        order: [[3, "desc"]], // column index of "Created On / Date"
+
+        columns: [
+            { data: "reference_no",
+              render: function (data) {
+                  return `<a href="javascript:void(0);" class="text-body fw-bold">${data}</a>`;
+              }
+            },
+            { data: "country_display" },
+            { data: "visa_type_display" },
+            { data: "status_display",
+              render: function (data, type, row) {
+                  return `<span class="badge ${row.status_badge}">${data}</span>`;
+              }
+            },
+            {
+                data: "created_at",
+                render: function (data, type, row) {
+                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
+                }
+            },
+        
+            {
+              data: "id",
+              render: function (id, type, row) {
+                  let missingDocs = (row.documents || []).filter(
+                      doc => doc.status.toLowerCase() === "missing"
+                  );
+
+                  if (missingDocs.length >= 1) {
+                      return `
+                          <div class="dropdown">
+                              <button class="btn btn-primary btn-sm btn-rounded dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  Select an Action
+                              </button>
+                              <ul class="dropdown-menu">
+                                  <li>
+                                      <a href="{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                                         class="dropdown-item upload-docs-btn"
+                                         data-id="${id}">
+                                         Upload Documents
+                                      </a>
+                                  </li>
+                                  <li>
+                                      <a href="javascript:void(0);" 
+                                         class="dropdown-item view-details-btn"
+                                         data-id="${id}"
+                                         data-bs-toggle="modal"
+                                         data-bs-target="#applicationDetailModal">
+                                         View Details
+                                      </a>
+                                  </li>
+                              </ul>
+                          </div>
+                      `;
+                  } else {
+                      return `
+                          <button type="button"
+                              class="btn btn-primary btn-sm btn-rounded view-details-btn"
+                              data-id="${id}"
+                              data-bs-toggle="modal"
+                              data-bs-target="#applicationDetailModal">
+                              View Details
+                          </button>
+                      `;
+
+                  }
+              }
+          }
+
+        ],
+        pageLength: 10,
+        responsive: true,
+        ordering: true
+    });
+
+    // 🔹 Fix Upload Documents links after table draw
+    $('#datatable').on('draw.dt', function () {
+        document.querySelectorAll(".upload-docs-btn").forEach(link => {
+            let appId = link.dataset.id;
+            link.href = "{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                          .replace("00000000-0000-0000-0000-000000000000", appId);
+        });
+    });
+
+    // 🔹 Handle View Details button clicks
+    $('#datatable').on('click', '.view-details-btn', function () {
+        let appId = $(this).data('id');
+        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+        fetch(`/api/applications/${appId}/`)
+            .then(res => res.json())
+            .then(app => {
+              // ✅ Officer row logic with fallback
+                let officerRow = "";
+                if (app.created_by_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Initiating Officer</th>
+                            <td>${app.created_by_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else if (app.assigned_officer_name) {
+                    officerRow = `
+                        <tr>
+                            <th>Assigned Officer</th>
+                            <td>${app.assigned_officer_name ?? '-'}</td>
+                        </tr>
+                    `;
+                } else {
+                    officerRow = `
+                        <tr>
+                            <th>Officer</th>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+                let detailsHtml = `
+                  <h5 class="text-info">Application Info</h5>
+                  <table class="table table-bordered">
+                    <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                    <tr><th>Country</th><td>${app.country_display}</td></tr>
+                    <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                    <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                    ${officerRow}
+                    <tr><th>Created At</th><td>${app.created_at ?? '-'}</td></tr>
+                    <tr><th>Visa Application URL</th>
+                        <td>
+                          ${app.visa_application_url 
+                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Go To URL</a>` 
+                            : '-'}
+                        </td>
+                    </tr>
+                    <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                    <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                  </table>
+                `;
+
+                let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
+
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
+
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
+
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
+
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+  docsHtml += `
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>Status</th>
+          <th>File</th>
+          <th>Comments</th>
+          <th>Uploaded</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (app.documents.length === 0) {
+    docsHtml += `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No documents uploaded yet.
+        </td>
+      </tr>
+    `;
+  } else {
+    app.documents.forEach(doc => {
+      docsHtml += `
+        <tr>
+          <td>${doc.requirement_name}</td>
+          <td><span class="badge ${doc.status_badge}">
+            ${doc.status_display}
+          </span></td>
+          <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+          <td>${doc.review_comments ?? "-"}</td>
+          <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+        </tr>
+      `;
+    });
+  }
+
+  docsHtml += `</tbody></table>`;
+}
+
+
+  if (app.documents.length === 0) {
+      docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+      } else {
+     app.documents.forEach(doc => {
+    docsHtml += `
+    <tr>
+    <td>${doc.requirement_name}</td>
+    <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+       <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+         <td>${doc.review_comments ?? '-'}</td>
+        <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+        </tr>
+         `;
+         });
+        }
+
+        docsHtml += "</tbody></table>";
+        modalBody.innerHTML = detailsHtml + docsHtml;
+      });
+    });
+});
+</script>
+
+{% endblock %}
+
+
+
+After implementing suggested fixes in the template above, requirements now duplicated below the document requirments table

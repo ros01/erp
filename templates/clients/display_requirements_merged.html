@@ -48,7 +48,7 @@
   </div>
 <div class="card-body">
 <h5 class="fw-semibold mb-3">Description</h5>
-<p class="text-muted">Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p>     
+<p class="text-muted">Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p>    
 
 <div class="row2">
 <div>
@@ -85,6 +85,7 @@
 </div><!--end row-->
 
 </div> <!-- container-fluid -->
+
 
 <script>
 function getCookie(name) {
@@ -208,114 +209,128 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 
+// 🟢 Show requirements grouped by stage and others
+showBtn.addEventListener("click", async () => {
+  // 🔁 Always reset UI
+  reqsEl.innerHTML = "";
+  confirmBtn.disabled = true;
 
-  // 🟢 Show requirements with inline PDF download
-  showBtn.addEventListener("click", async () => {
-    resetRequirements();
-    const country = countrySel.value;
-    const visa = visaSel.value;
-    if (!country || !visa) return;
+  const country = countrySel.value;
+  const visa = visaSel.value;
+  if (!country || !visa) return;
 
-    try {
-      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
-      if (!reqs.length) {
-        reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
-        return;
-      }
+  try {
+    const reqs = await fetchJSON(
+      `${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+    );
 
-
-      // 🟢 Show requirements grouped by stage
-
-      showBtn.addEventListener(
-        "click",
-        async () => {
-          // 🔁 Always reset UI first
-          reqsEl.innerHTML = "";
-          confirmBtn.disabled = true;
-
-          const country = countrySel.value;
-          const visa = visaSel.value;
-          if (!country || !visa) return;
-
-          try {
-            const reqs = await fetchJSON(
-              `${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
-            );
-
-            if (!reqs.length) {
-              reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
-              return;
-            }
-
-            // 🔥 GROUP REQUIREMENTS BY STAGE
-            const grouped = {};
-            reqs.forEach(r => {
-              if (!grouped[r.stage]) grouped[r.stage] = [];
-              grouped[r.stage].push(r);
-            });
-
-            // 🔥 RENDER EACH STAGE
-            Object.values(grouped).forEach(stageItems => {
-              const stageTitle = document.createElement("h5");
-              stageTitle.style.marginTop = "20px";
-              stageTitle.style.color = "#2563eb";
-              stageTitle.textContent = stageItems[0].stage_display;
-              reqsEl.appendChild(stageTitle);
-
-              stageItems.forEach(r => {
-                const row = document.createElement("div");
-                row.className = "req";
-
-                let pdfLink = "";
-                if (r.form_file_url) {
-                  const pdfUrl = userIsLoggedIn
-                    ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
-                    : r.form_file_url;
-
-                  pdfLink = `
-                    <a href="${pdfUrl}" target="_blank"
-                       class="btn btn-sm btn-outline-danger flash-yellow"
-                       style="margin-left:10px">
-                      <i class="bx bxs-file-pdf me-1"></i> Download Form
-                    </a>
-                  `;
-                }
-
-                row.innerHTML = `
-                  <div>
-                    <strong>${r.name}</strong><br/>
-                    <small class="muted">${r.description || "—"}</small>
-                  </div>
-                  ${pdfLink}
-                  <span class="tag ${r.is_mandatory ? "req" : "opt"}">
-                    ${r.is_mandatory ? "Required" : "Optional"}
-                  </span>
-                `;
-
-                reqsEl.appendChild(row);
-              });
-            });
-
-            // ✅ Enable confirmation button
-            confirmBtn.disabled = false;
-
-          } catch (err) {
-            console.error("Failed to load requirements:", err);
-            reqsEl.innerHTML =
-              "<div class='muted'>Failed to load requirements.</div>";
-          }
-        },
-        { once: true } // 🚫 prevents duplicate rendering
-      );
-
-
-
-      confirmBtn.disabled = false;
-
-    } catch (e) {
-      console.error("Requirements fetch failed", e);
+    if (!reqs.length) {
+      reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+      return;
     }
-  });
+
+    /* ============================================================
+       🎓 STUDENT VISA → GROUP BY STAGE (Admission / CAS / Visa)
+       ============================================================ */
+    if (visa === "STUDENT") {
+      const grouped = {};
+
+      reqs.forEach(r => {
+        if (!grouped[r.stage]) grouped[r.stage] = [];
+        grouped[r.stage].push(r);
+      });
+
+      Object.keys(grouped).forEach(stageKey => {
+        const stageItems = grouped[stageKey];
+
+        // Stage heading
+        const stageTitle = document.createElement("h5");
+        stageTitle.className = "mt-4 text-primary";
+        stageTitle.textContent = stageItems[0].stage_display || stageKey;
+        reqsEl.appendChild(stageTitle);
+
+        stageItems.forEach(r => {
+          const row = document.createElement("div");
+          row.className = "req";
+
+          let pdfLink = "";
+          if (r.form_file_url) {
+            const pdfUrl = userIsLoggedIn
+              ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+              : r.form_file_url;
+
+            pdfLink = `
+              <a href="${pdfUrl}" target="_blank"
+                 class="btn btn-sm btn-outline-danger flash-yellow"
+                 style="margin-left:10px">
+                <i class="bx bxs-file-pdf me-1"></i> Download Form
+              </a>`;
+          }
+
+          row.innerHTML = `
+            <div>
+              <strong>${r.name}</strong><br/>
+              <small class="muted">${r.description || "—"}</small>
+            </div>
+            ${pdfLink}
+            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          `;
+
+          reqsEl.appendChild(row);
+        });
+      });
+    }
+
+    /* ============================================================
+       🧳 ALL OTHER VISA TYPES → FLAT LIST (NO STAGES)
+       ============================================================ */
+    else {
+      reqs.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "req";
+
+        let pdfLink = "";
+        if (r.form_file_url) {
+          const pdfUrl = userIsLoggedIn
+            ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+            : r.form_file_url;
+
+          pdfLink = `
+            <a href="${pdfUrl}" target="_blank"
+               class="btn btn-sm btn-outline-danger flash-button"
+               style="margin-left:10px">
+              <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+            </a>`;
+        }
+
+        row.innerHTML = `
+          <div>
+            <strong>${r.name}</strong><br/>
+            <small class="muted">${r.description || "—"}</small>
+          </div>
+          ${pdfLink}
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          </div>
+        `;
+
+        reqsEl.appendChild(row);
+      });
+    }
+
+    // ✅ Enable confirm button
+    confirmBtn.disabled = false;
+
+  } catch (err) {
+    console.error("Requirements fetch failed:", err);
+    reqsEl.innerHTML =
+      "<div class='muted'>Failed to load requirements.</div>";
+  }
+});
 
 
 
@@ -368,5 +383,6 @@ document.addEventListener("DOMContentLoaded", () => {
   100% { background-color: gold; color: black; }
 }
 </style>
+
 
 {% endblock %}

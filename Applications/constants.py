@@ -1,0 +1,29 @@
+STUDENT_STAGE_SEQUENCE = {
+    "UK": ["ADMISSION", "CAS", "VISA"],
+    "CANADA": ["ADMISSION", "VISA"],
+    "USA": ["ADMISSION", "VISA"],
+}
+
+
+
+
+
+STAGE_ADMISSION = "ADMISSION"
+STAGE_CAS = "CAS"
+STAGE_VISA = "VISA"
+
+STUDENT_STAGE_SEQUENCE_BY_COUNTRY = {
+    "UK": [
+        STAGE_ADMISSION,
+        STAGE_CAS,
+        STAGE_VISA,
+    ],
+    "CANADA": [
+        STAGE_ADMISSION,
+        STAGE_VISA,
+    ],
+    "USA": [
+        STAGE_ADMISSION,
+        STAGE_VISA,
+    ],
+}

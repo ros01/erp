@@ -1,0 +1,751 @@
+{% extends 'clients/clients_dashboard_base1.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}| Application Documents{% endblock %}
+
+{% block content %}
+
+<style>
+.stage-advance {
+  animation: slidePulse 1.2s ease-in-out;
+}
+
+@keyframes slidePulse {
+  0% { opacity: 0; transform: translateX(40px); }
+  60% { opacity: 1; transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+</style>
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+<h4 class="card-title text-info mb-3">
+  {{ application.country }} Visa Application Documents for Application Reference No: {{ application.reference_no }}
+</h4>
+
+<h6 class="card-title text-info mb-2">
+Visa Application Stages
+</h6>
+
+<!-- <div class="mb-4 d-flex align-items-center flex-wrap gap-2">
+  {% for stage in stage_sequence %}
+
+    {% if stage == current_stage %} ✅
+    {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %} 🔒
+    {% else %} 🔒
+    {% endif %}
+
+    <span class="badge
+      {% if stage == current_stage %}
+        bg-success 
+      {% elif stage in stage_sequence|slice:":stage_sequence.index(current_stage)" %}
+        bg-primary
+      {% else %}
+        bg-secondary
+      {% endif %}
+    ">
+      {{ stage|title }}
+    </span>
+
+    {% if not forloop.last %}
+      <span class="mx-0">→</span>
+    {% endif %}
+
+  {% endfor %}
+</div> -->
+
+
+{% if stage_sequence %}
+
+<div class="mb-4 d-flex align-items-center flex-wrap gap-2 stage-timeline">
+  {% for stage in stage_sequence %}
+    <span class="badge
+      {% if stage == current_stage %}
+        bg-success
+      {% elif stage in completed_stages %}
+        bg-primary
+      {% else %}
+        bg-secondary
+      {% endif %}
+    ">
+      {{ stage|title }}
+    </span>
+
+    {% if not forloop.last %}
+      <span>→</span>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<h6 class="text-info mb-3 current-stage-heading">
+  {{ current_stage|title }} Stage Documents
+</h6>
+
+
+<table class="table table-bordered">
+<thead>
+<tr>
+  <th>Requirement</th>
+  <th>Status</th>
+  <th>Upload / View</th>
+</tr>
+</thead>
+
+<tbody id="documentsBody">
+{% for doc in documents %}
+<tr data-doc-id="{{ doc.id }}">
+  <td>{{ doc.requirement.name }}</td>
+
+  <td class="status">
+    <span class="badge 
+      {% if doc.status == 'MISSING' %} bg-danger
+      {% elif doc.status == 'REJECTED' %} bg-warning
+      {% elif doc.status == 'UPLOADED' %} bg-success
+      {% else %} bg-secondary {% endif %}">
+      {{ doc.status }}
+    </span>
+  </td>
+
+  <td class="action-cell">
+    {% if doc.file %}
+      <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
+        View File
+      </a>
+    {% else %}
+      <div class="d-flex gap-2">
+        <input type="file" class="form-control form-control-sm file-input" />
+        <button class="btn btn-sm btn-primary upload-btn">Upload</button>
+      </div>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="3" class="text-center text-muted">
+    No documents required at this stage.
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+
+<div class="d-flex justify-content-end mt-4">
+  <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
+    ← Back to Applications
+  </a>
+</div>
+
+</div>
+</div>
+</div>
+
+
+
+<!-- Refusal Modal -->
+<div class="modal fade" id="refusalModal" tabindex="-1" aria-labelledby="refusalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="refusalModalLabel">Visa Refusal History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Have you ever been refused a visa before?</p>
+        <div class="d-flex gap-2 mt-3">
+          <button id="refusalYesBtn" class="btn btn-danger">Yes</button>
+          <button id="refusalNoBtn" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+        </div>
+
+        <!-- Hidden upload section -->
+        <div id="refusalUploadSection" class="mt-4 d-none">
+          <label for="refusalFile" class="form-label">Upload Previous Refusal Letter(s)</label>
+          <input type="file" id="refusalFile" class="form-control" multiple>
+          <button id="uploadRefusalBtn" class="btn btn-primary mt-2">Upload</button>
+          <div id="refusalUploadStatus" class="mt-2 small text-muted"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- CSRF helper ---
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+// --- Upload handler ---
+document.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("upload-btn")) return;
+
+  const row = e.target.closest("tr");
+  const docId = row.dataset.docId;
+  const fileInput = row.querySelector(".file-input");
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please choose a file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const res = await fetch(`/api/documents/${docId}/upload/`, {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": csrftoken },
+      credentials: "include"
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Upload failed (${res.status}): ${
+        contentType.includes("application/json")
+          ? JSON.parse(errorText).detail || "Unknown error"
+          : errorText.slice(0, 200)
+      }`);
+      return;
+    }
+
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+
+      handleUploadSuccess(row, data);
+
+    } else {
+      alert("Upload succeeded but server did not return JSON.");
+    }
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Upload failed due to network or server error.");
+  }
+});
+
+// --- Refresh Checklist (prevents duplication) ---
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  try {
+    const res = await fetch(window.location.href, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const html = await res.text();
+
+    // parse and extract only tbody
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const newBody = doc.querySelector("#documentsBody");
+    document.querySelector("#documentsBody").innerHTML = newBody.innerHTML;
+  } catch (err) {
+    console.error("Refresh error:", err);
+    alert("Could not refresh documents.");
+  }
+});
+
+  function allDocumentsUploaded() {
+    const rows = document.querySelectorAll("#documentsBody tr");
+    return Array.from(rows).every(row => {
+      const status = row.querySelector(".status span");
+      return status && status.innerText.trim().toUpperCase() === "UPLOADED";
+    });
+  }
+
+  // async function handleUploadSuccess(row, data) {
+  //   row.querySelector(".status").innerHTML =
+  //     `<span class="badge bg-success">${data.status}</span>`;
+
+  //   row.querySelector(".action-cell").innerHTML =
+  //     `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+
+  //   if (allDocumentsUploaded()) {
+  //     const refusalModal = document.getElementById("refusalModal");
+  //     if (refusalModal) {
+  //       let modalInstance = new bootstrap.Modal(refusalModal);
+  //       modalInstance.show();
+  //     }
+  //   }
+  // }
+
+
+  // async function handleUploadSuccess(row, data) {
+  //   row.querySelector(".status").innerHTML =
+  //     `<span class="badge bg-success">${data.status}</span>`;
+
+  //   row.querySelector(".action-cell").innerHTML =
+  //     `<a href="${data.file_url}" target="_blank"
+  //         class="btn btn-soft-success"> <i class="bx bxs-folder-open align-middle me-1"></i>
+  //         View File
+  //      </a>`;
+
+  //   if (data.new_stage) {
+  //     showStageAdvance(data.new_stage, data.progress);
+  //   }
+  // }
+
+
+//   function handleUploadSuccess(row, data) {
+//   // Update row UI (always)
+//   row.querySelector(".status").innerHTML =
+//     `<span class="badge bg-success">${data.status}</span>`;
+
+//   row.querySelector(".action-cell").innerHTML =
+//     `<a href="${data.file_url}" target="_blank"
+//         class="btn btn-soft-success">
+//         <i class="bx bxs-folder-open align-middle me-1"></i> View File
+//      </a>`;
+
+// console.log("UPLOAD RESPONSE:", data);
+
+// if (data.stage_advanced === true) {
+//   console.log("✅ Stage advanced, triggering animation");
+//   showStageAdvance(data.new_stage, data.progress);
+// } else {
+//   console.log("ℹ️ No stage advancement yet");
+// }
+
+
+// }
+
+async function handleUploadSuccess(row, data) {
+  // Update row UI
+  row.querySelector(".status").innerHTML =
+    `<span class="badge bg-success">UPLOADED</span>`;
+
+  row.querySelector(".action-cell").innerHTML =
+    `<a href="${data.file_url}" target="_blank"
+        class="btn btn-soft-success">
+        <i class="bx bxs-folder-open me-1"></i> View File
+     </a>`;
+
+  if (data.stage_advanced === true) {
+  showStageAdvance(data.new_stage, data.progress);
+}
+
+if (data.final_stage_completed === true) {
+  showFinalVisaCompletion();
+}
+
+}
+
+
+
+
+
+
+
+// function showStageAdvance(newStage, progress) {
+//   // ❌ Prevent duplicate banners
+//   if (document.getElementById("stageAdvanceBanner")) return;
+
+//   const container = document.querySelector(".card-body");
+//   container.classList.add("stage-advance");
+
+//   const banner = document.createElement("div");
+//   banner.id = "stageAdvanceBanner";
+//   banner.className = "alert alert-info mt-3 position-relative";
+
+//   banner.innerHTML = `
+//     <button type="button"
+//             class="btn-close position-absolute top-0 end-0 m-2"
+//             aria-label="Close"
+//             onclick="closeStageBanner()"></button>
+
+//     🎉 <strong>Stage advanced!</strong><br>
+//     You are now in <strong>${newStage}</strong> stage.
+
+//     <div class="progress mt-2">
+//       <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+//            style="width:${progress}%">
+//         ${progress}%
+//       </div>
+//     </div>
+//   `;
+
+//   container.prepend(banner);
+
+//   // 🔄 Load next-stage documents dynamically
+//   setTimeout(() => {
+//     loadCurrentStageDocuments();
+//   }, 700);
+// }
+
+
+// function showStageAdvance(newStage, progress) {
+//   const container = document.querySelector(".card-body");
+
+//   // Remove old banners if any
+//   document.querySelectorAll(".stage-advance-banner").forEach(b => b.remove());
+
+//   const banner = document.createElement("div");
+//   banner.className = "alert alert-info stage-advance-banner stage-advance mt-3";
+//   banner.innerHTML = `
+//     🎉 <strong>Stage advanced!</strong><br>
+//     You are now in <strong>${newStage}</strong> stage.
+//     <div class="progress mt-2">
+//       <div class="progress-bar bg-success" style="width:${progress}%">
+//         ${progress}%
+//       </div>
+//     </div>
+//     <button class="btn btn-sm btn-outline-secondary mt-2 close-banner">
+//       Continue
+//     </button>
+//   `;
+
+//   container.prepend(banner);
+
+//   banner.querySelector(".close-banner").addEventListener("click", () => {
+//     banner.remove();
+//     reloadStageDocuments(); // ⬅️ load next stage docs dynamically
+//   });
+// }
+
+// async function reloadStageDocuments() {
+//   console.log("🔄 reloadStageDocuments() called");
+
+//   const res = await fetch(window.location.href, {
+//     headers: { "X-Requested-With": "XMLHttpRequest" }
+//   });
+
+//   if (!res.ok) {
+//     console.error("❌ Failed to reload stage documents");
+//     return;
+//   }
+
+//   const html = await res.text();
+//   const temp = document.createElement("div");
+//   temp.innerHTML = html;
+
+//   const newTable = temp.querySelector("table");
+//   const oldTable = document.querySelector("table");
+
+//   const newHeading = temp.querySelector("h6.text-info");
+//   const oldHeading = document.querySelector("h6.text-info");
+
+//   if (newHeading && oldHeading) {
+//     oldHeading.replaceWith(newHeading);
+//   }
+
+//   if (newTable && oldTable) {
+//     oldTable.replaceWith(newTable);
+//   }
+
+//   console.log("✅ Stage documents reloaded");
+// }
+
+
+async function reloadStageUI() {
+  console.log("🔄 Reloading stage UI");
+
+  const res = await fetch(window.location.href, {
+    headers: { "X-Requested-With": "XMLHttpRequest" }
+  });
+
+  if (!res.ok) {
+    console.error("❌ Failed to reload stage UI");
+    return;
+  }
+
+  const html = await res.text();
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+
+  // 🔁 Replace stage badges
+  const newStageBlock = temp.querySelector(".stage-timeline");
+  const oldStageBlock = document.querySelector(".stage-timeline");
+  if (newStageBlock && oldStageBlock) {
+    oldStageBlock.replaceWith(newStageBlock);
+  }
+
+  // 🔁 Replace stage heading
+  const newHeading = temp.querySelector(".current-stage-heading");
+  const oldHeading = document.querySelector(".current-stage-heading");
+  if (newHeading && oldHeading) {
+    oldHeading.replaceWith(newHeading);
+  }
+
+  // 🔁 Replace documents table
+  const newTable = temp.querySelector("table");
+  const oldTable = document.querySelector("table");
+  if (newTable && oldTable) {
+    oldTable.replaceWith(newTable);
+  }
+
+  console.log("✅ Stage UI updated");
+}
+
+
+
+function showStageAdvance(newStage, progress) {
+  console.log("🎉 Stage auto-advanced to:", newStage);
+
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Stage advanced!</strong>
+    <div class="mt-1">
+      You are now in <strong>${newStage}</strong> stage.
+    </div>
+    <div class="progress mt-2">
+      <div class="progress-bar bg-success"
+           style="width:${progress}%">
+        ${progress}%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Auto-refresh stage UI + documents
+  setTimeout(async () => {
+    await reloadStageUI();
+    banner.remove();
+  }, 1200);
+}
+
+
+
+function showFinalVisaCompletion() {
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-success mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Documents upload complete!</strong>
+    <div class="mt-2">
+      Your student visa application documents upload is complete.<br>
+      <strong>You have now been assigned to a case officer.</strong>
+    </div>
+
+    <div class="progress mt-3">
+      <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+           style="width:100%">
+        100%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Redirect after animation
+  setTimeout(() => {
+    window.location.href = "/Clients/applications/";
+  }, 1800);
+}
+
+// function showStageAdvance(newStage, progress) {
+//   console.log("🎉 showStageAdvance fired");
+
+//   const container = document.querySelector(".card-body");
+
+//   const banner = document.createElement("div");
+//   banner.className = "alert alert-info mt-3 stage-advance";
+//   banner.innerHTML = `
+//     <div class="d-flex justify-content-between align-items-start">
+//       <div>
+//         🎉 <strong>Stage advanced!</strong><br>
+//         You are now in <strong>${newStage}</strong> stage.
+//         <div class="progress mt-2">
+//           <div class="progress-bar bg-success"
+//                style="width:${progress}%">
+//             ${progress}%
+//           </div>
+//         </div>
+//       </div>
+//       <button class="btn btn-sm btn-outline-secondary close-stage-banner">
+//         Continue →
+//       </button>
+//     </div>
+//   `;
+
+//   container.prepend(banner);
+
+//   // ✅ GUARANTEED trigger
+//   banner.querySelector(".close-stage-banner").addEventListener("click", async () => {
+//     console.log("🔁 Reloading next stage documents");
+//     await reloadStageDocuments();
+//     banner.remove();
+//   });
+// }
+
+
+
+// async function reloadStageDocuments() {
+//   const res = await fetch(window.location.href, {
+//     headers: { "X-Requested-With": "XMLHttpRequest" }
+//   });
+
+//   if (!res.ok) return;
+
+//   const html = await res.text();
+
+//   // Replace stage documents section
+//   const container = document.querySelector(".card-body");
+//   const temp = document.createElement("div");
+//   temp.innerHTML = html;
+
+//   const newContent = temp.querySelector("table");
+//   const oldContent = document.querySelector("table");
+
+//   if (newContent && oldContent) {
+//     oldContent.replaceWith(newContent);
+//   }
+
+//   // Update stage heading
+//   const newHeading = temp.querySelector("h6.text-info");
+//   const oldHeading = document.querySelector("h6.text-info");
+
+//   if (newHeading && oldHeading) {
+//     oldHeading.replaceWith(newHeading);
+//   }
+// }
+
+
+
+function closeStageBanner() {
+  const banner = document.getElementById("stageAdvanceBanner");
+  if (banner) banner.remove();
+}
+
+
+// async function reloadStageDocuments() {
+//   const res = await fetch(window.location.href, {
+//     headers: { "X-Requested-With": "XMLHttpRequest" }
+//   });
+
+//   if (!res.ok) return;
+
+//   const html = await res.text();
+//   const parser = new DOMParser();
+//   const doc = parser.parseFromString(html, "text/html");
+
+//   document.querySelector("#documentsBody").innerHTML =
+//     doc.querySelector("#documentsBody").innerHTML;
+// }
+
+
+//Dynamically load next-stage documents (NO reload)
+// async function loadCurrentStageDocuments() {
+//   try {
+//     const res = await fetch(window.location.href, {
+//       headers: { "X-Requested-With": "XMLHttpRequest" }
+//     });
+//     if (!res.ok) throw new Error("Reload failed");
+
+//     const html = await res.text();
+//     const parser = new DOMParser();
+//     const doc = parser.parseFromString(html, "text/html");
+
+//     // Replace document table
+//     document.querySelector("#documentsBody").innerHTML =
+//       doc.querySelector("#documentsBody").innerHTML;
+
+//     // Replace stage badges
+//     document.querySelector(".mb-4").innerHTML =
+//       doc.querySelector(".mb-4").innerHTML;
+
+//   } catch (err) {
+//     console.error("Stage reload failed:", err);
+//   }
+// }
+
+
+  // Show upload section if user clicks "Yes"
+  const refusalYesBtn = document.getElementById("refusalYesBtn");
+  if (refusalYesBtn) {
+    refusalYesBtn.addEventListener("click", () => {
+      const section = document.getElementById("refusalUploadSection");
+      if (section) section.classList.remove("d-none");
+    });
+  }
+
+  // Upload refusal letters
+  uploadRefusalBtn.addEventListener("click", async () => {
+      const applicationId = "{{ application.id }}";
+      const filesInput = document.getElementById("refusalFile");
+      if (!filesInput || !filesInput.files.length) {
+        alert("Please select at least one file.");
+        return;
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append("refusal_files", filesInput.files[i]);
+      }
+
+      try {
+        const res = await fetch(`/api/applications/${applicationId}/upload-refusals/`, {
+          method: "POST",
+          body: formData,
+          headers: { "X-CSRFToken": csrftoken },
+          credentials: "include"
+        });
+
+        const text = await res.text(); // raw response
+        console.log("Upload status:", res.status, "body:", text);
+
+        if (!res.ok) {
+          document.getElementById("refusalUploadStatus").innerHTML =
+            `<span class="text-danger">❌ Upload failed (status ${res.status}).</span>`;
+          return;
+        }
+
+        const data = JSON.parse(text);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-success">✅ Uploaded ${data.files_uploaded} refusal letter(s).</span>`;
+      } catch (err) {
+        console.error("Upload error:", err);
+        document.getElementById("refusalUploadStatus").innerHTML =
+          `<span class="text-danger">❌ Upload failed. Please try again.</span>`;
+      }
+    });
+
+
+  // Example: upload via #refusalFilesInput (extra block you had)
+  const refusalFilesInput = document.querySelector("#refusalFilesInput");
+  if (refusalFilesInput) {
+    let formData = new FormData();
+    let files = refusalFilesInput.files;
+    for (let i = 0; i < files.length; i++) {
+      formData.append("refusal_files", files[i]);
+    }
+
+    fetch(`/api/applications/${appId}/refusal-letters/`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken")
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("Uploaded refusal letters:", data.refusal_letters);
+      }
+    });
+  }
+
+
+
+
+
+</script>
+{% endblock %}

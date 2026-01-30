@@ -13,12 +13,13 @@ class BaseModel(models.Model):
         abstract = True
 
 
-
 class DocumentRequirement(BaseModel):
-    """
-    Defines which documents are required for a given visa type & country.
-    e.g., Passport, Bank Statement, Employment Letter, etc.
-    """
+    STAGES = [
+        ("ADMISSION", "Admission"),
+        ("CAS", "CAS"),
+        ("VISA", "Visa"),
+    ]
+
     DOCUMENT_CATEGORIES = [
         ("IDENTITY", "Identity Document"),
         ("FINANCIAL", "Financial Document"),
@@ -50,12 +51,26 @@ class DocumentRequirement(BaseModel):
         ("SOUTH AFRICA", "South Africa"),
     ]
 
+    stage = models.CharField(max_length=20, choices=STAGES)
     country = models.CharField(max_length=20, choices=COUNTRIES)
     visa_type = models.CharField(max_length=50, choices=VISA_TYPES, default="OTHER")
     name = models.CharField(max_length=255)  # e.g. "Passport", "Bank Statement"
     description = models.TextField(blank=True)
     category = models.CharField(max_length=20, choices=DOCUMENT_CATEGORIES, default="OTHER")
     is_mandatory = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["country", "visa_type", "stage", "name"],
+                name="unique_requirement_per_stage"
+            )
+        ]
+
+
+    # class Meta:
+    #     unique_together = ("country", "visa_type", "stage", "name")
+
 
 
     # 🆕 Optional visa form upload for this requirement

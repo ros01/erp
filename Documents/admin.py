@@ -10,9 +10,9 @@ from .models import *
 
 @admin.register(DocumentRequirement)
 class DocumentRequirementAdmin(admin.ModelAdmin):
-    list_display = ("name", "country", "visa_type", "is_mandatory", "category")
-    list_filter = ("country", "visa_type", "category", "is_mandatory")
-    search_fields = ("country", "visa_type", "category", "name", "description")
+    list_display = ("name", "stage", "country", "visa_type", "is_mandatory", "category")
+    list_filter = ("country", "stage", "visa_type", "category", "is_mandatory")
+    search_fields = ("country", "stage", "visa_type", "category", "name", "description")
     fieldsets = (
         (None, {
             "fields": (

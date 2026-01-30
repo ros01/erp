@@ -4,21 +4,15 @@ from django.views import View
 from django.middleware.csrf import get_token
 from django.contrib.auth.decorators import login_required
 from django.views.generic import TemplateView, ListView
-from Applications.models import VisaApplication
+from Applications.models import VisaApplication, StageDefinition
+from Documents.models import Document, DocumentRequirement
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from django.views.decorators.csrf import ensure_csrf_cookie
+from Applications.constants import STUDENT_STAGE_SEQUENCE, STUDENT_STAGE_SEQUENCE_BY_COUNTRY
 
-# @ensure_csrf_cookie
-# @api_view(["GET"])
-# @permission_classes([])
-# def current_user(request):
-#     if request.user.is_authenticated:
-#         return Response({"username": request.user.username})
-#     return Response({"detail": "Not logged in"}, status=401)
 
-    
 
 class ClientRegisterPage(View):
     template_name = "clients/register.html"
@@ -56,13 +50,46 @@ def client_dashboard_view(request):
 
 
 class StartApplication(TemplateView):
-    template_name = "clients/display_requirements.html"
+    template_name = "clients/display_requirements_merged.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Template URL with placeholder {pk}, replaced by JS after application creation
         context["application_documents_url"] = "/Clients/applications/{pk}/documents/"
         return context
+
+@login_required
+def application_documentsold(request, pk):
+    app = get_object_or_404(VisaApplication, id=pk, client=request.user.client_profile)
+    return render(request, "clients/application_documents1.html", {"application": app})
+
+
+@login_required
+def application_documents(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk,
+        client=request.user.client_profile
+    )
+
+    stage_sequence = application.get_stage_sequence()
+    current_stage = application.stage
+
+    documents = application.documents.filter(
+        requirement__stage=current_stage
+    ).select_related("requirement")
+
+    
+    completed_stages = stage_sequence[:stage_sequence.index(current_stage)]
+
+    return render(request, "clients/visa_requirements_merged.html", {
+    # return render(request, "clients/application_stage_documents.html", {
+        "application": application,
+        "documents": documents,
+        "stage_sequence": stage_sequence,
+        "current_stage": current_stage,
+        "completed_stages": completed_stages,
+    })
 
 
 # class StartApplication(TemplateView):
@@ -96,8 +123,116 @@ class StartApplication(TemplateView):
 #     return render(request, "clients/application_documents1.html", {"application": app})
 
 
+def get_stage_sequencel(country):
+    return list(
+        StageDefinition.objects
+        .filter(country=country)
+        .order_by("order")
+        .values_list("stage", flat=True)
+    )
+
+
+
 @login_required
-def application_documents(request, pk):
+def application_documentsW(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk,
+        client=request.user.client_profile
+    )
+
+    country = application.country
+    stage_sequence = STUDENT_STAGE_SEQUENCE_BY_COUNTRY.get(country, [])
+
+    current_stage = application.stage
+
+    # Only documents for CURRENT stage
+    current_documents = (
+        application.documents
+        .select_related("requirement")
+        .filter(requirement__stage=current_stage)
+        .order_by("requirement__name")
+    )
+
+    return render(
+        request,
+        "clients/application_stage_documents.html",
+        {
+            "application": application,
+            "stage_sequence": stage_sequence,
+            "current_stage": current_stage,
+            "documents": current_documents,
+        }
+    )
+
+
+
+
+@login_required
+def application_documentsll(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk,
+        client=request.user.client_profile
+    )
+
+    current_stage = application.current_stage
+
+    documents = (
+        application.documents
+        .select_related("requirement")
+        .filter(requirement__stage=current_stage)
+        .order_by("requirement__name")
+    )
+
+    return render(
+        request,
+        "clients/application_stage_documents.html",
+        {
+            "application": application,
+            "documents": documents,
+            "current_stage": current_stage,
+        }
+    )
+
+
+@login_required
+def application_documentslast(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk,
+        client=request.user.client_profile
+    )
+
+    stage_sequence = get_stage_sequence(application.country)
+
+    # Fallback safety
+    current_stage = application.current_stage or stage_sequence[0]
+
+    # Split documents by stage
+    documents_by_stage = {}
+    for stage in stage_sequence:
+        documents_by_stage[stage] = Document.objects.filter(
+            application=application,
+            requirement__stage=stage
+        ).select_related("requirement")
+
+    context = {
+        "application": application,
+        "stage_sequence": stage_sequence,
+        "current_stage": current_stage,
+        "documents_by_stage": documents_by_stage,
+    }
+
+    return render(
+        request,
+        "clients/application_documents.html",
+        context
+    )
+
+
+@login_required
+def application_documentsold(request, pk):
     app = get_object_or_404(VisaApplication, id=pk, client=request.user.client_profile)
     return render(request, "clients/application_documents1.html", {"application": app})
 

@@ -291,40 +291,162 @@ $(document).ready(function () {
                   </table>
                 `;
 
-                let docsHtml = `
-                  <h5 class="mt-4 text-info">Documents</h5>
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Requirement</th>
-                        <th>Status</th>
-                        <th>File</th>
-                        <th>Comments</th>
-                        <th>Uploaded</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                `;
+                let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
 
-                if (app.documents.length === 0) {
-                    docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-                } else {
-                    app.documents.forEach(doc => {
-                        docsHtml += `
-                          <tr>
-                            <td>${doc.requirement_name}</td>
-                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-                            <td>${doc.review_comments ?? '-'}</td>
-                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-                          </tr>
-                        `;
-                    });
-                }
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
 
-                docsHtml += "</tbody></table>";
-                modalBody.innerHTML = detailsHtml + docsHtml;
-            });
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
+
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
+
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+  docsHtml += `
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>Status</th>
+          <th>File</th>
+          <th>Comments</th>
+          <th>Uploaded</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (app.documents.length === 0) {
+    docsHtml += `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No documents uploaded yet.
+        </td>
+      </tr>
+    `;
+  } else {
+    app.documents.forEach(doc => {
+      docsHtml += `
+        <tr>
+          <td>${doc.requirement_name}</td>
+          <td><span class="badge ${doc.status_badge}">
+            ${doc.status_display}
+          </span></td>
+          <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+          <td>${doc.review_comments ?? "-"}</td>
+          <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+        </tr>
+      `;
+    });
+  }
+
+  docsHtml += `</tbody></table>`;
+}
+
+
+  // if (app.documents.length === 0) {
+  //     docsHtml += `<tr><td colspan="5" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+  //     } else {
+  //    app.documents.forEach(doc => {
+  //   docsHtml += `
+  //   <tr>
+  //   <td>${doc.requirement_name}</td>
+  //   <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+  //      <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+  //        <td>${doc.review_comments ?? '-'}</td>
+  //       <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+  //       </tr>
+  //        `;
+  //        });
+  //       }
+
+  //       docsHtml += "</tbody></table>";
+        modalBody.innerHTML = detailsHtml + docsHtml;
+      });
     });
 });
 </script>

@@ -19,6 +19,13 @@ class PreviousRefusalLetterAdmin(admin.ModelAdmin):
 #     search_fields = ("application", "application_url", "visa_application_username")
 #     list_filter = ("application", "file")
 
+@admin.register(StageDefinition)
+class StageDefinitionAdmin(admin.ModelAdmin):
+    list_display = ("country", "stage", "order")
+    search_fields = ("country", "stage", "order")
+    list_filter = ("country", "stage")
+
+
 
 @admin.register(EmbassySubmission)
 class EmbassySubmissionAdmin(admin.ModelAdmin):

@@ -5,96 +5,68 @@
 {% block title %}| Application Documents{% endblock %}
 
 {% block content %}
+
+<style>
+.stage-advance {
+  animation: slidePulse 1.2s ease-in-out;
+}
+
+@keyframes slidePulse {
+  0% { opacity: 0; transform: translateX(40px); }
+  60% { opacity: 1; transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+</style>
+
 <div class="col-xl-9">
 <div class="card pb-3">
 <div class="card-body">
 
-<h4 class="card-title text-info mb-4">
-  Visa Application Documents — {{ application.reference_no }}
+<h4 class="card-title text-info mb-3">
+  {{ application.country }} Visa Application Documents
+  (Ref: {{ application.reference_no }})
 </h4>
 
-<table class="table table-bordered w-100">
-<thead class="table-light">
-<tr>
-  <th>Requirement</th>
-  <th>Status</th>
-  <th>Upload / View</th>
-</tr>
-</thead>
+{% if application.visa_type == "STUDENT" %}
+  {# ===================================================== #}
+  {# 🎓 STUDENT VISA — STAGE-BASED UI #}
+  {# ===================================================== #}
 
-<tbody id="documentsBody">
+  <h6 class="text-info mb-2">Visa Application Stages</h6>
 
-{% for stage in stage_sequence %}
-
-  <!-- 🔹 STAGE HEADER -->
-  <tr class="table-light">
-    <td colspan="3">
-      <strong>{{ stage|title }}</strong>
-
-      {% if stage == current_stage %}
-        <span class="badge bg-primary ms-2">Current Stage</span>
-      {% elif stage_sequence|slice:":forloop.counter0"|last == stage %}
-        <span class="badge bg-success ms-2">Completed</span>
-      {% elif stage_sequence|slice:":forloop.counter0"|join:"," and stage != current_stage %}
-        <span class="badge bg-success ms-2">Completed</span>
-      {% else %}
-        <span class="badge bg-secondary ms-2">Locked</span>
-      {% endif %}
-    </td>
-  </tr>
-
-  <!-- 🟢 CURRENT STAGE (UPLOAD ENABLED) -->
-  {% if stage == current_stage %}
-    {% for doc in documents_by_stage|dict_get:stage %}
-    <tr data-doc-id="{{ doc.id }}">
-      <td>{{ doc.requirement.name }}</td>
-      <td class="status">
-        <span class="badge bg-warning">{{ doc.status }}</span>
-      </td>
-      <td class="action-cell">
-        {% if doc.file %}
-          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
-            View File
-          </a>
+  <div class="mb-4 d-flex align-items-center flex-wrap gap-2 stage-timeline">
+    {% for stage in stage_sequence %}
+      <span class="badge
+        {% if stage == current_stage %}
+          bg-success
+        {% elif stage in completed_stages %}
+          bg-primary
         {% else %}
-          <div class="d-flex gap-2">
-            <input type="file" class="form-control form-control-sm file-input" />
-            <button class="btn btn-sm btn-primary upload-btn">Upload</button>
-          </div>
+          bg-secondary
         {% endif %}
-      </td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="3" class="text-muted">No documents for this stage.</td>
-    </tr>
+      ">
+        {{ stage|title }}
+      </span>
+      {% if not forloop.last %}<span>→</span>{% endif %}
     {% endfor %}
+  </div>
 
-  <!-- ✅ COMPLETED STAGES (VIEW ONLY) -->
-  {% elif stage in stage_sequence and stage_sequence|slice:":forloop.counter0" %}
-    {% for doc in documents_by_stage|dict_get:stage %}
-    <tr>
-      <td>{{ doc.requirement.name }}</td>
-      <td>
-        <span class="badge bg-success">{{ doc.status }}</span>
-      </td>
-      <td>
-        {% if doc.file %}
-          <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
-            View
-          </a>
-        {% else %}
-          —
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  {% endif %}
+  <h6 class="text-info mb-3 current-stage-heading">
+    {{ current_stage|title }} Stage Documents
+  </h6>
 
-{% endfor %}
+  {% include "clients/partials/document_table.html" with documents=documents %}
 
-</tbody>
-</table>
+{% else %}
+  {# ===================================================== #}
+  {# 🧳 NON-STUDENT VISA — LEGACY FLAT UI #}
+  {# ===================================================== #}
+
+  <h6 class="text-info mb-3">Required Documents</h6>
+
+  {% include "clients/partials/document_table.html" with documents=application.documents.all %}
+
+{% endif %}
 
 <div class="d-flex justify-content-end mt-4">
   <a href="{% url 'Clients:applications-list' %}" class="btn btn-soft-secondary">
@@ -105,6 +77,9 @@
 </div>
 </div>
 </div>
+
+
+
 
 
 
@@ -191,13 +166,8 @@ document.addEventListener("click", async (e) => {
     if (contentType.includes("application/json")) {
       const data = await res.json();
 
-      // update status cell
-      row.querySelector(".status").innerHTML =
-        `<span class="badge bg-success">${data.status}</span>`;
+      handleUploadSuccess(row, data);
 
-      // update action cell to show "View"
-      row.querySelector(".action-cell").innerHTML =
-        `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
     } else {
       alert("Upload succeeded but server did not return JSON.");
     }
@@ -233,21 +203,197 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
     });
   }
 
-  async function handleUploadSuccess(row, data) {
-    row.querySelector(".status").innerHTML =
-      `<span class="badge bg-success">${data.status}</span>`;
 
-    row.querySelector(".action-cell").innerHTML =
-      `<a href="${data.file_url}" target="_blank" class="btn btn-soft-success"><i class="bx bxs-folder-open align-middle me-1"></i> View File</a>`;
+// async function handleUploadSuccess(row, data) {
+//   // Update row UI
+//   row.querySelector(".status").innerHTML =
+//     `<span class="badge bg-success">UPLOADED</span>`;
 
-    if (allDocumentsUploaded()) {
-      const refusalModal = document.getElementById("refusalModal");
-      if (refusalModal) {
-        let modalInstance = new bootstrap.Modal(refusalModal);
-        modalInstance.show();
-      }
+//   row.querySelector(".action-cell").innerHTML =
+//     `<a href="${data.file_url}" target="_blank"
+//         class="btn btn-soft-success">
+//         <i class="bx bxs-folder-open me-1"></i> View File
+//      </a>`;
+
+//   if (data.stage_advanced === true) {
+//   showStageAdvance(data.new_stage, data.progress);
+// }
+
+// if (data.final_stage_completed === true) {
+//   showFinalVisaCompletion();
+// }
+// }
+
+
+async function handleUploadSuccess(row, data) {
+  row.querySelector(".status").innerHTML =
+    `<span class="badge bg-success">UPLOADED</span>`;
+
+  row.querySelector(".action-cell").innerHTML =
+    `<a href="${data.file_url}" target="_blank"
+        class="btn btn-soft-success">
+        <i class="bx bxs-folder-open me-1"></i> View File
+     </a>`;
+
+  const visaType = "{{ application.visa_type }}";
+
+  // 🎓 STUDENT VISA FLOW
+  if (visaType === "STUDENT") {
+    if (data.stage_advanced === true) {
+      showStageAdvance(data.new_stage, data.progress);
+    }
+
+    if (data.final_stage_completed === true) {
+      showFinalVisaCompletion();
     }
   }
+
+  // 🧳 NON-STUDENT VISA FLOW
+  else {
+    if (data.final_stage_completed === true) {
+      showNonStudentCompletion();
+    }
+  }
+}
+
+
+
+async function reloadStageUI() {
+  console.log("🔄 Reloading stage UI");
+
+  const res = await fetch(window.location.href, {
+    headers: { "X-Requested-With": "XMLHttpRequest" }
+  });
+
+  if (!res.ok) {
+    console.error("❌ Failed to reload stage UI");
+    return;
+  }
+
+  const html = await res.text();
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+
+  // 🔁 Replace stage badges
+  const newStageBlock = temp.querySelector(".stage-timeline");
+  const oldStageBlock = document.querySelector(".stage-timeline");
+  if (newStageBlock && oldStageBlock) {
+    oldStageBlock.replaceWith(newStageBlock);
+  }
+
+  // 🔁 Replace stage heading
+  const newHeading = temp.querySelector(".current-stage-heading");
+  const oldHeading = document.querySelector(".current-stage-heading");
+  if (newHeading && oldHeading) {
+    oldHeading.replaceWith(newHeading);
+  }
+
+  // 🔁 Replace documents table
+  const newTable = temp.querySelector("table");
+  const oldTable = document.querySelector("table");
+  if (newTable && oldTable) {
+    oldTable.replaceWith(newTable);
+  }
+
+  console.log("✅ Stage UI updated");
+}
+
+
+
+function showStageAdvance(newStage, progress) {
+  console.log("🎉 Stage auto-advanced to:", newStage);
+
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Stage advanced!</strong>
+    <div class="mt-1">
+      You are now in <strong>${newStage}</strong> stage.
+    </div>
+    <div class="progress mt-2">
+      <div class="progress-bar bg-success"
+           style="width:${progress}%">
+        ${progress}%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Auto-refresh stage UI + documents
+  setTimeout(async () => {
+    await reloadStageUI();
+    banner.remove();
+  }, 7200);
+}
+
+
+
+function showFinalVisaCompletion() {
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-success mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Documents upload complete!</strong>
+    <div class="mt-2">
+      Your student visa application documents upload is complete.<br>
+      <strong>You have now been assigned to a case officer.</strong>
+    </div>
+
+    <div class="progress mt-3">
+      <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+           style="width:100%">
+        100%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  // ⏳ Redirect after animation
+  setTimeout(() => {
+    window.location.href = "/Clients/applications/";
+  }, 7200);
+}
+
+
+
+function showNonStudentCompletion() {
+  const container = document.querySelector(".card-body");
+
+  const banner = document.createElement("div");
+  banner.className = "alert alert-success mt-3 stage-advance";
+  banner.innerHTML = `
+    🎉 <strong>Documents submitted successfully!</strong>
+    <div class="mt-2">
+      You have successfully submitted all required documents.<br>
+      <strong>Your application has been assigned to a case officer.</strong>
+    </div>
+
+    <div class="progress mt-3">
+      <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+           style="width:100%">
+        100%
+      </div>
+    </div>
+  `;
+
+  container.prepend(banner);
+
+  setTimeout(() => {
+    window.location.href = "/Clients/applications/";
+  }, 7200);
+}
+
+
+function closeStageBanner() {
+  const banner = document.getElementById("stageAdvanceBanner");
+  if (banner) banner.remove();
+}
+
 
   // Show upload section if user clicks "Yes"
   const refusalYesBtn = document.getElementById("refusalYesBtn");
@@ -323,6 +469,8 @@ document.getElementById("refreshBtn").addEventListener("click", async () => {
       }
     });
   }
+
+
 
 
 

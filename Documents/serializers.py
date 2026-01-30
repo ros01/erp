@@ -36,17 +36,25 @@ class VisaTypeSerializer(serializers.Serializer):
 class DocumentRequirementSerializer(serializers.ModelSerializer):
     form_file_url = serializers.SerializerMethodField()
 
+    stage_display = serializers.CharField(
+        source="get_stage_display",
+        read_only=True
+    )
+
     class Meta:
         model = DocumentRequirement
         fields = [
             "id",
             "country",
             "visa_type",
+            "stage",           # 🔥 REQUIRED
+            "stage_display",   # 🔥 REQUIRED
             "name",
             "description",
             "is_mandatory",
-            "form_file_url",  # ✅ include this
+            "form_file_url",
         ]
+
 
     def get_form_file_url(self, obj):
         request = self.context.get("request")
