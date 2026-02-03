@@ -276,6 +276,18 @@ class VisaApplication(BaseModel):
 #     def __str__(self):
 #         return f"Refusal Letter for {self.application.reference_no} ({self.id})"
 
+class RejectionLetter(models.Model):
+    application = models.ForeignKey(
+        VisaApplication,
+        on_delete=models.CASCADE,
+        related_name="rejection_letters"
+    )
+    file = models.FileField(upload_to="rejection_letters/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Rejection Letter - {self.application.reference_no}"
+
 
 class StudentApplicationPipeline(BaseModel):
     STAGES = [

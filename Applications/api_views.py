@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Q, Value
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
-from .models import VisaApplication, PreviousRefusalLetter
+from .models import VisaApplication, PreviousRefusalLetter, RejectionLetter
 from .services import *
 # from Documents.serializers import DocumentRequirementSerializer
 from .serializers import (
@@ -495,7 +495,75 @@ class ApplicationCreateAPICaseView(generics.GenericAPIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 class AddVisaApplicationDecisionAPIView(APIView):
+    """
+    PATCH → approve / reject application
+    POST  → upload one or more rejection letters (REJECTED only)
+    """
+
+    def patch(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        decision = request.data.get("status")
+        if decision not in ["APPROVED", "REJECTED"]:
+            return Response(
+                {"error": "Invalid decision"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        application.status = decision
+        application.decision_date = timezone.now()
+        application.save(update_fields=["status", "decision_date", "updated_at"])
+
+        # 🔽 Reduce officer workload
+        staff = application.assigned_officer or application.created_by_officer
+        if staff and staff.workload > 0:
+            staff.workload -= 1
+            staff.save(update_fields=["workload"])
+
+        return Response(
+            VisaApplicationSerializer(application).data,
+            status=status.HTTP_200_OK
+        )
+
+    def post(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        # 🚫 Safety: only allow uploads for REJECTED apps
+        if application.status != "REJECTED":
+            return Response(
+                {"error": "Rejection letters can only be uploaded for rejected applications"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        files = request.FILES.getlist("rejection_letters")
+
+        if not files:
+            return Response(
+                {"error": "No rejection files uploaded"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        uploaded = []
+        for file in files:
+            letter = RejectionLetter.objects.create(
+                application=application,
+                file=file
+            )
+            uploaded.append(letter.file.url)
+
+        return Response(
+            {
+                "message": "Rejection letter(s) uploaded successfully",
+                "rejection_letters": uploaded
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+
+class AddVisaApplicationDecisionAPIViewW(APIView):
     def patch(self, request, pk):
         """Approve/Reject a visa application"""
         try:
@@ -565,7 +633,7 @@ class AddVisaApplicationDecisionAPIView00(APIView):
         return Response(VisaApplicationSerializer(application).data)
 
 
-class UploadRejectionLetterAPIView(APIView):
+class UploadRejectionLetterAPIViewW(APIView):
     def patch(self, request, pk):
         try:
             application = VisaApplication.objects.get(pk=pk)
@@ -580,6 +648,30 @@ class UploadRejectionLetterAPIView(APIView):
         application.save(update_fields=["rejection_letter", "updated_at"])
 
         return Response(VisaApplicationSerializer(application).data)
+
+
+# api_views.py
+
+class UploadRejectionLetterAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        files = request.FILES.getlist("rejection_letters")
+        if not files:
+            return Response({"detail": "No files uploaded"}, status=400)
+
+        for f in files:
+            RejectionLetter.objects.create(
+                application=application,
+                file=f
+            )
+
+        return Response({
+            "success": True,
+            "files_uploaded": len(files)
+        })
 
 
 
@@ -1777,10 +1869,14 @@ class AddVisaApplicationDecisionsAPIView(APIView):
             )
 
         # ✅ Update status and decision_date
+        from Applications.notifications import notify_visa_decision
+
+        # after updating status
         application.status = decision
         application.decision_date = timezone.now().date()
-        application.save()
+        application.save(update_fields=["status", "decision_date"])
 
+        notify_visa_decision(application)  # ✅ SEND EMAIL
         serializer = VisaApplicationSerializer(application)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

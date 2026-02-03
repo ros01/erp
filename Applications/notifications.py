@@ -21,6 +21,7 @@ def notify_stage_advanced(application):
 
     subject = "Visa Application Stage Updated"
     message = f"""
+
 Dear {user.get_full_name},
 
 Your visa application ({application.reference_no}) has progressed.
@@ -39,6 +40,7 @@ def notify_final_completion(application):
 
     subject = "🎉 Visa Application Documents Completed"
     message = f"""
+
 Dear {user.get_full_name},
 
 Congratulations!
@@ -96,3 +98,43 @@ def notify_application_completed(application):
         recipient_list=[user.email],
         fail_silently=False,
     )
+
+
+def notify_visa_decision(application):
+    user = application.client.user
+    decision = application.status
+
+    if decision == "APPROVED":
+        subject = "🎉 Visa Application Approved"
+        message = f"""
+Dear {user.get_full_name()},
+
+Congratulations!
+
+Your visa application has been APPROVED.
+
+Reference No: {application.reference_no}
+Country: {application.get_country_display()}
+Visa Type: {application.get_visa_type_display()}
+
+We will guide you through the next steps.
+
+— Suave ERP
+"""
+    else:  # REJECTED
+        subject = "Visa Application Decision Update"
+        message = f"""
+Dear {user.get_full_name()},
+
+We regret to inform you that your visa application has been REJECTED.
+
+Reference No: {application.reference_no}
+Country: {application.get_country_display()}
+Visa Type: {application.get_visa_type_display()}
+
+Please review the rejection letter(s) uploaded by the officer.
+
+— Suave ERP
+"""
+
+    send_email(subject, message, user.email)

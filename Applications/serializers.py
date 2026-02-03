@@ -1,7 +1,7 @@
 # applications/serializers.py
 from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
-from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline
+from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline, RejectionLetter
 from django.contrib.auth import get_user_model
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
@@ -448,12 +448,22 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
 
 
 
+class RejectionLetterSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RejectionLetter
+        fields = ["id", "file", "uploaded_at"]
+
+    def get_file(self, obj):
+        return obj.file.url if obj.file else None
 
 
 class VisaApplicationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
+    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -495,6 +505,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "submission_date",
             "decision_date",
             "documents",
+            "rejection_letters",
             "rejection_letter",  # ✅ include here
         ]
 

@@ -460,247 +460,405 @@ Case officers sent 2 applications to you
 
 <script>
 $(document).ready(function () {
-    // 🔹 Initialize DataTable
-    let table = $('#datatable').DataTable({
-        ajax: {
-            url: "/api/applications/",
-            dataSrc: "" // change to "results" if API wraps results
-        },
-        order: [[5, "desc"]], // column index of "Created On / Date"
-        columns: [
-            { data: "reference_no" },
-            { data: "client_name" },
-            { data: "client_email" },
-            { data: "country_display" },
-            { data: "visa_type_display" },
-            {
-                data: "status_display",
-                render: function (data, type, row) {
-                    return `<span class="badge ${row.status_badge}" id="application-status-badge-${row.id}">
-                              ${data}
-                            </span>`;
-                }
-            },
-            {
-                data: "created_at",
-                render: function (data) {
-                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
-                }
-            },
-            {
-                data: "id",
-                render: function (id) {
-                    return `<button type="button"
-                              class="btn btn-primary btn-sm btn-rounded view-details-btn"
-                              data-id="${id}"
-                              data-bs-toggle="modal"
-                              data-bs-target="#applicationDetailModal">
-                              View Details
-                            </button>`;
-                }
-            }
-        ],
-        pageLength: 10,
-        responsive: true,
-        ordering: true
-    });
+// 🔹 Initialize DataTable
+let table = $('#datatable').DataTable({
+ajax: {
+    url: "/api/applications/",
+    dataSrc: "" // change to "results" if API wraps results
+},
+order: [[5, "desc"]], // column index of "Created On / Date"
+columns: [
+    { data: "reference_no" },
+    { data: "client_name" },
+    { data: "client_email" },
+    { data: "country_display" },
+    { data: "visa_type_display" },
+    {
+        data: "status_display",
+        render: function (data, type, row) {
+            return `<span class="badge ${row.status_badge}" id="application-status-badge-${row.id}">
+                      ${data}
+                    </span>`;
+        }
+    },
+    {
+        data: "created_at",
+        render: function (data) {
+            return data ? data : "-";   // ✅ fallback to '-' if null/empty
+        }
+    },
+    {
+        data: "id",
+        render: function (id) {
+            return `<button type="button"
+                      class="btn btn-primary btn-sm btn-rounded view-details-btn"
+                      data-id="${id}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#applicationDetailModal">
+                      View Details
+                    </button>`;
+        }
+    }
+],
+pageLength: 10,
+responsive: true,
+ordering: true
+});
 
-    // 🔹 Handle "View Details" button click
-    $('#datatable tbody').on('click', '.view-details-btn', function () {
-        let appId = $(this).data('id');
-        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+// 🔹 Handle "View Details" button click
+$('#datatable tbody').on('click', '.view-details-btn', function () {
+let appId = $(this).data('id');
+let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
 
-        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
-        fetch(`/api/applications/${appId}/`)
-            .then(res => res.json())
-            .then(app => {
-                // ✅ Officer row logic with fallback
-                let officerRow = "";
-                if (app.created_by_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Initiating Officer</th>
-                            <td>${app.created_by_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else if (app.assigned_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Assigned Officer</th>
-                            <td>${app.assigned_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else {
-                    officerRow = `
-                        <tr>
-                            <th>Officer</th>
-                            <td>-</td>
-                        </tr>
-                    `;
-                }
-
-                // ✅ Only include Rejection Letter row if present
-                let rejectionLetterRow = "";
-                if (app.rejection_letter) {
-                    rejectionLetterRow = `
-                        <tr>
-                            <th>Rejection Letter</th>
-                            <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
-                        </tr>
-                    `;
-                }
-
-                let detailsHtml = `
-                    <h5 class="text-info">Application Info</h5>
-                    <table class="table table-bordered">
-                      <tr><th>Reference</th><td>${app.reference_no}</td></tr>
-                      <tr><th>Client</th><td>${app.client_name}</td></tr>
-                      <tr><th>Email</th><td>${app.client_email}</td></tr>
-                    <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
-                      <tr><th>Country</th><td>${app.country_display}</td></tr>
-                      <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
-                      <tr><th>Status</th>
-                        <td><span id="application-status-badge" class="badge ${app.status_badge}">
-                          ${app.status_display}
-                        </span></td>
-                      </tr>
-                      ${officerRow}
-                      <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
-                      <tr>
-                        <th>Visa Application URL</th>
-                        <td id="visa-url-cell">
-                          ${app.visa_application_url 
-                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
-                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
-                            : '<em>No URL added yet</em>'
-                          }
-                        </td>
-                      </tr>
-                      <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
-                      <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-                      ${rejectionLetterRow}
-                    </table>
-                `;
-
-                // 🔹 Add Mark Finalized button (but will be locked later)
-                if (app.status !== "SUBMITTED") {
-                    detailsHtml += `
-                        <div class="mt-3 text-end">
-                          <button class="btn btn-success" id="mark-finalized-btn" data-id="${app.id}">
-                            Mark Finalized
-                          </button>
-                        </div>
-                    `;
-                } else {
-                    detailsHtml += `
-                        <div class="mt-3 text-end">
-                          <button class="btn btn-secondary" disabled>
-                            ✅ Already Finalized
-                          </button>
-                        </div>
-                    `;
-                }
-
-                // 🔹 Documents section
-                let docsHtml = `
-                    <h5 class="mt-4 text-info">Documents</h5>
-                    <table class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>Requirement</th>
-                          <th>Status</th>
-                          <th>File</th>
-                          <th>Comments</th>
-                          <th>Uploaded</th>
-                          <th>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                `;
-
-                if (app.documents.length === 0) {
-                    docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-                } else {
-                    app.documents.forEach(doc => {
-                        docsHtml += `
-                            <tr>
-                              <td>${doc.requirement_name}</td>
-                              <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-                              <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-                              <td>
-                                <input type="text" class="form-control form-control-sm review-comment-input"
-                                       data-doc-id="${doc.id}"
-                                       value="${doc.review_comments ?? ''}"
-                                       placeholder="Add comment">
-                              </td>
-                              <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-                              <td>
-                                <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
-                              </td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                docsHtml += "</tbody></table>";
-
-                // === Refusal Letters table ===
-                let refusalsHtml = `
-                <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
-                <table class="table table-striped">
-                <thead>
+fetch(`/api/applications/${appId}/`)
+    .then(res => res.json())
+    .then(app => {
+        // ✅ Officer row logic with fallback
+        let officerRow = "";
+        if (app.created_by_officer_name) {
+            officerRow = `
                 <tr>
-                <th>File</th>
-                <th>Uploaded</th>
+                    <th>Initiating Officer</th>
+                    <td>${app.created_by_officer_name ?? '-'}</td>
                 </tr>
-                </thead>
-                <tbody>
-                `;
-
-                if (!app.refusal_letters || app.refusal_letters.length === 0) {
-                refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
-                } else {
-                app.refusal_letters.forEach(ref => {
-                refusalsHtml += `
+            `;
+        } else if (app.assigned_officer_name) {
+            officerRow = `
                 <tr>
-                <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
-                <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+                    <th>Assigned Officer</th>
+                    <td>${app.assigned_officer_name ?? '-'}</td>
                 </tr>
-                `;
-                });
-                }
-                refusalsHtml += "</tbody></table>";
+            `;
+        } else {
+            officerRow = `
+                <tr>
+                    <th>Officer</th>
+                    <td>-</td>
+                </tr>
+            `;
+        }
 
-                modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+        // ✅ Only include Rejection Letter row if present
+        let rejectionLetterRow = "";
+        if (app.rejection_letter) {
+            rejectionLetterRow = `
+                <tr>
+                    <th>Rejection Letter</th>
+                    <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+                </tr>
+            `;
+        }
 
-                // 🔒 Lock modal after rendering
-                const modal = document.querySelector("#applicationDetailModal");
-
-                // Disable all inputs
-                modal.querySelectorAll("input, textarea, select").forEach(el => {
-                  el.setAttribute("readonly", true);
-                  el.setAttribute("disabled", true);
-                });
-
-                // Disable all buttons except modal close
-                modal.querySelectorAll("button").forEach(btn => {
-                  if (!btn.classList.contains("btn-close")) {
-                    btn.setAttribute("disabled", true);
-                    btn.classList.add("disabled");
+        let detailsHtml = `
+            <h5 class="text-info">Application Info</h5>
+            <table class="table table-bordered">
+              <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+              <tr><th>Client</th><td>${app.client_name}</td></tr>
+              <tr><th>Email</th><td>${app.client_email}</td></tr>
+            <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
+              <tr><th>Country</th><td>${app.country_display}</td></tr>
+              <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+              <tr><th>Status</th>
+                <td><span id="application-status-badge" class="badge ${app.status_badge}">
+                  ${app.status_display}
+                </span></td>
+              </tr>
+              ${officerRow}
+              <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
+              <tr>
+                <th>Visa Application URL</th>
+                <td id="visa-url-cell">
+                  ${app.visa_application_url 
+                    ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                       <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
+                    : '<em>No URL added yet</em>'
                   }
-                });
+                </td>
+              </tr>
+              <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
+              <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+              ${rejectionLetterRow}
+            </table>
+        `;
 
-                // Disable all links except "Go To URL"
-                modal.querySelectorAll("a").forEach(link => {
-                  if (!(link.textContent.includes("Go To URL") && link.classList.contains("btn-soft-success"))) {
-                    link.setAttribute("tabindex", "-1");
-                    link.classList.add("disabled");
-                    link.addEventListener("click", e => e.preventDefault());
-                  }
-                });
-            });
+        // 🔹 Add Mark Finalized button (but will be locked later)
+        if (app.status !== "SUBMITTED") {
+            detailsHtml += `
+                <div class="mt-3 text-end">
+                  <button class="btn btn-success" id="mark-finalized-btn" data-id="${app.id}">
+                    Mark Finalized
+                  </button>
+                </div>
+            `;
+        } else {
+            detailsHtml += `
+                <div class="mt-3 text-end">
+                  <button class="btn btn-secondary" disabled>
+                    ✅ Already Finalized
+                  </button>
+                </div>
+            `;
+        }
+
+// 🔹 Documents section
+
+let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
+
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
+
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
+
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
+
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+            <td>
+            <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+  docsHtml += `
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>Status</th>
+          <th>File</th>
+          <th>Comments</th>
+          <th>Uploaded</th>
+         <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (app.documents.length === 0) {
+    docsHtml += `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No documents uploaded yet.
+        </td>
+      </tr>
+    `;
+  } else {
+    app.documents.forEach(doc => {
+      docsHtml += `
+        <tr>
+          <td>${doc.requirement_name}</td>
+          <td><span class="badge ${doc.status_badge}">
+            ${doc.status_display}
+          </span></td>
+          <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+          <td>${doc.review_comments ?? "-"}</td>
+          <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+
+          <td><button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
+            </td>
+
+
+        </tr>
+      `;
     });
+  }
+
+  docsHtml += `</tbody></table>`;
+}
+
+
+// let docsHtml = `
+// <h5 class="mt-4 text-info">Documents</h5>
+// <table class="table table-striped">
+//   <thead>
+//     <tr>
+//       <th>Requirement</th>
+//       <th>Status</th>
+//       <th>File</th>
+//       <th>Comments</th>
+//       <th>Uploaded</th>
+//       <th>Action</th>
+//     </tr>
+//   </thead>
+//   <tbody>
+// `;
+
+// if (app.documents.length === 0) {
+// docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+// } else {
+// app.documents.forEach(doc => {
+//     docsHtml += `
+//         <tr>
+//           <td>${doc.requirement_name}</td>
+//           <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+//           <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+//           <td>
+//             <input type="text" class="form-control form-control-sm review-comment-input"
+//                    data-doc-id="${doc.id}"
+//                    value="${doc.review_comments ?? ''}"
+//                    placeholder="Add comment">
+//           </td>
+//           <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+//           <td>
+//             <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
+//           </td>
+//         </tr>
+//     `;
+// });
+// }
+
+// docsHtml += "</tbody></table>";
+
+// === Refusal Letters table ===
+let refusalsHtml = `
+<h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+<table class="table table-striped">
+<thead>
+<tr>
+<th>File</th>
+<th>Uploaded</th>
+</tr>
+</thead>
+<tbody>
+`;
+
+if (!app.refusal_letters || app.refusal_letters.length === 0) {
+refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+} else {
+app.refusal_letters.forEach(ref => {
+refusalsHtml += `
+<tr>
+<td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+<td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+</tr>
+`;
+});
+}
+refusalsHtml += "</tbody></table>";
+
+modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+
+// 🔒 Lock modal after rendering
+const modal = document.querySelector("#applicationDetailModal");
+
+// Disable all inputs
+modal.querySelectorAll("input, textarea, select").forEach(el => {
+  el.setAttribute("readonly", true);
+  el.setAttribute("disabled", true);
+});
+
+// Disable all buttons except modal close
+// Disable all buttons EXCEPT:
+// - modal close button
+// - bootstrap nav tabs
+modal.querySelectorAll("button").forEach(btn => {
+
+  // Allow modal close
+  if (btn.classList.contains("btn-close")) return;
+
+  // Allow stage tabs
+  if (btn.classList.contains("nav-link") && btn.closest(".nav-tabs")) return;
+
+  // Everything else is disabled
+  btn.setAttribute("disabled", true);
+  btn.classList.add("disabled");
+});
+
+
+// Disable all links except "Go To URL"
+modal.querySelectorAll("a").forEach(link => {
+  if (!(link.textContent.includes("Go To URL") && link.classList.contains("btn-soft-success"))) {
+    link.setAttribute("tabindex", "-1");
+    link.classList.add("disabled");
+    link.addEventListener("click", e => e.preventDefault());
+  }
+});
+});
+});
 });
 </script>
 
