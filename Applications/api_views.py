@@ -512,9 +512,12 @@ class AddVisaApplicationDecisionAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        from Applications.notifications import notify_visa_decision
+
         application.status = decision
         application.decision_date = timezone.now()
         application.save(update_fields=["status", "decision_date", "updated_at"])
+        notify_visa_decision(application)  # ✅ SEND EMAIL
 
         # 🔽 Reduce officer workload
         staff = application.assigned_officer or application.created_by_officer
@@ -528,38 +531,65 @@ class AddVisaApplicationDecisionAPIView(APIView):
         )
 
     def post(self, request, pk):
-        application = get_object_or_404(VisaApplication, pk=pk)
-
-        # 🚫 Safety: only allow uploads for REJECTED apps
-        if application.status != "REJECTED":
-            return Response(
-                {"error": "Rejection letters can only be uploaded for rejected applications"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        try:
+            application = VisaApplication.objects.get(pk=pk)
+        except VisaApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
 
         files = request.FILES.getlist("rejection_letters")
-
         if not files:
-            return Response(
-                {"error": "No rejection files uploaded"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "No files uploaded"}, status=400)
 
-        uploaded = []
         for file in files:
-            letter = RejectionLetter.objects.create(
+            RejectionLetter.objects.create(
                 application=application,
                 file=file
             )
-            uploaded.append(letter.file.url)
+
+        # 🔥 IMPORTANT: re-fetch with related data
+        application = VisaApplication.objects.prefetch_related(
+            "rejection_letters"
+        ).get(pk=pk)
 
         return Response(
-            {
-                "message": "Rejection letter(s) uploaded successfully",
-                "rejection_letters": uploaded
-            },
-            status=status.HTTP_200_OK
+            VisaApplicationSerializer(application).data,
+            status=200
         )
+
+
+    # def post(self, request, pk):
+    #     application = get_object_or_404(VisaApplication, pk=pk)
+
+    #     # 🚫 Safety: only allow uploads for REJECTED apps
+    #     if application.status != "REJECTED":
+    #         return Response(
+    #             {"error": "Rejection letters can only be uploaded for rejected applications"},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+
+    #     files = request.FILES.getlist("rejection_letters")
+
+    #     if not files:
+    #         return Response(
+    #             {"error": "No rejection files uploaded"},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+
+    #     uploaded = []
+    #     for file in files:
+    #         letter = RejectionLetter.objects.create(
+    #             application=application,
+    #             file=file
+    #         )
+    #         uploaded.append(letter.file.url)
+
+    #     return Response(
+    #         {
+    #             "message": "Rejection letter(s) uploaded successfully",
+    #             "rejection_letters": uploaded
+    #         },
+    #         status=status.HTTP_200_OK
+    #     )
 
 
 

@@ -107,7 +107,7 @@ def notify_visa_decision(application):
     if decision == "APPROVED":
         subject = "🎉 Visa Application Approved"
         message = f"""
-Dear {user.get_full_name()},
+Dear {user.get_full_name},
 
 Congratulations!
 
@@ -124,7 +124,7 @@ We will guide you through the next steps.
     else:  # REJECTED
         subject = "Visa Application Decision Update"
         message = f"""
-Dear {user.get_full_name()},
+Dear {user.get_full_name},
 
 We regret to inform you that your visa application has been REJECTED.
 

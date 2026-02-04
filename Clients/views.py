@@ -14,6 +14,60 @@ from Applications.constants import STUDENT_STAGE_SEQUENCE, STUDENT_STAGE_SEQUENC
 
 
 
+# class AddVisaApplicationDecisionsAPIView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def patch(self, request, pk=None, *args, **kwargs):
+#         app_id = pk or kwargs.get("pk")
+#         application = get_object_or_404(VisaApplication, id=app_id)
+
+#         decision = request.data.get("status")
+#         if decision not in ["APPROVED", "REJECTED"]:
+#             return Response(
+#                 {"error": "Invalid status. Must be APPROVED or REJECTED."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         # ✅ Update status and decision_date
+#         from Applications.notifications import notify_visa_decision
+
+#         # after updating status
+#         application.status = decision
+#         application.decision_date = timezone.now().date()
+#         application.save(update_fields=["status", "decision_date"])
+
+#         notify_visa_decision(application)  # ✅ SEND EMAIL
+#         serializer = VisaApplicationSerializer(application)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+#     def post(self, request, pk):
+#         try:
+#             application = VisaApplication.objects.get(pk=pk)
+#         except VisaApplication.DoesNotExist:
+#             return Response({"error": "Application not found"}, status=404)
+
+#         files = request.FILES.getlist("rejection_letters")
+#         if not files:
+#             return Response({"error": "No files uploaded"}, status=400)
+
+#         for file in files:
+#             RejectionLetter.objects.create(
+#                 application=application,
+#                 file=file
+#             )
+
+#         # 🔥 IMPORTANT: re-fetch with related data
+#         application = VisaApplication.objects.prefetch_related(
+#             "rejection_letters"
+#         ).get(pk=pk)
+
+#         return Response(
+#             VisaApplicationSerializer(application).data,
+#             status=200
+#         )
+
+
 class ClientRegisterPage(View):
     template_name = "clients/register.html"
 

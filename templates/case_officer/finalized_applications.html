@@ -17,20 +17,20 @@
 </div>
 
 <table id="datatable" class="table table-bordered dt-responsive">
-    <thead class="table-light">
-      <tr>
-        <th>Ref No</th>
-        <th>Client</th>
-        <th>Email</th>
-        <th>Country</th>
-        <th>Visa Type</th>
-        <th>Status</th>
-        <th>Created On</th>
-        <th>View Details</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<thead class="table-light">
+<tr>
+<th>Ref No</th>
+<th>Client</th>
+<th>Email</th>
+<th>Country</th>
+<th>Visa Type</th>
+<th>Status</th>
+<th>Created On</th>
+<th>View Details</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 
 
 <div class="d-flex justify-content-end"> 
@@ -46,41 +46,41 @@
 
 <!-- Application Detail Modal -->
 <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title text-success">Finalized Applications</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="application-detail-content">
-        <p class="text-muted">Finalized Application Details</p>
-      </div>
-    </div>
-  </div>
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-success">Finalized Applications</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body" id="application-detail-content">
+<p class="text-muted">Finalized Application Details</p>
+</div>
+</div>
+</div>
 </div>
 
 <!-- Reapply Modal -->
 <div class="modal fade" id="reapplyModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title text-warning">Start Visa Reapplication</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="reapply-modal-body">
-        <p class="text-muted">Loading reapplication form...</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" id="submitReapplyBtn" class="btn btn-success">Submit Reapplication</button>
-      </div>
-      <div class="modal-footer">
-      
-        <div id="reapplyAlertContainer" class="mb-3"></div>
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-warning">Start Visa Reapplication</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body" id="reapply-modal-body">
+<p class="text-muted">Loading reapplication form...</p>
+</div>
+<div class="modal-footer">
+<button type="button" id="submitReapplyBtn" class="btn btn-success">Submit Reapplication</button>
+</div>
+<div class="modal-footer">
 
-      <!-- your form fields here -->
-      </div>
-    </div>
-  </div>
+<div id="reapplyAlertContainer" class="mb-3"></div>
+
+<!-- your form fields here -->
+</div>
+</div>
+</div>
 </div>
 
 </div>
@@ -177,236 +177,428 @@ $(document).ready(function () {
         ordering: true
     });
 
-    // 🔹 Handle "View Details" button click (event delegation)
-    $('#datatable tbody').on('click', '.view-details-btn', function () {
-        let appId = $(this).data('id');
-        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+// 🔹 Handle "View Details" button click (event delegation)
+$('#datatable tbody').on('click', '.view-details-btn', function () {
+let appId = $(this).data('id');
+let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
 
-        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
-        fetch(`/api/applications/${appId}/`)
-            .then(res => res.json())
-            .then(app => {
-                // ✅ Officer row logic with fallback
-                let officerRow = "";
-                if (app.created_by_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Initiating Officer</th>
-                            <td>${app.created_by_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else if (app.assigned_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Assigned Officer</th>
-                            <td>${app.assigned_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else {
-                    officerRow = `
-                        <tr>
-                            <th>Officer</th>
-                            <td>-</td>
-                        </tr>
-                    `;
-                }
-                // ✅ Only include Rejection Letter row if present
-                let rejectionLetterRow = "";
-                if (app.rejection_letter) {
-                    rejectionLetterRow = `
-                        <tr>
-                            <th>Rejection Letter</th>
-                            <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
-                        </tr>
-                    `;
-                }
-            
-              let detailsHtml = `
-                <h5 class="text-info">Application Info</h5>
-                <table class="table table-bordered">
-                  <tr><th>Reference</th><td>${app.reference_no}</td></tr>
-                  <tr><th>Client</th><td>${app.client_name}</td></tr>
-                  <tr><th>Email</th><td>${app.client_email}</td></tr>
-                <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
-                  <tr><th>Country</th><td>${app.country_display}</td></tr>
-                  <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
-                  <tr><th>Status</th>
-                    <td><span id="application-status-badge" class="badge ${app.status_badge}">
-                      ${app.status_display}
-                    </span></td>
-                  </tr>
-                  ${officerRow}
-                  <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
-                  <tr>
-                    <th>Visa Application URL</th>
-                    <td id="visa-url-cell">
-                      ${app.visa_application_url 
-                        ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
-                        <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
-                        : '<em>No URL added yet</em>'
-                      }
-                    </td>
-                  </tr>
-                 <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
-                 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-                ${rejectionLetterRow}
-                </table>
-              `;
-
-            /// 🔹 Add Decision button 
-              if (app.status === "SUBMITTED") {
-                    detailsHtml += `
-                      <div class="mt-3 text-end">
-                        <select id="decision-select-${app.id}" class="form-select d-inline w-auto me-2">
-                          <option value="">-- Select Decision --</option>
-                          <option value="APPROVED">✅ Approved</option>
-                          <option value="REJECTED">❌ Rejected</option>
-                        </select>
-                        <button class="btn btn-primary" id="add-decision-btn" data-id="${app.id}">
-                          Save Decision
-                        </button>
-                      </div>
-                    `;
-                } else {
-                    detailsHtml += `
-                      <div class="mt-3 text-end">
-                        <button class="btn btn-secondary" disabled>
-                          Decision Already Made
-                        </button>
-                      </div>
-                    `;
-                }
-
-
-              // Append documents section
-              let docsHtml = `
-                <h5 class="mt-4 text-info">Documents</h5>
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>Requirement</th>
-                      <th>Status</th>
-                      <th>File</th>
-                      <th>Comments</th>
-                      <th>Uploaded</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-              `;
-
-
-                if (app.documents.length === 0) {
-                    docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-                } else {
-                    app.documents.forEach(doc => {
-                        docsHtml += `
-                          <tr>
-                            <td>${doc.requirement_name}</td>
-                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-                            <td>
-                              <input type="text" class="form-control form-control-sm review-comment-input"
-                                     data-doc-id="${doc.id}"
-                                     value="${doc.review_comments ?? ''}"
-                                     placeholder="Add comment"
-                                     ${doc.status === "REVIEWED" ? "readonly" : ""}>
-                            </td>
-                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-                            <td>
-                              ${doc.status === "REVIEWED"
-                                ? `<span class="text-success">✅ Reviewed</span>`
-                                : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
-                            </td>
-                          </tr>
-                        `;
-                    });
-                }
-
-                docsHtml += "</tbody></table>";
-            // === Refusal Letters table ===
-            let refusalsHtml = `
-                <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>File</th>
-                      <th>Uploaded</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+fetch(`/api/applications/${appId}/`)
+    .then(res => res.json())
+    .then(app => {
+        // ✅ Officer row logic with fallback
+        let officerRow = "";
+        if (app.created_by_officer_name) {
+            officerRow = `
+                <tr>
+                    <th>Initiating Officer</th>
+                    <td>${app.created_by_officer_name ?? '-'}</td>
+                </tr>
             `;
-
-            if (!app.refusal_letters || app.refusal_letters.length === 0) {
-                refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
-            } else {
-                app.refusal_letters.forEach(ref => {
-                    refusalsHtml += `
-                        <tr>
-                          <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
-                          <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
-                        </tr>
-                    `;
-                });
-            }
-            refusalsHtml += "</tbody></table>";
-
-            modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
-            });
-    });
-
-    // 🔹 Handle document review button
-    document.body.addEventListener("click", function (e) {
-        if (e.target.closest(".review-btn")) {
-            let btn = e.target.closest(".review-btn");
-            let docId = btn.dataset.id;
-            let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
-            let comments = commentInput ? commentInput.value : "";
-
-            fetch(`/api/documents/${docId}/review/`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({ review_comments: comments })
-            })
-            .then(res => res.json())
-            .then(updatedDoc => {
-                // Update row in modal
-                let row = btn.closest("tr");
-                let statusCell = row.querySelector("td:nth-child(2) span");
-                if (statusCell) {
-                    statusCell.textContent = updatedDoc.status_display;
-                    statusCell.className = "badge " + updatedDoc.status_badge;
-                }
-
-                btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
-                if (commentInput) {
-                    commentInput.value = updatedDoc.review_comments ?? "";
-                    commentInput.setAttribute("readonly", "readonly");
-                }
-
-                // Update badges in modal + main table
-                fetch(`/api/applications/${updatedDoc.application}/`)
-                    .then(r => r.json())
-                    .then(updatedApp => {
-                        const badgeEl = document.getElementById("application-status-badge");
-                        if (badgeEl) {
-                            badgeEl.textContent = updatedApp.status_display;
-                            badgeEl.className = "badge " + updatedApp.status_badge;
-                        }
-
-                        const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-                        if (tableBadgeEl) {
-                            tableBadgeEl.textContent = updatedApp.status_display;
-                            tableBadgeEl.className = "badge " + updatedApp.status_badge;
-                        }
-                    });
-            });
+        } else if (app.assigned_officer_name) {
+            officerRow = `
+                <tr>
+                    <th>Assigned Officer</th>
+                    <td>${app.assigned_officer_name ?? '-'}</td>
+                </tr>
+            `;
+        } else {
+            officerRow = `
+                <tr>
+                    <th>Officer</th>
+                    <td>-</td>
+                </tr>
+            `;
         }
-    });
+        // ✅ Only include Rejection Letter row if present
+        // let rejectionLetterRow = "";
+        // if (app.rejection_letter) {
+        //     rejectionLetterRow = `
+        //         <tr>
+        //             <th>Rejection Letter</th>
+        //             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+        //         </tr>
+        //     `;
+        // }
+    
+      let detailsHtml = `
+        <h5 class="text-info">Application Info</h5>
+        <table class="table table-bordered">
+          <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+          <tr><th>Client</th><td>${app.client_name}</td></tr>
+          <tr><th>Email</th><td>${app.client_email}</td></tr>
+        <tr><th>Passport No</th><td>${app.passport_number}</td></tr>
+          <tr><th>Country</th><td>${app.country_display}</td></tr>
+          <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+          <tr><th>Status</th>
+            <td><span id="application-status-badge" class="badge ${app.status_badge}">
+              ${app.status_display}
+            </span></td>
+          </tr>
+          ${officerRow}
+          <tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
+          <tr>
+            <th>Visa Application URL</th>
+            <td id="visa-url-cell">
+              ${app.visa_application_url 
+                ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
+                : '<em>No URL added yet</em>'
+              }
+            </td>
+          </tr>
+         <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+         <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+        <tr>
+        <th>Rejection Letter</th>
+        <td id="rejection-letter-cell">
+        ${
+        Array.isArray(app.rejection_letters) && app.rejection_letters.length
+        ? app.rejection_letters
+        .filter(r => r.file)
+        .map(r =>
+          `<a href="${r.file}" target="_blank" rel="noopener noreferrer">View</a>`
+        )
+        .join("<br>")
+        : "-"
+        }
+        </td>
+        </tr>
+        </table>
+      `;
+
+let rejectionUploadHtml = "";
+
+// ✅ If already rejected AND no rejection letter yet → allow upload
+if (app.status === "REJECTED" && (!Array.isArray(app.rejection_letters) || app.rejection_letters.length === 0)) {
+
+  rejectionUploadHtml = `
+    <div class="mt-4 p-3 border rounded bg-light">
+      <h6 class="text-danger">Upload Rejection Letter</h6>
+    <input type="file" id="rejection-file-${app.id}" multiple class="form-control mb-2">
+    <button class="btn btn-danger" id="upload-rejection-btn" data-id="${app.id}">
+    Upload Rejection Letter(s)
+    </button>
+
+    </div>
+  `;
+}
+modalBody.innerHTML = detailsHtml + rejectionUploadHtml;
+
+
+/// 🔹 Add Decision button 
+if (app.status === "SUBMITTED") {
+detailsHtml += `
+<div class="mt-3 text-end">
+<select id="decision-select-${app.id}" class="form-select d-inline w-auto me-2">
+<option value="">-- Select Decision --</option>
+<option value="APPROVED">✅ Approved</option>
+<option value="REJECTED">❌ Rejected</option>
+</select>
+<button class="btn btn-primary" id="add-decision-btn" data-id="${app.id}">
+Save Decision
+</button>
+</div>
+`;
+} else {
+detailsHtml += `
+<div class="mt-3 text-end">
+<button class="btn btn-secondary" disabled>
+Decision Already Made
+</button>
+</div>
+`;
+}
+
+
+
+
+// Append documents section
+// let docsHtml = `
+// <h5 class="mt-4 text-info">Documents</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>Requirement</th>
+// <th>Status</th>
+// <th>File</th>
+// <th>Comments</th>
+// <th>Uploaded</th>
+// <th>Action</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
+
+
+// if (app.documents.length === 0) {
+// docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+// } else {
+// app.documents.forEach(doc => {
+// docsHtml += `
+//   <tr>
+//     <td>${doc.requirement_name}</td>
+//     <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+//     <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+//     <td>
+//       <input type="text" class="form-control form-control-sm review-comment-input"
+//              data-doc-id="${doc.id}"
+//              value="${doc.review_comments ?? ''}"
+//              placeholder="Add comment"
+//              ${doc.status === "REVIEWED" ? "readonly" : ""}>
+//     </td>
+//     <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+//     <td>
+//       ${doc.status === "REVIEWED"
+//         ? `<span class="text-success">✅ Reviewed</span>`
+//         : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+//     </td>
+//   </tr>
+// `;
+// });
+// }
+
+// docsHtml += "</tbody></table>";
+
+//🔹 Documents section
+let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
+
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
+
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
+
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
+
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+            <td>
+                ${doc.status === "REVIEWED"
+                  ? `<span class="text-success">✅ Reviewed</span>`
+                  : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+              </td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+docsHtml += `
+<table class="table table-striped mt-3">
+  <thead>
+    <tr>
+      <th>Requirement</th>
+      <th>Status</th>
+      <th>File</th>
+      <th>Comments</th>
+      <th>Uploaded</th>
+     <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+`;
+
+if (app.documents.length === 0) {
+docsHtml += `
+  <tr>
+    <td colspan="5" class="text-center text-muted">
+      No documents uploaded yet.
+    </td>
+  </tr>
+`;
+} else {
+app.documents.forEach(doc => {
+  docsHtml += `
+    <tr>
+      <td>${doc.requirement_name}</td>
+      <td><span class="badge ${doc.status_badge}">
+        ${doc.status_display}
+      </span></td>
+      <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+      <td>${doc.review_comments ?? "-"}</td>
+      <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+
+<td>
+${doc.status === "REVIEWED"
+  ? `<span class="text-success">✅ Reviewed</span>`
+  : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+</td>
+
+
+    </tr>
+  `;
+});
+}
+
+docsHtml += `</tbody></table>`;
+}
+
+
+// // === Refusal Letters table ===
+// let refusalsHtml = `
+// <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>File</th>
+// <th>Uploaded</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
+
+// if (!app.refusal_letters || app.refusal_letters.length === 0) {
+// refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+// } else {
+// app.refusal_letters.forEach(ref => {
+// refusalsHtml += `
+// <tr>
+//   <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+//   <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+// </tr>
+// `;
+// });
+// }
+// refusalsHtml += "</tbody></table>";
+
+// modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+
+modalBody.innerHTML = detailsHtml + rejectionUploadHtml + docsHtml;
+
+});
+});
+
+// 🔹 Handle document review button
+document.body.addEventListener("click", function (e) {
+if (e.target.closest(".review-btn")) {
+let btn = e.target.closest(".review-btn");
+let docId = btn.dataset.id;
+let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
+let comments = commentInput ? commentInput.value : "";
+
+fetch(`/api/documents/${docId}/review/`, {
+    method: "PATCH",
+    headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+    },
+    body: JSON.stringify({ review_comments: comments })
+})
+.then(res => res.json())
+.then(updatedDoc => {
+    // Update row in modal
+    let row = btn.closest("tr");
+    let statusCell = row.querySelector("td:nth-child(2) span");
+    if (statusCell) {
+        statusCell.textContent = updatedDoc.status_display;
+        statusCell.className = "badge " + updatedDoc.status_badge;
+    }
+
+    btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
+    if (commentInput) {
+        commentInput.value = updatedDoc.review_comments ?? "";
+        commentInput.setAttribute("readonly", "readonly");
+    }
+
+    // Update badges in modal + main table
+    fetch(`/api/applications/${updatedDoc.application}/`)
+        .then(r => r.json())
+        .then(updatedApp => {
+            const badgeEl = document.getElementById("application-status-badge");
+            if (badgeEl) {
+                badgeEl.textContent = updatedApp.status_display;
+                badgeEl.className = "badge " + updatedApp.status_badge;
+            }
+
+            const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+            if (tableBadgeEl) {
+                tableBadgeEl.textContent = updatedApp.status_display;
+                tableBadgeEl.className = "badge " + updatedApp.status_badge;
+            }
+        });
+});
+}
+});
 
     // document.body.addEventListener("click", function (e) {
     //       if (e.target.id === "add-decision-btn") {
@@ -454,59 +646,59 @@ $(document).ready(function () {
     //       }
     //   });
 
-    // 🔹 Handle Add Decision button
-    document.body.addEventListener("click", function (e) {
-        if (e.target.closest("#add-decision-btn")) {
-            let btn = e.target.closest("#add-decision-btn");
-            let appId = btn.dataset.id;
+// 🔹 Handle Add Decision button
+// document.body.addEventListener("click", function (e) {
+// if (e.target.closest("#add-decision-btn")) {
+// let btn = e.target.closest("#add-decision-btn");
+// let appId = btn.dataset.id;
 
-            // get selected value from dropdown
-            let select = document.getElementById(`decision-select-${appId}`);
-            if (!select || !select.value) {
-                alert("Please select APPROVED or REJECTED first.");
-                return;
-            }
-            let decision = select.value;
+// // get selected value from dropdown
+// let select = document.getElementById(`decision-select-${appId}`);
+// if (!select || !select.value) {
+// alert("Please select APPROVED or REJECTED first.");
+// return;
+// }
+// let decision = select.value;
 
-            if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) {
-                return;
-            }
+// if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) {
+// return;
+// }
 
-            fetch(`/api/applications/${appId}/add_decision/`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({ status: decision })
-            })
-            .then(res => res.json())
-            .then(updatedApp => {
-                // ✅ Update modal badge
-                const modalBadge = document.getElementById("application-status-badge");
-                if (modalBadge) {
-                    modalBadge.textContent = updatedApp.status_display;
-                    modalBadge.className = "badge " + updatedApp.status_badge;
-                }
+// fetch(`/api/applications/${appId}/add_decision/`, {
+// method: "PATCH",
+// headers: {
+//     "Content-Type": "application/json",
+//     "X-CSRFToken": getCookie("csrftoken")
+// },
+// body: JSON.stringify({ status: decision })
+// })
+// .then(res => res.json())
+// .then(updatedApp => {
+// // ✅ Update modal badge
+// const modalBadge = document.getElementById("application-status-badge");
+// if (modalBadge) {
+//     modalBadge.textContent = updatedApp.status_display;
+//     modalBadge.className = "badge " + updatedApp.status_badge;
+// }
 
-                // ✅ Replace dropdown + button with disabled text
-                if (select) select.disabled = true;
-                btn.outerHTML = `<button class="btn btn-secondary" disabled>
-                                    ✅ Decision Recorded: ${updatedApp.status_display}
-                                 </button>`;
+// // ✅ Replace dropdown + button with disabled text
+// if (select) select.disabled = true;
+// btn.outerHTML = `<button class="btn btn-secondary" disabled>
+//                     ✅ Decision Recorded: ${updatedApp.status_display}
+//                  </button>`;
 
-                // ✅ Update table badge
-                const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-                if (tableBadgeEl) {
-                    tableBadgeEl.textContent = updatedApp.status_display;
-                    tableBadgeEl.className = "badge " + updatedApp.status_badge;
-                }
+// // ✅ Update table badge
+// const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+// if (tableBadgeEl) {
+//     tableBadgeEl.textContent = updatedApp.status_display;
+//     tableBadgeEl.className = "badge " + updatedApp.status_badge;
+// }
 
-                alert(`Application has been ${updatedApp.status_display}`);
-            })
-            .catch(err => console.error("Error updating decision:", err));
-        }
-    });
+// alert(`Application has been ${updatedApp.status_display}`);
+// })
+// .catch(err => console.error("Error updating decision:", err));
+// }
+// });
 
     // Handle Reapply button click
     // $('#datatable tbody').on('click', '.reapply-btn', function () {
@@ -524,6 +716,125 @@ $(document).ready(function () {
     //             modalBody.innerHTML = "<p class='text-danger'>Failed to load reapplication form.</p>";
     //         });
     // });
+
+
+// 🔹 Handle Add Decision button
+document.body.addEventListener("click", function (e) {
+if (e.target.closest("#add-decision-btn")) {
+    let btn = e.target.closest("#add-decision-btn");
+    let appId = btn.dataset.id;
+    let select = document.getElementById(`decision-select-${appId}`);
+    if (!select || !select.value) {
+        alert("Please select APPROVED or REJECTED first.");
+        return;
+    }
+    let decision = select.value;
+
+    if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) return;
+
+    fetch(`/api/applications/${appId}/add_decision/`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ status: decision })
+    })
+    .then(res => res.json())
+    .then(updatedApp => {
+        // ✅ Update modal badge
+        const modalBadge = document.getElementById("application-status-badge");
+        if (modalBadge) {
+            modalBadge.textContent = updatedApp.status_display;
+            modalBadge.className = "badge " + updatedApp.status_badge;
+        }
+
+        // ✅ Replace controls
+        if (select) select.disabled = true;
+        btn.outerHTML = `<button class="btn btn-secondary" disabled>
+                            ✅ Decision Recorded: ${updatedApp.status_display}
+                         </button>`;
+
+        // ✅ Update table badge
+        const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+        if (tableBadgeEl) {
+            tableBadgeEl.textContent = updatedApp.status_display;
+            tableBadgeEl.className = "badge " + updatedApp.status_badge;
+        }
+
+        // ✅ Update decision date
+        const decisionDateEl = document.getElementById("application-decision-date");
+        if (decisionDateEl) decisionDateEl.textContent = updatedApp.decision_date ?? '-';
+
+        // ✅ If REJECTED → show upload form
+        if (decision === "REJECTED") {
+            let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+            modalBody.insertAdjacentHTML("beforeend", `
+                <div class="mt-4 p-3 border rounded bg-light">
+                    <h6 class="text-danger">Upload Rejection Letter</h6>
+                    <input type="file" id="rejection-file-${updatedApp.id}" class="form-control mb-2">
+                    <button class="btn btn-danger" id="upload-rejection-btn" data-id="${updatedApp.id}">
+                        Upload Letter
+                    </button>
+                </div>
+            `);
+        }
+
+        // ✅ Update DataTable row directly
+        let row = table.row(`#row-${updatedApp.id}`);
+        if (row) {
+            row.data(updatedApp).draw(false);
+        }
+
+        alert(`Application has been ${updatedApp.status_display}`);
+    })
+    .catch(err => console.error("Error updating decision:", err));
+}
+});
+
+// 🔹 Handle rejection letter upload
+document.body.addEventListener("click", function (e) {
+  const btn = e.target.closest("#upload-rejection-btn");
+  if (!btn) return;
+
+  const appId = btn.dataset.id;
+  const fileInput = document.getElementById(`rejection-file-${appId}`);
+
+  if (!fileInput || !fileInput.files.length) {
+    alert("Please select at least one file.");
+    return;
+  }
+
+  const formData = new FormData();
+  [...fileInput.files].forEach(file => {
+    formData.append("rejection_letters", file);
+  });
+
+  fetch(`/api/applications/${appId}/add_decision/`, {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": getCookie("csrftoken")
+    },
+    body: formData
+  })
+  .then(res => res.json())
+  .then(updatedApp => {
+    btn.parentElement.innerHTML =
+      `<p class="text-success">Rejection letter(s) uploaded successfully.</p>`;
+
+    const cell = document.getElementById("rejection-letter-cell");
+        if (cell && Array.isArray(updatedApp.rejection_letters)) {
+          cell.innerHTML = updatedApp.rejection_letters
+            .filter(r => r.file)
+            .map(r => `<a href="${r.file}" target="_blank">View</a>`)
+            .join("<br>") || "-";
+        }
+
+  })
+  .catch(() => alert("Failed to upload rejection letters."));
+});
+
+
 
 // Handle Reapply button click
 $('#datatable tbody').on('click', '.reapply-btn', function () {

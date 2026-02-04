@@ -447,16 +447,18 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
     #     return rep
 
 
-
 class RejectionLetterSerializer(serializers.ModelSerializer):
     file = serializers.SerializerMethodField()
 
     class Meta:
         model = RejectionLetter
-        fields = ["id", "file", "uploaded_at"]
+        fields = ("id", "file", "uploaded_at")
 
     def get_file(self, obj):
-        return obj.file.url if obj.file else None
+        if obj.file and hasattr(obj.file, "url"):
+            return obj.file.url
+        return None
+
 
 
 class VisaApplicationSerializer(serializers.ModelSerializer):

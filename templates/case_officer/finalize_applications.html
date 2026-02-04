@@ -137,7 +137,7 @@ fetch(`/api/applications/${appId}/`)
         }
 
 // ✅ Only include Rejection Letter row if present
-let rejectionLetterRow = "";
+// let rejectionLetterRow = "";
 // if (app.rejection_letter) {
 //     rejectionCell.innerHTML = `
 //   <a href="${updatedApp.rejection_letter}" target="_blank">
@@ -178,14 +178,19 @@ ${officerRow}
   <th>Rejection Letter</th>
   <td id="rejection-letter-cell">
     ${
-      app.rejection_letters && app.rejection_letters.length
+      Array.isArray(app.rejection_letters) && app.rejection_letters.length
         ? app.rejection_letters
-            .map(r => `<a href="${r.file}" target="_blank">Views</a>`)
+            .filter(r => r.file)
+            .map(r =>
+              `<a href="${r.file}" target="_blank" rel="noopener noreferrer">View</a>`
+            )
             .join("<br>")
         : "-"
     }
   </td>
 </tr>
+
+
 
 
 
@@ -195,12 +200,13 @@ ${officerRow}
 let rejectionUploadHtml = "";
 
 // ✅ If already rejected AND no rejection letter yet → allow upload
-if (app.status === "REJECTED" && !app.rejection_letter) {
+if (app.status === "REJECTED" && (!Array.isArray(app.rejection_letters) || app.rejection_letters.length === 0)) {
+
   rejectionUploadHtml = `
     <div class="mt-4 p-3 border rounded bg-light">
       <h6 class="text-danger">Upload Rejection Letter</h6>
     <input type="file" id="rejection-file-${app.id}" multiple class="form-control mb-2">
-    <button class="btn btn-danger" id="upload-rejection-btn" data-id="{{app.id}}">
+    <button class="btn btn-danger" id="upload-rejection-btn" data-id="${app.id}">
     Upload Rejection Letter(s)
     </button>
 
@@ -234,54 +240,6 @@ detailsHtml += `
     </button>
   </div>`;
 }
-
-// Append documents section
-// let docsHtml = `
-// <h5 class="mt-4 text-info">Documents</h5>
-// <table class="table table-striped">
-// <thead>
-// <tr>
-//   <th>Requirement</th>
-//   <th>Status</th>
-//   <th>File</th>
-//   <th>Comments</th>
-//   <th>Uploaded</th>
-//   <th>Action</th>
-// </tr>
-// </thead>
-// <tbody>
-// `;
-
-
-// if (app.documents.length === 0) {
-// docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-// } else {
-// app.documents.forEach(doc => {
-//     docsHtml += `
-//       <tr>
-//         <td>${doc.requirement_name}</td>
-//         <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-//         <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-//         <td>
-//           <input type="text" class="form-control form-control-sm review-comment-input"
-//                  data-doc-id="${doc.id}"
-//                  value="${doc.review_comments ?? ''}"
-//                  placeholder="Add comment"
-//                  ${doc.status === "REVIEWED" ? "readonly" : ""}>
-//         </td>
-//         <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-//         <td>
-//           ${doc.status === "REVIEWED"
-//             ? `<span class="text-success">✅ Reviewed</span>`
-//             : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
-//         </td>
-//       </tr>
-//     `;
-// });
-// }
-
-// docsHtml += "</tbody></table>"
-// ;
 
 
 
@@ -467,51 +425,53 @@ docsHtml += `</tbody></table>`;
 // }
 // refusalsHtml += "</tbody></table>";
 
-let refusalsHtml = `
-  <h5 class="mt-4 text-danger">Previous Rejection Letters</h5>
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>File</th>
-        <th>Uploaded</th>
-      </tr>
-    </thead>
-    <tbody>
-`;
+// let refusalsHtml = `
+//   <h5 class="mt-4 text-danger">Previous Rejection Letters</h5>
+//   <table class="table table-striped">
+//     <thead>
+//       <tr>
+//         <th>File</th>
+//         <th>Uploaded</th>
+//       </tr>
+//     </thead>
+//     <tbody>
+// `;
 
-if (!Array.isArray(app.rejection_letters) || app.rejection_letters.length === 0) {
-  refusalsHtml += `
-    <tr>
-      <td colspan="2" class="text-center text-muted">
-        No rejection letters uploaded.
-      </td>
-    </tr>
-  `;
-} else {
-  app.rejection_letters.forEach(ref => {
-    if (!ref.file) return; // 🔥 PREVENT undefined href
+// if (!Array.isArray(app.rejection_letters) || app.rejection_letters.length === 0) {
+//   refusalsHtml += `
+//     <tr>
+//       <td colspan="2" class="text-center text-muted">
+//         No rejection letters uploaded.
+//       </td>
+//     </tr>
+//   `;
+// } else {
+//   app.rejection_letters.forEach(ref => {
+//     if (!ref.file) return; // 🔥 PREVENT undefined href
 
-    refusalsHtml += `
-      <tr>
-        <td>
-          <a href="${ref.file}" target="_blank" rel="noopener noreferrer">
-            View Rejection Letter
-          </a>
-        </td>
-        <td>
-          ${ref.uploaded_at
-            ? new Date(ref.uploaded_at).toLocaleString()
-            : "-"}
-        </td>
-      </tr>
-    `;
-  });
-}
+//     refusalsHtml += `
+//       <tr>
+//         <td>
+//           <a href="${ref.file}" target="_blank" rel="noopener noreferrer">
+//             View Rejection Letter
+//           </a>
+//         </td>
+//         <td>
+//           ${ref.uploaded_at
+//             ? new Date(ref.uploaded_at).toLocaleString()
+//             : "-"}
+//         </td>
+//       </tr>
+//     `;
+//   });
+// }
 
-refusalsHtml += "</tbody></table>";
+// refusalsHtml += "</tbody></table>";
 
 
-modalBody.innerHTML = detailsHtml + rejectionUploadHtml + docsHtml + refusalsHtml;
+// modalBody.innerHTML = detailsHtml + rejectionUploadHtml + docsHtml + refusalsHtml;
+modalBody.innerHTML = detailsHtml + rejectionUploadHtml + docsHtml;
+
 });
 });
 
@@ -642,50 +602,6 @@ if (e.target.closest("#add-decision-btn")) {
 });
 
 // 🔹 Handle rejection letter upload
-// document.body.addEventListener("click", function (e) {
-//   if (!e.target.closest("#upload-rejection-btn")) return;
-
-//   let btn = e.target.closest("#upload-rejection-btn");
-//   let appId = btn.dataset.id;
-//   let fileInput = document.getElementById(`rejection-file-${appId}`);
-
-//   if (!fileInput || !fileInput.files.length) {
-//     alert("Please select a file first.");
-//     return;
-//   }
-
-//   // let formData = new FormData();
-//   let files = fileInput.files;
-//   let formData = new FormData();
-//   for (let i = 0; i < files.length; i++) {
-//     formData.append("rejection_letters", files[i]);
-//   }
-
-//   // formData.append("rejection_letter", fileInput.files[0]);
-
-//   fetch(`/api/applications/${appId}/add_decision/`, {
-//     method: "POST",
-//     headers: { "X-CSRFToken": getCookie("csrftoken") },
-//     body: formData
-//   })
-//   .then(res => res.json())
-//   .then(updatedApp => {
-//     btn.parentElement.innerHTML =
-//       `<p class="text-success mb-2">Rejection letter uploaded successfully.</p>`;
-
-//     let rejectionCell = document.querySelector("#rejection-letter-cell");
-//     if (rejectionCell) {
-//       rejectionCell.innerHTML =
-//         `<a href="${updatedApp.rejection_letter}" target="_blank">View</a>`;
-//     }
-
-//     let row = table.row(`#row-${updatedApp.id}`);
-//     if (row) row.data(updatedApp).draw(false);
-//   });
-// });
-
-
-// 🔹 Handle rejection letter upload
 document.body.addEventListener("click", function (e) {
   const btn = e.target.closest("#upload-rejection-btn");
   if (!btn) return;
@@ -716,11 +632,13 @@ document.body.addEventListener("click", function (e) {
       `<p class="text-success">Rejection letter(s) uploaded successfully.</p>`;
 
     const cell = document.getElementById("rejection-letter-cell");
-    if (cell && updatedApp.rejection_letters?.length) {
-      cell.innerHTML = updatedApp.rejection_letters
-        .map(r => `<a href="${r.file}" target="_blank">View</a>`)
-        .join("<br>");
-    }
+        if (cell && Array.isArray(updatedApp.rejection_letters)) {
+          cell.innerHTML = updatedApp.rejection_letters
+            .filter(r => r.file)
+            .map(r => `<a href="${r.file}" target="_blank">View</a>`)
+            .join("<br>") || "-";
+        }
+
   })
   .catch(() => alert("Failed to upload rejection letters."));
 });
