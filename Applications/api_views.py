@@ -20,6 +20,7 @@ from .serializers import (
     VisaApplicationUrlUpdateSerializer,
     ReapplyApplicationSerializer,
     PreviousRefusalLetterSerializer,
+    RejectionLetterSerializer,
     # FormProcessingSerializer,
 )
 from django.contrib.auth import get_user_model
@@ -370,6 +371,94 @@ def upload_refusals(request, pk):
 
 
 class ApplicationReapplyView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReapplyApplicationSerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .select_related("client", "client__user")
+            .prefetch_related(
+                "documents",
+                "rejection_letters"   # 🔥 REQUIRED
+            )
+        )
+
+    def get(self, request, pk):
+        application = self.get_queryset().get(pk=pk)
+
+        if application.status not in ["APPROVED", "REJECTED"]:
+            return Response(
+                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                status=400
+            )
+
+        serializer = self.get_serializer(application)
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+        staff_profile = getattr(request.user, "staff_profile", None)
+
+        # ✅ Update client profile
+        client = application.client
+        client.passport_number = request.data.get(
+            "passport_number", client.passport_number
+        )
+        client.save()
+
+        # ✅ Update linked user
+        user = client.user
+        user.first_name = request.data.get("first_name", user.first_name)
+        user.last_name = request.data.get("last_name", user.last_name)
+        user.email = request.data.get("email", user.email)
+        user.phone = request.data.get("phone", user.phone)
+        user.save()
+
+        # ✅ Create new application
+        new_app = VisaApplication.objects.create(
+            client=client,
+            country=request.data.get("country", application.country),
+            visa_type=request.data.get("visa_type", application.visa_type),
+            status="INITIATED",
+            reference_no=generate_reference_no(),
+            created_by_officer=staff_profile,
+        )
+
+        # ✅ SAVE REJECTION LETTERS (FIXED MODEL + FIELD)
+        uploaded_letters = []
+        for f in request.FILES.getlist("rejection_letters"):
+            letter = RejectionLetter.objects.create(
+                application=new_app,
+                file=f
+            )
+            uploaded_letters.append(letter)
+
+        # ✅ Copy documents
+        for doc_id in request.data.getlist("doc_id[]"):
+            old_doc = get_object_or_404(Document, pk=doc_id)
+            new_file = request.FILES.get(f"document_{doc_id}")
+
+            Document.objects.create(
+                application=new_app,
+                requirement=old_doc.requirement,
+                file=new_file or old_doc.file,
+                status="UPLOADED"
+            )
+
+        return Response({
+            "success": True,
+            "new_application_id": new_app.id,
+            "reference_no": new_app.reference_no,
+            "rejection_letters": RejectionLetterSerializer(
+                uploaded_letters, many=True
+            ).data
+        })
+
+
+
+class ApplicationReapplyViewW(generics.RetrieveAPIView):
     queryset = VisaApplication.objects.all()
     serializer_class = ReapplyApplicationSerializer
     permission_classes = [IsAuthenticated]
@@ -554,6 +643,25 @@ class AddVisaApplicationDecisionAPIView(APIView):
         return Response(
             VisaApplicationSerializer(application).data,
             status=200
+        )
+
+
+class VisaApplicationDetailAPIView(RetrieveAPIView):
+    serializer_class = VisaApplicationDetailSerializer
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .select_related(
+                "client",
+                "created_by_officer",
+                "assigned_officer"
+            )
+            .prefetch_related(
+                "rejection_letters",     # 🔥 THIS IS THE KEY
+                "documents",
+            )
         )
 
 
@@ -1138,7 +1246,7 @@ class FinalizedVisaApplicationsListAPIView(generics.ListAPIView):
         return qs.order_by(Coalesce("submission_date", "created_at").desc())
 
 
-class VisaApplicationDetailAPIView(RetrieveAPIView):
+class VisaApplicationDetailAPIViewW(RetrieveAPIView):
     queryset = VisaApplication.objects.all()
     serializer_class = VisaApplicationDetailSerializer
     lookup_field = "id"  # since frontend fetches /api/applications/<id>/

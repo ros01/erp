@@ -89,10 +89,24 @@ class VisaApplicationReapplySerializer(serializers.ModelSerializer):
             "documents", "refusal_letters"
         ]
 
+class RejectionLetterSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RejectionLetter
+        fields = ("id", "file", "uploaded_at")
+
+    def get_file(self, obj):
+        if obj.file and hasattr(obj.file, "url"):
+            return obj.file.url
+        return None
+
+
 class ReapplyApplicationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
+    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -135,7 +149,8 @@ class ReapplyApplicationSerializer(serializers.ModelSerializer):
             "submission_date",
             "decision_date",
             "documents",
-            "rejection_letter",  
+            "rejection_letter",
+            "rejection_letters",  
             "refusal_letters",
         ]
 
@@ -267,10 +282,12 @@ class DocumentSerializer00(serializers.ModelSerializer):
         return mapping.get(obj.status, "badge-soft-secondary")
 
 
+
 class VisaApplicationDetailSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
+    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -291,8 +308,8 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         source="client.passport_number", read_only=True
     )
     documents = DocumentSerializer(many=True, read_only=True)
-    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
-    refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)  # ✅ include here
+    # rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
+    # refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)  # ✅ include here
 
     class Meta:
         model = VisaApplication
@@ -300,7 +317,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "id", "client_name", "client_email", "reference_no", "country", "country_display", "passport_number",
             "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
             "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
-            "submission_date", "decision_date", "documents", "rejection_letter", "refusal_letters"
+            "submission_date", "decision_date", "documents",  "rejection_letters"
         ]
 
     def get_created_at(self, obj):
@@ -447,17 +464,7 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
     #     return rep
 
 
-class RejectionLetterSerializer(serializers.ModelSerializer):
-    file = serializers.SerializerMethodField()
 
-    class Meta:
-        model = RejectionLetter
-        fields = ("id", "file", "uploaded_at")
-
-    def get_file(self, obj):
-        if obj.file and hasattr(obj.file, "url"):
-            return obj.file.url
-        return None
 
 
 

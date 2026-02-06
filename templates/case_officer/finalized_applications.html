@@ -250,21 +250,36 @@ fetch(`/api/applications/${appId}/`)
           </tr>
          <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
          <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-        <tr>
-        <th>Rejection Letter</th>
-        <td id="rejection-letter-cell">
+
+      <tr>
+      <th>Rejection Letters</th>
+      <td id="rejection-letter-cell">
         ${
-        Array.isArray(app.rejection_letters) && app.rejection_letters.length
-        ? app.rejection_letters
-        .filter(r => r.file)
-        .map(r =>
-          `<a href="${r.file}" target="_blank" rel="noopener noreferrer">View</a>`
-        )
-        .join("<br>")
-        : "-"
+          Array.isArray(app.rejection_letters) && app.rejection_letters.length
+            ? app.rejection_letters
+                .map((r, i) =>
+                  r?.file
+                    ? `
+                      <div class="mb-1">
+                        <span class="badge bg-danger me-2">
+                          Letter ${i + 1}
+                        </span>
+                        <a href="${r.file}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                          View Rejection Letter
+                        </a>
+                      </div>
+                    `
+                    : ""
+                )
+                .join("") || "-"
+            : "-"
         }
-        </td>
-        </tr>
+      </td>
+      </tr>
+
+
         </table>
       `;
 
@@ -837,106 +852,253 @@ document.body.addEventListener("click", function (e) {
 
 
 // Handle Reapply button click
-$('#datatable tbody').on('click', '.reapply-btn', function () {
-    let appId = $(this).data('id');
-    let modalBody = document.querySelector("#reapply-modal-body");
-    modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+// $('#datatable tbody').on('click', '.reapply-btn', function () {
+//     let appId = $(this).data('id');
+//     let modalBody = document.querySelector("#reapply-modal-body");
+//     modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
-fetch(`/api/applications/${appId}/reapply/`)
+// fetch(`/api/applications/${appId}/reapply/`)
+//     .then(res => res.json())
+//     .then(app => {
+//         let docsHtml = "";
+//         app.documents.forEach(doc => {
+//             docsHtml += `
+//               <div class="mb-3">
+//                 <label class="form-label fw-bold">${doc.requirement_name}</label>
+//                 <div>
+//                   <a href="${doc.file}" target="_blank" class="me-3">View Current</a>
+//                   <input type="file" class="form-control mt-2" name="document_${doc.id}" />
+//                   <input type="hidden" name="doc_id[]" value="${doc.id}" />
+//                 </div>
+//               </div>
+//             `;
+//         });
+
+//         let formHtml = `
+//           <div id="reapplyAlertContainer">
+//             <div id="reapplyAlert" class="alert d-none"></div>
+//           </div>
+//           <form id="reapplyForm">
+//             <input type="hidden" name="application_id" value="${app.id}" />
+            
+//             <div class="mb-3">
+//               <label class="form-label">Client Name</label>
+//               <input type="text" class="form-control" name="client_name" value="${app.client_name}" readonly />
+//             </div>
+
+//             <div class="mb-3">
+//               <label class="form-label">Client Email</label>
+//               <input type="email" class="form-control" name="client_email" value="${app.client_email}" />
+//             </div>
+
+//             <div class="mb-3">
+//               <label class="form-label">Country</label>
+//               <input type="text" class="form-control" name="country" value="${app.country}" readonly />
+//             </div>
+
+//             <div class="mb-3">
+//               <label class="form-label">Visa Type</label>
+//               <input type="text" class="form-control" name="visa_type" value="${app.visa_type}" readonly />
+//             </div>
+
+//             <div class="mb-3">
+//               <label class="form-label">Passport No</label>
+//               <input type="text" class="form-control" name="passport_number" value="${app.passport_number}" />
+//             </div>
+
+            
+//             <h5>Previous Rejection Letters</h5>
+//             <div id="existingRejectionLetters" class="mb-3"></div>
+
+//             <div class="mb-3">
+//             <label for="rejectionLetters" class="form-label">
+//             Upload New Rejection Letters
+//             </label>
+//             <input type="file"
+//             name="rejection_letters"
+//             id="rejectionLetters"
+//             class="form-control"
+//             multiple>
+//             </div>
+
+//             <h6 class="text-info mt-4">Documents</h6>
+//             ${docsHtml}
+//           </form>
+//         `;
+//         modalBody.innerHTML = formHtml;
+
+//         // 🔹 Render existing refusal letters
+//         let list = document.getElementById("existingRejectionLetters");
+
+//         if (Array.isArray(app.rejection_letters) && app.rejection_letters.length) {
+//           list.innerHTML = app.rejection_letters
+//             .map(l =>
+//               `<div>
+//                 <a href="${l.file}" target="_blank" rel="noopener noreferrer">
+//                   View Rejection Letter
+//                 </a>
+//               </div>`
+//             )
+//             .join("");
+//         } else {
+//           list.innerHTML =
+//             `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+//         }
+
+//         // Save app id globally for submit
+//         $("#submitReapplyBtn").data("appid", app.id);
+//     })
+
+//         .catch(err => {
+//             modalBody.innerHTML = "<p class='text-danger'>Failed to load reapplication form.</p>";
+//         });
+// });
+
+
+
+// Handle Reapply button click
+$('#datatable tbody').on('click', '.reapply-btn', function () {
+  let appId = $(this).data('id');
+  let modalBody = document.querySelector("#reapply-modal-body");
+  modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+  fetch(`/api/applications/${appId}/reapply/`)
     .then(res => res.json())
     .then(app => {
-        let docsHtml = "";
-        app.documents.forEach(doc => {
-            docsHtml += `
-              <div class="mb-3">
-                <label class="form-label fw-bold">${doc.requirement_name}</label>
-                <div>
-                  <a href="${doc.file}" target="_blank" class="me-3">View Current</a>
-                  <input type="file" class="form-control mt-2" name="document_${doc.id}" />
-                  <input type="hidden" name="doc_id[]" value="${doc.id}" />
-                </div>
-              </div>
-            `;
-        });
 
-        let formHtml = `
-          <div id="reapplyAlertContainer">
-            <div id="reapplyAlert" class="alert d-none"></div>
+      // -------------------------
+      // Documents section
+      // -------------------------
+      let docsHtml = "";
+      app.documents.forEach(doc => {
+        docsHtml += `
+          <div class="mb-3">
+            <label class="form-label fw-bold">${doc.requirement_name}</label>
+            <div>
+              <a href="${doc.file}" target="_blank" class="me-3">
+                View Current
+              </a>
+              <input type="file"
+                     class="form-control mt-2"
+                     name="document_${doc.id}" />
+              <input type="hidden"
+                     name="doc_id[]"
+                     value="${doc.id}" />
+            </div>
           </div>
-          <form id="reapplyForm">
-            <input type="hidden" name="application_id" value="${app.id}" />
-            
-            <div class="mb-3">
-              <label class="form-label">Client Name</label>
-              <input type="text" class="form-control" name="client_name" value="${app.client_name}" readonly />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Client Email</label>
-              <input type="email" class="form-control" name="client_email" value="${app.client_email}" />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Country</label>
-              <input type="text" class="form-control" name="country" value="${app.country}" readonly />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Visa Type</label>
-              <input type="text" class="form-control" name="visa_type" value="${app.visa_type}" readonly />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Passport No</label>
-              <input type="text" class="form-control" name="passport_number" value="${app.passport_number}" />
-            </div>
-
-            <h5>Previous Refusal Letters</h5>
-            <div id="existingRefusalLetters" class="mb-3"></div>
-
-            <div class="mb-3">
-              <label for="refusalLetters" class="form-label">Upload New Refusal Letters</label>
-              <input type="file" name="refusal_letters" id="refusalLetters" class="form-control" multiple>
-            </div>
-
-            <h6 class="text-info mt-4">Documents</h6>
-            ${docsHtml}
-          </form>
         `;
-        modalBody.innerHTML = formHtml;
+      });
 
-        // 🔹 Render existing refusal letters
-        let refusalList = document.getElementById("existingRefusalLetters");
-        if (app.refusal_letters && app.refusal_letters.length > 0) {
-            app.refusal_letters.forEach(letter => {
-                refusalList.innerHTML += `
-                  <div>
-                    <a href="${letter.file_url}" target="_blank">View Refusal Letter (${letter.uploaded_at ?? ''})</a>
-                  </div>
-                `;
-            });
-        } else {
-            refusalList.innerHTML = `<p class="text-muted">No refusal letters uploaded yet.</p>`;
-        }
+      // -------------------------
+      // Form HTML
+      // -------------------------
+      let formHtml = `
+        <div id="reapplyAlertContainer">
+          <div id="reapplyAlert" class="alert d-none"></div>
+        </div>
 
-        // Save app id globally for submit
-        $("#submitReapplyBtn").data("appid", app.id);
+        <form id="reapplyForm">
+          <input type="hidden" name="application_id" value="${app.id}" />
+
+          <div class="mb-3">
+            <label class="form-label">Client Name</label>
+            <input type="text" class="form-control"
+                   value="${app.client_name}" readonly />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Client Email</label>
+            <input type="email" class="form-control"
+                   name="client_email"
+                   value="${app.client_email}" />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Country</label>
+            <input type="text" class="form-control"
+                   value="${app.country}" readonly />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Visa Type</label>
+            <input type="text" class="form-control"
+                   value="${app.visa_type}" readonly />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Passport No</label>
+            <input type="text" class="form-control"
+                   name="passport_number"
+                   value="${app.passport_number}" />
+          </div>
+
+          <h5 class="mt-4">Previous Rejection Letters</h5>
+          <div id="existingRejectionLetters" class="mb-3"></div>
+
+          <div class="mb-3">
+            <label for="rejectionLetters" class="form-label">
+              Upload New Rejection Letters
+            </label>
+            <input type="file"
+                   name="rejection_letters"
+                   id="rejectionLetters"
+                   class="form-control"
+                   multiple>
+          </div>
+
+          <h6 class="text-info mt-4">Documents</h6>
+          ${docsHtml}
+        </form>
+      `;
+
+      modalBody.innerHTML = formHtml;
+
+      // -------------------------
+      // Render existing rejection letters
+      // -------------------------
+      let list = document.getElementById("existingRejectionLetters");
+
+      if (Array.isArray(app.rejection_letters) && app.rejection_letters.length) {
+        list.innerHTML = app.rejection_letters
+          .map((l, i) =>
+            l.file
+              ? `
+                <div class="mb-1">
+                  <span class="badge bg-danger me-2">
+                    Letter ${i + 1}
+                  </span>
+                  <a href="${l.file}"
+                     target="_blank"
+                     rel="noopener noreferrer">
+                    View Rejection Letter
+                  </a>
+                </div>
+              `
+              : ""
+          )
+          .join("") || `<p class="text-muted">No rejection letters uploaded.</p>`;
+      } else {
+        list.innerHTML =
+          `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+      }
+
+      // Save app id for submit
+      $("#submitReapplyBtn").data("appid", app.id);
     })
-
-        .catch(err => {
-            modalBody.innerHTML = "<p class='text-danger'>Failed to load reapplication form.</p>";
-        });
+    .catch(() => {
+      modalBody.innerHTML =
+        "<p class='text-danger'>Failed to load reapplication form.</p>";
+    });
 });
+
+
 
 // Handle submit reapplication
 // $('#submitReapplyBtn').on('click', function () {
+//     if (!confirm("Are you sure you want to reapply?")) return;
+
 //     let form = document.querySelector("#reapplyForm");
 //     if (!form) return;
-
-//     // ✅ Confirm before submitting
-//     if (!confirm("Are you sure you want to submit this reapplication?")) {
-//         return;
-//     }
 
 //     let formData = new FormData(form);
 //     let appId = $(this).data("appid");
@@ -944,122 +1106,148 @@ fetch(`/api/applications/${appId}/reapply/`)
 //     fetch(`/api/applications/${appId}/reapply/`, {
 //         method: "POST",
 //         body: formData,
-//         headers: {
-//             "X-CSRFToken": getCookie("csrftoken")
-//         }
+//         headers: { "X-CSRFToken": getCookie("csrftoken") }
 //     })
 //     .then(res => res.json())
 //     .then(data => {
-//         let alertContainer = document.getElementById("reapplyAlertContainer");
+//         let alertBox = $("#reapplyAlert");
+//         if (data.success) {
+//             alertBox
+//                 .removeClass("d-none alert-danger")
+//                 .addClass("alert-success")
+//                 .html(`Application submitted successfully!<br/>Reference: <strong>${data.reference_no}</strong>`)
+//                 .fadeIn();
 
-//         if (data.error) {
-//             alertContainer.innerHTML = `
-//               <div class="alert alert-danger alert-dismissible fade show" role="alert">
-//                 <strong>Error:</strong> ${data.error}
-//                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-//               </div>
-//             `;
-//         } else {
-//             alertContainer.innerHTML = `
-//               <div id="reapplyAlert" class="alert alert-success fade show" role="alert">
-//                 Application submitted successfully!<br/>
-//                 Reference: <strong>${data.reference_no}</strong>
-//               </div>
-//             `;
-
-//             // Auto fade out after 3 seconds
+//             // ✅ Auto fade out alert
 //             setTimeout(() => {
-//                 $("#reapplyAlert").fadeOut("slow", function () {
-//                     $(this).remove();
+//                 alertBox.fadeOut("slow", function () {
+//                     $(this).addClass("d-none").empty();
 //                 });
-
-//                 // Close modal + refresh table
-//                 bootstrap.Modal.getInstance(document.getElementById("reapplyModal")).hide();
-//                 $('#datatable').DataTable().ajax.reload(null, false);
 //             }, 3000);
 
-//             // Reset form
-//             $("#reapplyForm")[0].reset();
+//             // ✅ Close modal after 5 seconds
+//             setTimeout(() => {
+//                 $("#reapplyModal").modal("hide");
+//             }, 5000);
+
+//             // refresh rejection letters list
+//             let list = document.getElementById("existingRejectionLetters");
+//             list.innerHTML = "";
+
+//             if (Array.isArray(data.rejection_letters)) {
+//             data.rejection_letters.forEach(letter => {
+//             if (!letter.file) return;
+//             list.innerHTML += `
+//             <div>
+//             <a href="${letter.file}" target="_blank" rel="noopener noreferrer">
+//               View Rejection Letter
+//             </a>
+//             </div>
+//             `;
+//             });
+//             }
+
+
+//             // reset form
+//             form.reset();
+//         } else {
+//             alertBox
+//                 .removeClass("d-none alert-success")
+//                 .addClass("alert-danger")
+//                 .text("Error submitting application.")
+//                 .fadeIn();
 //         }
 //     })
 //     .catch(err => {
-//         let alertContainer = document.getElementById("reapplyAlertContainer");
-//         alertContainer.innerHTML = `
-//           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-//             ❌ An error occurred while submitting. Please try again.
-//             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-//           </div>
-//         `;
+//         console.error(err);
+//         let alertBox = $("#reapplyAlert");
+//         alertBox
+//             .removeClass("d-none alert-success")
+//             .addClass("alert-danger")
+//             .text("❌ An error occurred while submitting. Please try again.")
+//             .fadeIn();
 //     });
 // });
 
 
 // Handle submit reapplication
 $('#submitReapplyBtn').on('click', function () {
-    if (!confirm("Are you sure you want to reapply?")) return;
+  if (!confirm("Are you sure you want to reapply?")) return;
 
-    let form = document.querySelector("#reapplyForm");
-    if (!form) return;
+  let form = document.querySelector("#reapplyForm");
+  if (!form) return;
 
-    let formData = new FormData(form);
-    let appId = $(this).data("appid");
+  let formData = new FormData(form);
+  let appId = $(this).data("appid");
 
-    fetch(`/api/applications/${appId}/reapply/`, {
-        method: "POST",
-        body: formData,
-        headers: { "X-CSRFToken": getCookie("csrftoken") }
-    })
-    .then(res => res.json())
-    .then(data => {
-        let alertBox = $("#reapplyAlert");
-        if (data.success) {
-            alertBox
-                .removeClass("d-none alert-danger")
-                .addClass("alert-success")
-                .html(`Application submitted successfully!<br/>Reference: <strong>${data.reference_no}</strong>`)
-                .fadeIn();
-
-            // ✅ Auto fade out alert
-            setTimeout(() => {
-                alertBox.fadeOut("slow", function () {
-                    $(this).addClass("d-none").empty();
-                });
-            }, 3000);
-
-            // ✅ Close modal after 5 seconds
-            setTimeout(() => {
-                $("#reapplyModal").modal("hide");
-            }, 5000);
-
-            // refresh refusal letters list
-            let list = document.getElementById("existingRefusalLetters");
-            list.innerHTML = "";
-            data.refusal_letters.forEach(letter => {
-                list.innerHTML += `<div><a href="${letter.file}" target="_blank">View Refusal Letter</a></div>`;
-            });
-
-            // reset form
-            form.reset();
-        } else {
-            alertBox
-                .removeClass("d-none alert-success")
-                .addClass("alert-danger")
-                .text("Error submitting application.")
-                .fadeIn();
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        let alertBox = $("#reapplyAlert");
-        alertBox
-            .removeClass("d-none alert-success")
-            .addClass("alert-danger")
-            .text("❌ An error occurred while submitting. Please try again.")
-            .fadeIn();
+  // 🔥 Append rejection letters explicitly
+  const rejectionInput = document.getElementById("rejectionLetters");
+  if (rejectionInput && rejectionInput.files.length) {
+    [...rejectionInput.files].forEach(file => {
+      formData.append("rejection_letters", file);
     });
+  }
+
+  fetch(`/api/applications/${appId}/reapply/`, {
+    method: "POST",
+    body: formData,
+    headers: { "X-CSRFToken": getCookie("csrftoken") }
+  })
+  .then(res => res.json())
+  .then(data => {
+    let alertBox = $("#reapplyAlert");
+
+    if (data.success) {
+      alertBox
+        .removeClass("d-none alert-danger")
+        .addClass("alert-success")
+        .html(`Application submitted successfully!<br/>
+               Reference: <strong>${data.reference_no}</strong>`)
+        .fadeIn();
+
+      // refresh rejection letters list
+      let list = document.getElementById("existingRejectionLetters");
+      list.innerHTML = "";
+
+      if (Array.isArray(data.rejection_letters) && data.rejection_letters.length) {
+        data.rejection_letters.forEach((letter, i) => {
+          if (!letter.file) return;
+          list.innerHTML += `
+            <div class="mb-1">
+              <span class="badge bg-danger me-2">
+                Letter ${i + 1}
+              </span>
+              <a href="${letter.file}" target="_blank" rel="noopener noreferrer">
+                View Rejection Letter
+              </a>
+            </div>
+          `;
+        });
+      } else {
+        list.innerHTML =
+          `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+      }
+
+      // auto close modal
+      setTimeout(() => $("#reapplyModal").modal("hide"), 5000);
+      form.reset();
+    } else {
+      alertBox
+        .removeClass("d-none alert-success")
+        .addClass("alert-danger")
+        .text("Error submitting application.")
+        .fadeIn();
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    $("#reapplyAlert")
+      .removeClass("d-none alert-success")
+      .addClass("alert-danger")
+      .text("❌ An error occurred while submitting. Please try again.")
+      .fadeIn();
+  });
 });
-
-
 
 
 
