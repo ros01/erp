@@ -143,15 +143,15 @@ $(document).ready(function () {
                     `;
                 }
                 // ✅ Only include Rejection Letter row if present
-                let rejectionLetterRow = "";
-                if (app.rejection_letter) {
-                    rejectionLetterRow = `
-                        <tr>
-                            <th>Rejection Letter</th>
-                            <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
-                        </tr>
-                    `;
-                }
+                // let rejectionLetterRow = "";
+                // if (app.rejection_letter) {
+                //     rejectionLetterRow = `
+                //         <tr>
+                //             <th>Rejection Letter</th>
+                //             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+                //         </tr>
+                //     `;
+                // }
             
               let detailsHtml = `
                 <h5 class="text-info">Application Info</h5>
@@ -181,7 +181,34 @@ $(document).ready(function () {
                   </tr>
                  <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                  <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-                ${rejectionLetterRow}
+                <tr>
+                  <th>Rejection Letters</th>
+                  <td id="rejection-letter-cell">
+                    ${
+                      Array.isArray(app.rejection_letters) && app.rejection_letters.length
+                        ? app.rejection_letters
+                            .map((r, i) =>
+                              r?.file
+                                ? `
+                                  <div class="mb-1">
+                                    <span class="badge bg-danger me-2">
+                                      Letter ${i + 1}
+                                    </span>
+                                    <a href="${r.file}"
+                                       target="_blank"
+                                       rel="noopener noreferrer">
+                                      View Rejection Letter
+                                    </a>
+                                  </div>
+                                `
+                                : ""
+                            )
+                            .join("") || "-"
+                        : "-"
+                    }
+                  </td>
+                  </tr>
+                
                 </table>
               `;
 
@@ -209,136 +236,291 @@ $(document).ready(function () {
                     `;
                 }
 
+modalBody.innerHTML = detailsHtml;
 
-              // Append documents section
-              let docsHtml = `
-                <h5 class="mt-4 text-info">Documents</h5>
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>Requirement</th>
-                      <th>Status</th>
-                      <th>File</th>
-                      <th>Comments</th>
-                      <th>Uploaded</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-              `;
+// Append documents section
+// let docsHtml = `
+// <h5 class="mt-4 text-info">Documents</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>Requirement</th>
+// <th>Status</th>
+// <th>File</th>
+// <th>Comments</th>
+// <th>Uploaded</th>
+// <th>Action</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
 
 
-                if (app.documents.length === 0) {
-                    docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
-                } else {
-                    app.documents.forEach(doc => {
-                        docsHtml += `
-                          <tr>
-                            <td>${doc.requirement_name}</td>
-                            <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
-                            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
-                            <td>
-                              <input type="text" class="form-control form-control-sm review-comment-input"
-                                     data-doc-id="${doc.id}"
-                                     value="${doc.review_comments ?? ''}"
-                                     placeholder="Add comment"
-                                     ${doc.status === "REVIEWED" ? "readonly" : ""}>
-                            </td>
-                            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
-                            <td>
-                              ${doc.status === "REVIEWED"
-                                ? `<span class="text-success">✅ Reviewed</span>`
-                                : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
-                            </td>
-                          </tr>
-                        `;
-                    });
-                }
+// if (app.documents.length === 0) {
+// docsHtml += `<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet.</td></tr>`;
+// } else {
+// app.documents.forEach(doc => {
+// docsHtml += `
+// <tr>
+// <td>${doc.requirement_name}</td>
+// <td><span class="badge ${doc.status_badge}">${doc.status_display}</span></td>
+// <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : '-'}</td>
+// <td>
+// <input type="text" class="form-control form-control-sm review-comment-input"
+//  data-doc-id="${doc.id}"
+//  value="${doc.review_comments ?? ''}"
+//  placeholder="Add comment"
+//  ${doc.status === "REVIEWED" ? "readonly" : ""}>
+// </td>
+// <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : '-'}</td>
+// <td>
+// ${doc.status === "REVIEWED"
+// ? `<span class="text-success">✅ Reviewed</span>`
+// : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+// </td>
+// </tr>
+// `;
+// });
+// }
 
-                docsHtml += "</tbody></table>";
+// docsHtml += "</tbody></table>";
 
-            // === Refusal Letters table ===
-            let refusalsHtml = `
-                <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
-                <table class="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>File</th>
-                      <th>Uploaded</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-            `;
+// === Refusal Letters table ===
+// let refusalsHtml = `
+// <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>File</th>
+// <th>Uploaded</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
 
-            if (!app.refusal_letters || app.refusal_letters.length === 0) {
-                refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
-            } else {
-                app.refusal_letters.forEach(ref => {
-                    refusalsHtml += `
-                        <tr>
-                          <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
-                          <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
-                        </tr>
-                    `;
-                });
-            }
-            refusalsHtml += "</tbody></table>";
+// if (!app.refusal_letters || app.refusal_letters.length === 0) {
+// refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+// } else {
+// app.refusal_letters.forEach(ref => {
+// refusalsHtml += `
+// <tr>
+// <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+// <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+// </tr>
+// `;
+// });
+// }
+// refusalsHtml += "</tbody></table>";
 
-            modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
-            });
-    });
 
-    // 🔹 Handle document review button
-    document.body.addEventListener("click", function (e) {
-        if (e.target.closest(".review-btn")) {
-            let btn = e.target.closest(".review-btn");
-            let docId = btn.dataset.id;
-            let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
-            let comments = commentInput ? commentInput.value : "";
+//🔹 Documents section
+let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
 
-            fetch(`/api/documents/${docId}/review/`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({ review_comments: comments })
-            })
-            .then(res => res.json())
-            .then(updatedDoc => {
-                // Update row in modal
-                let row = btn.closest("tr");
-                let statusCell = row.querySelector("td:nth-child(2) span");
-                if (statusCell) {
-                    statusCell.textContent = updatedDoc.status_display;
-                    statusCell.className = "badge " + updatedDoc.status_badge;
-                }
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
 
-                btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
-                if (commentInput) {
-                    commentInput.value = updatedDoc.review_comments ?? "";
-                    commentInput.setAttribute("readonly", "readonly");
-                }
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
 
-                // Update badges in modal + main table
-                fetch(`/api/applications/${updatedDoc.application}/`)
-                    .then(r => r.json())
-                    .then(updatedApp => {
-                        const badgeEl = document.getElementById("application-status-badge");
-                        if (badgeEl) {
-                            badgeEl.textContent = updatedApp.status_display;
-                            badgeEl.className = "badge " + updatedApp.status_badge;
-                        }
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
 
-                        const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-                        if (tableBadgeEl) {
-                            tableBadgeEl.textContent = updatedApp.status_display;
-                            tableBadgeEl.className = "badge " + updatedApp.status_badge;
-                        }
-                    });
-            });
-        }
-    });
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+            <td>
+                ${doc.status === "REVIEWED"
+                  ? `<span class="text-success">✅ Reviewed</span>`
+                  : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+              </td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+docsHtml += `
+<table class="table table-striped mt-3">
+  <thead>
+    <tr>
+      <th>Requirement</th>
+      <th>Status</th>
+      <th>File</th>
+      <th>Comments</th>
+      <th>Uploaded</th>
+     <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+`;
+
+if (app.documents.length === 0) {
+docsHtml += `
+  <tr>
+    <td colspan="5" class="text-center text-muted">
+      No documents uploaded yet.
+    </td>
+  </tr>
+`;
+} else {
+app.documents.forEach(doc => {
+  docsHtml += `
+    <tr>
+      <td>${doc.requirement_name}</td>
+      <td><span class="badge ${doc.status_badge}">
+        ${doc.status_display}
+      </span></td>
+      <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+      <td>${doc.review_comments ?? "-"}</td>
+      <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+
+<td>
+${doc.status === "REVIEWED"
+  ? `<span class="text-success">✅ Reviewed</span>`
+  : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>`}
+</td>
+
+
+    </tr>
+  `;
+});
+}
+
+docsHtml += `</tbody></table>`;
+}
+
+
+modalBody.innerHTML = detailsHtml + docsHtml;
+});
+});
+
+// 🔹 Handle document review button
+document.body.addEventListener("click", function (e) {
+if (e.target.closest(".review-btn")) {
+let btn = e.target.closest(".review-btn");
+let docId = btn.dataset.id;
+let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
+let comments = commentInput ? commentInput.value : "";
+
+fetch(`/api/documents/${docId}/review/`, {
+method: "PATCH",
+headers: {
+"Content-Type": "application/json",
+"X-CSRFToken": getCookie("csrftoken")
+},
+body: JSON.stringify({ review_comments: comments })
+})
+.then(res => res.json())
+.then(updatedDoc => {
+// Update row in modal
+let row = btn.closest("tr");
+let statusCell = row.querySelector("td:nth-child(2) span");
+if (statusCell) {
+statusCell.textContent = updatedDoc.status_display;
+statusCell.className = "badge " + updatedDoc.status_badge;
+}
+
+btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
+if (commentInput) {
+commentInput.value = updatedDoc.review_comments ?? "";
+commentInput.setAttribute("readonly", "readonly");
+}
+
+// Update badges in modal + main table
+fetch(`/api/applications/${updatedDoc.application}/`)
+.then(r => r.json())
+.then(updatedApp => {
+const badgeEl = document.getElementById("application-status-badge");
+if (badgeEl) {
+badgeEl.textContent = updatedApp.status_display;
+badgeEl.className = "badge " + updatedApp.status_badge;
+}
+
+const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+if (tableBadgeEl) {
+tableBadgeEl.textContent = updatedApp.status_display;
+tableBadgeEl.className = "badge " + updatedApp.status_badge;
+}
+});
+});
+}
+});
 
     // document.body.addEventListener("click", function (e) {
     //       if (e.target.id === "add-decision-btn") {
@@ -386,59 +568,59 @@ $(document).ready(function () {
     //       }
     //   });
 
-    // 🔹 Handle Add Decision button
-    document.body.addEventListener("click", function (e) {
-        if (e.target.closest("#add-decision-btn")) {
-            let btn = e.target.closest("#add-decision-btn");
-            let appId = btn.dataset.id;
+// 🔹 Handle Add Decision button
+document.body.addEventListener("click", function (e) {
+if (e.target.closest("#add-decision-btn")) {
+let btn = e.target.closest("#add-decision-btn");
+let appId = btn.dataset.id;
 
-            // get selected value from dropdown
-            let select = document.getElementById(`decision-select-${appId}`);
-            if (!select || !select.value) {
-                alert("Please select APPROVED or REJECTED first.");
-                return;
-            }
-            let decision = select.value;
+// get selected value from dropdown
+let select = document.getElementById(`decision-select-${appId}`);
+if (!select || !select.value) {
+    alert("Please select APPROVED or REJECTED first.");
+    return;
+}
+let decision = select.value;
 
-            if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) {
-                return;
-            }
+if (!confirm(`Are you sure you want to mark this application as ${decision}?`)) {
+    return;
+}
 
-            fetch(`/api/applications/${appId}/add_decision/`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({ status: decision })
-            })
-            .then(res => res.json())
-            .then(updatedApp => {
-                // ✅ Update modal badge
-                const modalBadge = document.getElementById("application-status-badge");
-                if (modalBadge) {
-                    modalBadge.textContent = updatedApp.status_display;
-                    modalBadge.className = "badge " + updatedApp.status_badge;
-                }
+fetch(`/api/applications/${appId}/add_decision/`, {
+    method: "PATCH",
+    headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+    },
+    body: JSON.stringify({ status: decision })
+})
+.then(res => res.json())
+.then(updatedApp => {
+    // ✅ Update modal badge
+    const modalBadge = document.getElementById("application-status-badge");
+    if (modalBadge) {
+        modalBadge.textContent = updatedApp.status_display;
+        modalBadge.className = "badge " + updatedApp.status_badge;
+    }
 
-                // ✅ Replace dropdown + button with disabled text
-                if (select) select.disabled = true;
-                btn.outerHTML = `<button class="btn btn-secondary" disabled>
-                                    ✅ Decision Recorded: ${updatedApp.status_display}
-                                 </button>`;
+    // ✅ Replace dropdown + button with disabled text
+    if (select) select.disabled = true;
+    btn.outerHTML = `<button class="btn btn-secondary" disabled>
+                        ✅ Decision Recorded: ${updatedApp.status_display}
+                     </button>`;
 
-                // ✅ Update table badge
-                const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-                if (tableBadgeEl) {
-                    tableBadgeEl.textContent = updatedApp.status_display;
-                    tableBadgeEl.className = "badge " + updatedApp.status_badge;
-                }
+    // ✅ Update table badge
+    const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+    if (tableBadgeEl) {
+        tableBadgeEl.textContent = updatedApp.status_display;
+        tableBadgeEl.className = "badge " + updatedApp.status_badge;
+    }
 
-                alert(`Application has been ${updatedApp.status_display}`);
-            })
-            .catch(err => console.error("Error updating decision:", err));
-        }
-    });
+    alert(`Application has been ${updatedApp.status_display}`);
+})
+.catch(err => console.error("Error updating decision:", err));
+}
+});
 
 
     // 🔹 CSRF Helper

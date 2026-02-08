@@ -22,74 +22,74 @@
 <div class="col-xl-4">
 <div class="card overflow-hidden">
 <div class="bg-primary-subtle">
-    <div class="row">
-        <div class="col-7">
-            <div class="text-primary p-3">
-                <h5 class="text-primary">Welcome !</h5>
-                <p>Clients Dashboard</p>
-            </div>
-        </div>
-        <div class="col-5 align-self-end">
-            <img src="{% static 'admin_assets/images/profile-img.png' %}" alt="" class="img-fluid">
-        </div>
-    </div>
+<div class="row">
+<div class="col-7">
+<div class="text-primary p-3">
+<h5 class="text-primary">Welcome !</h5>
+<p>Clients Dashboard</p>
+</div>
+</div>
+<div class="col-5 align-self-end">
+<img src="{% static 'admin_assets/images/profile-img.png' %}" alt="" class="img-fluid">
+</div>
+</div>
 </div>
 <div class="card-body pt-0">
-    <div class="row">
-        <div class="col-sm-4">
-            <div class="avatar-md profile-user-wid mb-4">
-                <img src="{% static 'admin_assets/images/users/avatar-1.jpg' %}" alt="" class="img-thumbnail rounded-circle">
-            </div>
-            <h5 class="font-size-15 text-truncate">{{user.get_full_name}}</h5>
-            <p class="text-muted mb-0 text-truncate">Visa Applicant</p>
-        </div>
+<div class="row">
+<div class="col-sm-4">
+<div class="avatar-md profile-user-wid mb-4">
+<img src="{% static 'admin_assets/images/users/avatar-1.jpg' %}" alt="" class="img-thumbnail rounded-circle">
+</div>
+<h5 class="font-size-15 text-truncate">{{user.get_full_name}}</h5>
+<p class="text-muted mb-0 text-truncate">Visa Applicant</p>
+</div>
 
-        <div class="col-sm-8">
-            <div class="pt-4">
+<div class="col-sm-8">
+<div class="pt-4">
 
-                <div class="row">
-                    <div class="col-6">
-                        <h5 class="font-size-15">{{ approved_count }}</h5>
-                        <p class="text-muted mb-0">Approved</p>
-                    </div>
-                    <div class="col-6">
-                        <h5 class="font-size-15">{{ rejected_count }}</h5>
-                        <p class="text-muted mb-0">Rejected</p>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View Profile <i class="mdi mdi-arrow-right ms-1"></i></a>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="row">
+<div class="col-6">
+<h5 class="font-size-15">{{ approved_count }}</h5>
+<p class="text-muted mb-0">Approved</p>
+</div>
+<div class="col-6">
+<h5 class="font-size-15">{{ rejected_count }}</h5>
+<p class="text-muted mb-0">Rejected</p>
+</div>
+</div>
+<div class="mt-4">
+<a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View Profile <i class="mdi mdi-arrow-right ms-1"></i></a>
+</div>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="card">
 <div class="card-body">
-    <h4 class="card-title mb-3">Personal Information</h4>
-    <div class="table-responsive">
-        <table class="table table-nowrap mb-0">
-            <tbody>
-                <tr>
-                    <th scope="row">Full Name :</th>
-                    <td>{{user.get_full_name}}</td>
-                </tr>
-                <tr>
-                    <th scope="row">Mobile :</th>
-                    <td>{{user.phone}}</td>
-                </tr>
-                <tr>
-                    <th scope="row">E-mail :</th>
-                    <td>{{user.email}}</td>
-                </tr>
-                <tr>
-                    <th scope="row">Address :</th>
-                    <td>{{ user.client_profile.address }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+<h4 class="card-title mb-3">Personal Information</h4>
+<div class="table-responsive">
+<table class="table table-nowrap mb-0">
+<tbody>
+<tr>
+<th scope="row">Full Name :</th>
+<td>{{user.get_full_name}}</td>
+</tr>
+<tr>
+<th scope="row">Mobile :</th>
+<td>{{user.phone}}</td>
+</tr>
+<tr>
+<th scope="row">E-mail :</th>
+<td>{{user.email}}</td>
+</tr>
+<tr>
+<th scope="row">Address :</th>
+<td>{{ user.client_profile.address }}</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </div>
 
@@ -98,64 +98,64 @@
 <div class="col-xl-8">
 <div class="row">
 <div class="col-md-4">
-    <div class="card mini-stats-wid">
-        <div class="card-body">
-            <div class="d-flex">
-                <div class="flex-grow-1">
-                    <p class="text-muted fw-medium">Total Applications</p>
-                    <h4 class="mb-0">{{ applications_count }}</h4>
-                </div>
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Total Applications</p>
+<h4 class="mb-0">{{ applications_count }}</h4>
+</div>
 
-                <div class="flex-shrink-0 align-self-center">
-                    <div class="mini-stat-icon avatar-sm rounded-circle bg-primary">
-                        <span class="avatar-title">
-                            <i class="bx bx-copy-alt font-size-24"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="flex-shrink-0 align-self-center">
+<div class="mini-stat-icon avatar-sm rounded-circle bg-primary">
+<span class="avatar-title">
+<i class="bx bx-copy-alt font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="col-md-4">
-    <div class="card mini-stats-wid">
-        <div class="card-body">
-            <div class="d-flex">
-                <div class="flex-grow-1">
-                    <p class="text-muted fw-medium">Pending Applications</p>
-                    <h4 class="mb-0">{{ pending_count }}</h4>
-                </div>
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Pending Applications</p>
+<h4 class="mb-0">{{ pending_count }}</h4>
+</div>
 
-                <div class="flex-shrink-0 align-self-center">
-                    <div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
-                        <span class="avatar-title rounded-circle bg-primary">
-                            <i class="bx bx-archive-in font-size-24"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="flex-shrink-0 align-self-center">
+<div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
+<span class="avatar-title rounded-circle bg-primary">
+<i class="bx bx-archive-in font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="col-md-4">
-    <div class="card mini-stats-wid">
-        <div class="card-body">
-            <div class="d-flex">
-                <div class="flex-grow-1">
-                    <p class="text-muted fw-medium">Completed Applications</p>
-                    <h4 class="mb-0">{{ completed_count }}</h4>
-                </div>
+<div class="card mini-stats-wid">
+<div class="card-body">
+<div class="d-flex">
+<div class="flex-grow-1">
+<p class="text-muted fw-medium">Completed Applications</p>
+<h4 class="mb-0">{{ completed_count }}</h4>
+</div>
 
-                <div class="flex-shrink-0 align-self-center">
-                    <div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
-                        <span class="avatar-title rounded-circle bg-primary">
-                            <i class="bx bx-purchase-tag-alt font-size-24"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="flex-shrink-0 align-self-center">
+<div class="avatar-sm rounded-circle bg-primary mini-stat-icon">
+<span class="avatar-title rounded-circle bg-primary">
+<i class="bx bx-purchase-tag-alt font-size-24"></i>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 </div>
 <!-- end row -->
@@ -329,6 +329,34 @@ $(document).ready(function () {
                     </tr>
                     <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                     <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+
+                    <tr>
+                      <th>Rejection Letters</th>
+                      <td id="rejection-letter-cell">
+                        ${
+                          Array.isArray(app.rejection_letters) && app.rejection_letters.length
+                            ? app.rejection_letters
+                                .map((r, i) =>
+                                  r?.file
+                                    ? `
+                                      <div class="mb-1">
+                                        <span class="badge bg-danger me-2">
+                                          Letter ${i + 1}
+                                        </span>
+                                        <a href="${r.file}"
+                                           target="_blank"
+                                           rel="noopener noreferrer">
+                                          View Rejection Letter
+                                        </a>
+                                      </div>
+                                    `
+                                    : ""
+                                )
+                                .join("") || "-"
+                            : "-"
+                        }
+                      </td>
+                      </tr>
                   </table>
                 `;
 

@@ -1,0 +1,46 @@
+<table class="table table-bordered">
+<thead>
+<tr>
+  <th>Requirement</th>
+  <th>Status</th>
+  <th>Upload / View</th>
+</tr>
+</thead>
+
+<tbody id="documentsBody">
+{% for doc in documents %}
+<tr data-doc-id="{{ doc.id }}">
+  <td>{{ doc.requirement.name }}</td>
+
+  <td class="status">
+    <span class="badge
+      {% if doc.status == 'MISSING' %} bg-danger
+      {% elif doc.status == 'REJECTED' %} bg-warning
+      {% elif doc.status == 'UPLOADED' %} bg-success
+      {% else %} bg-secondary {% endif %}">
+      {{ doc.status }}
+    </span>
+  </td>
+
+  <td class="action-cell">
+    {% if doc.file %}
+      <a href="{{ doc.file.url }}" target="_blank" class="btn btn-soft-success">
+        <i class="bx bxs-folder-open me-1"></i> View File
+      </a>
+    {% else %}
+      <div class="d-flex gap-2">
+        <input type="file" class="form-control form-control-sm file-input" />
+        <button class="btn btn-sm btn-primary upload-btn">Upload</button>
+      </div>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="3" class="text-center text-muted">
+    No required documents found.
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>

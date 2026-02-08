@@ -8375,9 +8375,29 @@ $('#submitReapplyBtn').on('click', function () {
 
 {% endblock %}
 
-in 
 
-Upadate all parts of the script below to reference "rejection_letters" not "refusal_letters"
+Amend 
+let detailsHtml = `
+<tr>
+<th>Rejection Letter</th>
+<td id="rejection-letter-cell">
+${
+Array.isArray(app.rejection_letters) && app.rejection_letters.length
+? app.rejection_letters
+.filter(r => r.file)
+.map(r =>
+  `<a href="${r.file}" target="_blank" rel="noopener noreferrer">View</a>`
+)
+.join("<br>")
+: "-"
+}
+</td>
+</tr>
+`;
+
+to return working link to "View" rejection_letters instead of "-"
+
+Also Upadate all parts of the script below to reference "rejection_letters" not "refusal_letters"
 <script>
 let formHtml = `
 
@@ -8413,3 +8433,1342 @@ data.refusal_letters.forEach(letter => {
 
 
 </script>
+
+
+
+  <h5>Previous Rejection Letters</h5>
+  <div id="existingRejectionLetters" class="mb-3"></div>
+
+  <div class="mb-3">
+    <label for="rejectionLetters" class="form-label">
+      Upload New Rejection Letters
+    </label>
+    <input type="file"
+           name="rejection_letters"
+           id="rejectionLetters"
+           class="form-control"
+           multiple>
+  </div>
+`;
+
+
+
+<script>
+// Handle Reapply button click
+$('#datatable tbody').on('click', '.reapply-btn', function () {
+let appId = $(this).data('id');
+let modalBody = document.querySelector("#reapply-modal-body");
+modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+fetch(`/api/applications/${appId}/reapply/`)
+.then(res => res.json())
+.then(app => {
+let docsHtml = "";
+app.documents.forEach(doc => {
+    docsHtml += `
+      <div class="mb-3">
+        <label class="form-label fw-bold">${doc.requirement_name}</label>
+        <div>
+          <a href="${doc.file}" target="_blank" class="me-3">View Current</a>
+          <input type="file" class="form-control mt-2" name="document_${doc.id}" />
+          <input type="hidden" name="doc_id[]" value="${doc.id}" />
+        </div>
+      </div>
+    `;
+});
+
+let formHtml = `
+  <div id="reapplyAlertContainer">
+    <div id="reapplyAlert" class="alert d-none"></div>
+  </div>
+  <form id="reapplyForm">
+    <input type="hidden" name="application_id" value="${app.id}" />
+    
+    <div class="mb-3">
+      <label class="form-label">Client Name</label>
+      <input type="text" class="form-control" name="client_name" value="${app.client_name}" readonly />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Client Email</label>
+      <input type="email" class="form-control" name="client_email" value="${app.client_email}" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Country</label>
+      <input type="text" class="form-control" name="country" value="${app.country}" readonly />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Visa Type</label>
+      <input type="text" class="form-control" name="visa_type" value="${app.visa_type}" readonly />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Passport No</label>
+      <input type="text" class="form-control" name="passport_number" value="${app.passport_number}" />
+    </div>
+
+    
+    <h5>Previous Rejection Letters</h5>
+    <div id="existingRejectionLetters" class="mb-3"></div>
+
+    <div class="mb-3">
+    <label for="rejectionLetters" class="form-label">
+    Upload New Rejection Letters
+    </label>
+    <input type="file"
+    name="rejection_letters"
+    id="rejectionLetters"
+    class="form-control"
+    multiple>
+    </div>
+
+    <h6 class="text-info mt-4">Documents</h6>
+    ${docsHtml}
+  </form>
+`;
+modalBody.innerHTML = formHtml;
+
+// 🔹 Render existing refusal letters
+let list = document.getElementById("existingRejectionLetters");
+
+if (Array.isArray(app.rejection_letters) && app.rejection_letters.length) {
+  list.innerHTML = app.rejection_letters
+    .map(l =>
+      `<div>
+        <a href="${l.file}" target="_blank" rel="noopener noreferrer">
+          View Rejection Letter
+        </a>
+      </div>`
+    )
+    .join("");
+} else {
+  list.innerHTML =
+    `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+}
+
+// Save app id globally for submit
+$("#submitReapplyBtn").data("appid", app.id);
+})
+
+.catch(err => {
+    modalBody.innerHTML = "<p class='text-danger'>Failed to load reapplication form.</p>";
+});
+});
+
+
+// Handle submit reapplication
+$('#submitReapplyBtn').on('click', function () {
+if (!confirm("Are you sure you want to reapply?")) return;
+
+let form = document.querySelector("#reapplyForm");
+if (!form) return;
+
+let formData = new FormData(form);
+let appId = $(this).data("appid");
+
+fetch(`/api/applications/${appId}/reapply/`, {
+    method: "POST",
+    body: formData,
+    headers: { "X-CSRFToken": getCookie("csrftoken") }
+})
+.then(res => res.json())
+.then(data => {
+    let alertBox = $("#reapplyAlert");
+    if (data.success) {
+        alertBox
+            .removeClass("d-none alert-danger")
+            .addClass("alert-success")
+            .html(`Application submitted successfully!<br/>Reference: <strong>${data.reference_no}</strong>`)
+            .fadeIn();
+
+        // ✅ Auto fade out alert
+        setTimeout(() => {
+            alertBox.fadeOut("slow", function () {
+                $(this).addClass("d-none").empty();
+            });
+        }, 3000);
+
+        // ✅ Close modal after 5 seconds
+        setTimeout(() => {
+            $("#reapplyModal").modal("hide");
+        }, 5000);
+
+        // refresh rejection letters list
+        let list = document.getElementById("existingRejectionLetters");
+        list.innerHTML = "";
+
+        if (Array.isArray(data.rejection_letters)) {
+        data.rejection_letters.forEach(letter => {
+        if (!letter.file) return;
+        list.innerHTML += `
+        <div>
+        <a href="${letter.file}" target="_blank" rel="noopener noreferrer">
+          View Rejection Letter
+        </a>
+        </div>
+        `;
+        });
+        }
+
+
+        // reset form
+        form.reset();
+    } else {
+        alertBox
+            .removeClass("d-none alert-success")
+            .addClass("alert-danger")
+            .text("Error submitting application.")
+            .fadeIn();
+    }
+})
+.catch(err => {
+    console.error(err);
+    let alertBox = $("#reapplyAlert");
+    alertBox
+        .removeClass("d-none alert-success")
+        .addClass("alert-danger")
+        .text("❌ An error occurred while submitting. Please try again.")
+        .fadeIn();
+});
+});
+</script>
+
+
+
+
+
+This is a different page
+
+
+#applications_list.html 
+<script>
+
+// === View Details ===
+$('#datatable tbody').on('click', '.view-details-btn', function () {
+let appId = $(this).data('id');
+let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+fetch(`/api/applications/${appId}/`)
+  .then(res => res.json())
+  .then(app => {
+      // ✅ Officer row logic with fallback
+      let officerRow = "";
+      if (app.created_by_officer_name) {
+          officerRow = `
+              <tr>
+                  <th>Initiating Officer</th>
+                  <td>${app.created_by_officer_name ?? '-'}</td>
+              </tr>
+          `;
+      } else if (app.assigned_officer_name) {
+          officerRow = `
+              <tr>
+                  <th>Assigned Officer</th>
+                  <td>${app.assigned_officer_name ?? '-'}</td>
+              </tr>
+          `;
+      } else {
+          officerRow = `
+              <tr>
+                  <th>Officer</th>
+                  <td>-</td>
+              </tr>
+          `;
+      }
+
+let detailsHtml = `
+<h5 class="text-info">Application Info</h5>
+<table class="table table-bordered">
+<tr><th>Reference</th><td>${app.reference_no}</td></tr>
+<tr><th>Client</th><td>${app.client_name}</td></tr>
+<tr><th>Email</th><td>${app.client_email}</td></tr>
+<tr><th>Passport No</th><td>${app.passport_number}</td></tr>
+<tr><th>Country</th><td>${app.country_display}</td></tr>
+<tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+<tr><th>Status</th>
+  <td><span id="application-status-badge" class="badge ${app.status_badge}">
+    ${app.status_display}
+  </span></td>
+</tr>
+${officerRow}
+<tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
+<tr>
+  <th>Visa Application URL</th>
+  <td id="visa-url-cell">
+    ${app.visa_application_url 
+      ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+         <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
+      : '<em>No URL added yet</em>'
+    }
+  </td>
+</tr>
+<tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
+<tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td>
+</tr>
+<tr>
+<th>Rejection Letters</th>
+<td id="rejection-letter-cell">
+${
+Array.isArray(app.rejection_letters) && app.rejection_letters.length
+? app.rejection_letters
+.map((r, i) =>
+r?.file
+? `
+<div class="mb-1">
+<span class="badge bg-danger me-2">
+Letter ${i + 1}
+</span>
+<a href="${r.file}"
+target="_blank"
+rel="noopener noreferrer">
+View Rejection Letter
+</a>
+</div>
+`
+: ""
+)
+.join("") || "-"
+: "-"
+}
+</td>
+</tr>
+</table>
+`;
+
+
+</script>
+
+
+
+<th>Rejection Letters</th> return "-"
+
+
+
+class VisaApplicationDetailAPIView(RetrieveAPIView):
+    serializer_class = VisaApplicationDetailSerializer
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .select_related(
+                "client",
+                "created_by_officer",
+                "assigned_officer"
+            )
+            .prefetch_related(
+                "rejection_letters",     # 🔥 THIS IS THE KEY
+                "documents",
+            )
+        )
+
+
+
+class RejectionLetterSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RejectionLetter
+        fields = ("id", "file", "uploaded_at")
+
+    def get_file(self, obj):
+        if obj.file and hasattr(obj.file, "url"):
+            return obj.file.url
+        return None
+
+
+class VisaApplicationDetailSerializer(serializers.ModelSerializer):
+    created_at = serializers.SerializerMethodField()
+    decision_date = serializers.SerializerMethodField()
+    submission_date = serializers.SerializerMethodField()
+    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
+    country_display = serializers.CharField(source="get_country_display", read_only=True)
+    visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_badge = serializers.SerializerMethodField()
+    assigned_officer_name = serializers.CharField(
+        source="assigned_officer.user.get_full_name", read_only=True
+    )
+    created_by_officer_name = serializers.CharField(
+        source="created_by_officer.user.get_full_name", read_only=True
+    )
+    client_name = serializers.CharField(
+        source="client.user.get_full_name", read_only=True
+    )
+    client_email = serializers.CharField(
+        source="client.user.email", read_only=True
+    )
+    passport_number = serializers.CharField(
+        source="client.passport_number", read_only=True
+    )
+    documents = DocumentSerializer(many=True, read_only=True)
+    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
+    refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)  # ✅ include here
+
+    class Meta:
+        model = VisaApplication
+        fields = [
+            "id", "client_name", "client_email", "reference_no", "country", "country_display", "passport_number",
+            "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
+            "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
+            "submission_date", "decision_date", "documents", "rejection_letter", "rejection_letters", "refusal_letters"
+        ]
+
+    def get_created_at(self, obj):
+        if obj.created_at:
+            return obj.created_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_decision_date(self, obj):
+        if obj.decision_date:
+            return obj.decision_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_submission_date(self, obj):
+        if obj.submission_date:
+            return obj.submission_date.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
+    def get_status_badge(self, obj):
+        mapping = {
+            "APPROVED": "badge-soft-success",
+            "REJECTED": "badge-soft-danger",
+            "SUBMITTED": "badge-soft-warning",
+            "REVIEWED": "badge-soft-warning",
+            "ADMIN REVIEW": "badge-soft-info",
+            "ASSIGNED": "badge-soft-primary",
+            "INITIATED": "badge-soft-primary",
+            "QUEUED": "badge-soft-secondary",
+        }
+        return mapping.get(obj.status, "badge-soft-secondary")
+
+
+
+<th>Rejection Letters</th> still returns "-"
+
+
+#applications_list.html
+
+{% extends 'case_officer/case_officer_dashboard_base1.html'%}
+{% load static %}
+{% block title%}| Welcome {% endblock %}
+
+{% block styles %}
+{% endblock %}
+{% block content %}
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+
+<div class="col-sm-12">
+<div class="text-sm-end">
+
+
+<button type="button"
+class="btn btn-primary btn-rounded waves-effect waves-light addContact-modal mb-2"
+data-id="${id}"
+data-bs-toggle="modal"
+data-bs-target="#newApplicationModal">
+New Visa Application
+</button>
+
+
+</div>
+</div><!-- end col-->
+
+
+<!-- <div class="d-flex justify-content-between align-items-center mb-3"> -->
+<h4 class="card-title text-info mb-4">View/Review Applications</h4>
+<!-- </div> -->
+<div class="table-responsive">
+
+<table id="datatable" class="table table-bordered dt-responsive">
+<thead class="table-light">
+<tr>
+<th class="align-middle">Ref No</th>
+<th class="align-middle">Client</th>
+<th class="align-middle">Email</th>
+<th class="align-middle">Country</th>
+<th class="align-middle">Visa Type</th>
+<th class="align-middle">Status</th>
+<th class="align-middle">Created On</th>
+<th class="align-middle">Action</th>
+</tr>
+</thead>
+<tbody id="datatable-tbody">
+<tr>
+<td colspan="8" class="text-center text-muted">Loading applications...</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+<div class="d-flex justify-content-end"> 
+<a href="{% url 'CaseManagement:case_officer_dashboard' %}" class="btn btn-soft-primary py-1 mr-4 mt-4"><i class="bx bxs-log-out align-middle me-1"></i> Return to Dashboard</a>`
+</div>
+</div>
+</div>
+<!--end col-->
+</div><!--end row-->
+
+
+</div> <!-- container-fluid -->
+</div>
+
+
+ 
+
+
+
+<!-- Application Detail Modal -->
+<div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-success">Application Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="application-detail-content">
+        <p class="text-muted">Select an application to view details.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- New Visa Application Modal -->
+<div class="modal fade" id="newApplicationModal" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-success">Create New Visa Application</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+
+
+
+<!-- Search Existing Client -->
+<div class="mb-3">
+  <label for="client-search" class="form-label">Search Client (email or name)</label>
+  <input type="text" id="client-search" class="form-control" placeholder="Type client email or name">
+  <div id="client-search-results" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+</div>
+
+<!-- Register New Client Form -->
+<div id="new-client-form" class="border rounded p-3 mt-3 d-none">
+  <h6>Register New Client</h6>
+  <div class="row g-2">
+    <div class="col-md-6">
+      <input type="text" id="new-first-name" class="form-control" placeholder="First Name">
+    </div>
+    <div class="col-md-6">
+      <input type="text" id="new-last-name" class="form-control" placeholder="Last Name">
+    </div>
+    <div class="col-md-6">
+      <input type="email" id="new-email" class="form-control" placeholder="Email">
+    </div>
+    <div class="col-md-6">
+      <input type="text" id="new-passport" class="form-control" placeholder="Passport Number">
+    </div>
+
+    <div class="col-md-6">
+
+    <!-- <label>Nationality</label> -->
+    <select id="new-nationality" class="form-control" required>
+    <option value="">— Select nationality —</option>
+    </select>
+
+    <!-- <input type="text" id="new-nationality" class="form-control" placeholder="Nationality"> -->
+    </div>
+
+
+
+
+    <div class="col-md-6">
+      <input type="date" id="new-dob" class="form-control" placeholder="Date of Birth">
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end">  
+  <button id="register-client-btn" class="btn btn-sm btn-success mt-2">Register & Select Client</button>
+  </div>
+</div>
+
+<hr>
+
+<!-- Country -->
+<div class="mb-3">
+  <label for="country" class="form-label">Country</label>
+  <select id="country" class="form-select">
+    <option value="">Select Country</option>
+  </select>
+</div>
+
+<!-- Visa Type -->
+<div class="mb-3">
+  <label for="visa-type" class="form-label">Visa Type</label>
+  <select id="visa-type" class="form-select" disabled>
+    <option value="">Select Visa Type</option>
+  </select>
+</div>
+
+<!-- Required Documents -->
+<div id="required-docs-container" class="d-none">
+  <h6>Required Documents</h6>
+  <ul id="required-docs-list" class="list-group"></ul>
+</div>
+
+</div>
+<div class="modal-footer">
+<button type="button" id="create-application-btn" class="btn btn-success" disabled>Create Application</button> <br>
+
+<!-- your form fields here -->
+</div>
+
+<div class="modal-footer">
+
+<div id="app-result" class="mb-3"></div>
+
+<!-- your form fields here -->
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+
+<div id="app-result"></div>
+
+
+<!-- jQuery (must come first) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+const csrftoken = getCookie("csrftoken");
+
+let selectedClientId = null;
+let requiredDocs = [];
+
+// === Load Countries on Modal Open ===
+document.getElementById("newApplicationModal").addEventListener("shown.bs.modal", async function() {
+    const res = await fetch("/api/countries/");
+    const data = await res.json();
+    const countrySelect = document.getElementById("country");
+    countrySelect.innerHTML = '<option value="">Select Country</option>';
+    data.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.code;
+        opt.textContent = c.name;
+        countrySelect.appendChild(opt);
+    });
+
+    // Reset success alert each time modal opens
+    const appResultEl = document.getElementById("app-result");
+    if (appResultEl) appResultEl.innerHTML = "";
+});
+
+// === Load Visa Types once Country selected ===
+document.getElementById("country").addEventListener("change", async function() {
+    const country = this.value;
+    const visaSelect = document.getElementById("visa-type");
+    visaSelect.disabled = true;
+    visaSelect.innerHTML = '<option value="">Select Visa Type</option>';
+    document.getElementById("required-docs-container").classList.add("d-none");
+
+    if (!country) return;
+
+    const res = await fetch(`/api/visa-types/?country=${country}`);
+    const data = await res.json();
+    data.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.code;
+        opt.textContent = v.name;
+        visaSelect.appendChild(opt);
+    });
+    visaSelect.disabled = false;
+});
+
+// === Load Required Docs once Visa Type selected ===
+document.getElementById("visa-type").addEventListener("change", async function() {
+  const country = document.getElementById("country").value;
+  const visaType = this.value;
+  if (!country || !visaType) return;
+
+  try {
+    const res = await fetch(`/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`);
+    const requiredDocs = await res.json();
+
+    const list = document.getElementById("required-docs-list");
+    list.innerHTML = "";
+
+    if (!requiredDocs.length) {
+      list.innerHTML = "<div class='text-muted'>No requirements found.</div>";
+    } else {
+      requiredDocs.forEach(doc => {
+        const row = document.createElement("div");
+        row.className = "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
+
+        row.innerHTML = `
+          <div>
+            <strong>${doc.name}</strong><br/>
+            <small class="text-muted">${doc.description || "—"}</small>
+          </div>
+          <span class="badge ${doc.is_mandatory ? "bg-danger" : "bg-secondary"}">
+            ${doc.is_mandatory ? "Required" : "Optional"}
+          </span>
+        `;
+
+        list.appendChild(row);
+      });
+    }
+
+    document.getElementById("required-docs-container").classList.remove("d-none");
+
+    // Enable create button only if a client is selected
+    if (selectedClientId) {
+      document.getElementById("create-application-btn").disabled = false;
+    }
+
+  } catch (err) {
+    console.error("Failed to load visa requirements:", err);
+  }
+});
+
+
+// === Client Search ===
+document.getElementById("client-search").addEventListener("input", async function() {
+    const query = this.value.trim();
+    const resultsBox = document.getElementById("client-search-results");
+    resultsBox.innerHTML = "";
+
+    if (query.length < 2) return;
+
+    const res = await fetch(`/api/clients/search/?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    if (data.length > 0) {
+        data.forEach(client => {
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "list-group-item list-group-item-action";
+            item.textContent = `${client.name} (${client.email}) - Passport: ${client.passport_number}`;
+            item.onclick = () => {
+                selectedClientId = client.id;
+                document.getElementById("client-search").value = client.email;
+                resultsBox.innerHTML = "";
+                document.getElementById("new-client-form").classList.add("d-none");
+                if (document.getElementById("visa-type").value) {
+                    document.getElementById("create-application-btn").disabled = false;
+                }
+            };
+            resultsBox.appendChild(item);
+        });
+    } else {
+        document.getElementById("new-client-form").classList.remove("d-none");
+    }
+});
+
+// === Register New Client ===
+const API_BASE = "/api";
+document.getElementById("register-client-btn").addEventListener("click", async function() {
+    const payload = {
+        first_name: document.getElementById("new-first-name").value,
+        last_name: document.getElementById("new-last-name").value,
+        email: document.getElementById("new-email").value,
+        passport_number: document.getElementById("new-passport").value,
+        nationality: document.getElementById("new-nationality").value,
+        date_of_birth: document.getElementById("new-dob").value,
+    };
+
+    const res = await fetch("/api/clients/new/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        const client = await res.json();   // ✅ only once
+        const appResultEl = document.getElementById("app-result");
+        if (appResultEl) {
+            appResultEl.innerHTML = `
+              <div class="alert alert-success" id="success-alert">
+                Client registered successfully!<br/>
+                Reference: <strong>${client.email}</strong>
+              </div>`;
+        }
+
+        selectedClientId = client.id;
+        document.getElementById("client-search").value = client.email;
+        document.getElementById("new-client-form").classList.add("d-none");
+        if (document.getElementById("visa-type").value) {
+            document.getElementById("create-application-btn").disabled = false;
+        }
+
+        setTimeout(() => {
+            const alertEl = document.getElementById("success-alert");
+            if (alertEl) {
+                alertEl.remove();   // 👈 remove alert after 3s
+            }
+            // optionally also hide modal:
+            // bootstrap.Modal.getInstance(document.getElementById("newApplicationModal")).hide();
+        }, 3000);
+    } else {
+        const err = await res.json();
+        alert(err.detail || "Failed to register client.");
+    }
+});
+
+// === Load restricted countries into dropdown ===
+async function loadCountries() {
+  try {
+    const res = await fetch(`${API_BASE}/country/`, {
+      headers: {"Content-Type":"application/json"},
+      credentials: "include"
+    });
+    if(!res.ok) throw new Error("Failed to fetch countries");
+    const countries = await res.json();
+
+    const nationalitySel = document.getElementById("new-nationality");
+    countries.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.code;
+      opt.textContent = c.name;
+      nationalitySel.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Failed to load countries", err);
+  }
+}
+loadCountries();
+
+$(document).ready(function () {
+    let table = $('#datatable').DataTable({
+        processing: true,
+        serverSide: false,   // ✅ change to true if your API supports paging/filtering
+        ajax: {
+            url: "/api/applications/review/",
+            dataSrc: ""  // ✅ use "results" if API wraps data as {results: [...]}
+        },
+        order: [[6, "desc"]], // ✅ column index of "Created On / Date"
+
+        columns: [
+            { 
+                data: "reference_no",
+                render: function (data) {
+                    return `<a href="javascript:void(0);" class="text-body fw-bold">${data}</a>`;
+                }
+            },
+            { data: "client_name" },
+            { data: "client_email" },
+            { data: "country_display" },
+            { data: "visa_type_display" },
+            { 
+                data: "status_display",
+                render: function (data, type, row) {
+                    return `<span class="badge ${row.status_badge}" id="application-status-badge-${row.id}">
+                              ${data}
+                            </span>`;
+                }
+            },
+            {
+                data: "created_at",
+                render: function (data, type, row) {
+                    return data ? data : "-";   // ✅ fallback to '-' if null/empty
+                }
+            },
+            { 
+                data: "id",
+                render: function (id, type, row) {
+                    let missingDocs = (row.documents || []).filter(doc => doc.status.toLowerCase() === "missing");
+                    if (missingDocs.length >= 1) {
+                        return `
+                          <div class="dropdown">
+                              <button class="btn btn-primary btn-sm btn-rounded dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  Select an Action
+                              </button>
+                              <ul class="dropdown-menu">
+                                  <li>
+                                      <a href="{% url 'CaseManagement:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                                         class="dropdown-item upload-docs-btn"
+                                         data-id="${id}">
+                                         Upload Documents
+                                      </a>
+                                  </li>
+                                  <li>
+                                      <a href="javascript:void(0);" 
+                                         class="dropdown-item view-details-btn"
+                                         data-id="${id}"
+                                         data-bs-toggle="modal"
+                                         data-bs-target="#applicationDetailModal">
+                                         View Details
+                                      </a>
+                                  </li>
+                              </ul>
+                          </div>
+                      `;
+                  } else {
+                        return `<button type="button"
+                                  class="btn btn-primary btn-sm btn-rounded view-details-btn"
+                                  data-id="${id}"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#applicationDetailModal">
+                                  View Details
+                                </button>`;
+                    }
+                }
+            }
+        ],
+        pageLength: 10,
+        responsive: true,
+        ordering: true
+    });
+
+    // 🔹 Fix Upload Documents links after table draw
+    $('#datatable').on('draw.dt', function () {
+        document.querySelectorAll(".upload-docs-btn").forEach(link => {
+            let appId = link.dataset.id;
+            link.href = "{% url 'CaseManagement:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                          .replace("00000000-0000-0000-0000-000000000000", appId);
+        });
+    });
+});
+
+
+// === Create Visa Application ===
+document.getElementById("create-application-btn").addEventListener("click", async function() {
+    if (!selectedClientId) {
+        alert("Please select or register a client first.");
+        return;
+    }
+
+    const payload = {
+        client_id: selectedClientId,
+        country: document.getElementById("country").value,
+        visa_type: document.getElementById("visa-type").value,
+        required_documents: requiredDocs.map(d => d.id)
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/applications/new_case/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            const app = data;
+
+            const appResultEl = document.getElementById("app-result");
+            if (appResultEl) {
+                appResultEl.innerHTML = `
+                  <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    Application submitted successfully!<br/>
+                    Reference: <strong>${app.reference_no}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>`;
+            }
+
+            // ✅ Auto-insert into DataTable
+            if ($.fn.DataTable.isDataTable("#datatable")) {
+                const table = $("#datatable").DataTable();
+
+                // Add new row
+                table.row.add({
+                    id: app.id,
+                    reference_no: app.reference_no,
+                    client_name: app.client_name,
+                    client_email: app.client_email,
+                    country_display: app.country_display,
+                    visa_type_display: app.visa_type_display,
+                    status_display: app.status_display,
+                    status_badge: app.status_badge,
+                    created_at: app.created_at,
+                    documents: app.documents || []
+                });
+
+                // ✅ Force DataTable to sort by created_at descending & redraw
+                table.order([6, 'desc']).draw();
+            }
+
+
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById("newApplicationModal")).hide();
+                const redirectUrl = applicationDocumentsUrl.replace("{pk}", app.id);
+                window.location.href = redirectUrl;
+            }, 3000);
+        } else {
+            alert(data.detail || "Failed to create application.");
+        }
+    } catch (err) {
+        console.error("Error creating application:", err);
+        alert("Server error while creating application.");
+    }
+});
+
+
+// === View Details ===
+$('#datatable tbody').on('click', '.view-details-btn', function () {
+let appId = $(this).data('id');
+let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+
+modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+
+fetch(`/api/applications/${appId}/`)
+  .then(res => res.json())
+  .then(app => {
+      // ✅ Officer row logic with fallback
+      let officerRow = "";
+      if (app.created_by_officer_name) {
+          officerRow = `
+              <tr>
+                  <th>Initiating Officer</th>
+                  <td>${app.created_by_officer_name ?? '-'}</td>
+              </tr>
+          `;
+      } else if (app.assigned_officer_name) {
+          officerRow = `
+              <tr>
+                  <th>Assigned Officer</th>
+                  <td>${app.assigned_officer_name ?? '-'}</td>
+              </tr>
+          `;
+      } else {
+          officerRow = `
+              <tr>
+                  <th>Officer</th>
+                  <td>-</td>
+              </tr>
+          `;
+      }
+
+let detailsHtml = `
+<h5 class="text-info">Application Info</h5>
+<table class="table table-bordered">
+<tr><th>Reference</th><td>${app.reference_no}</td></tr>
+<tr><th>Client</th><td>${app.client_name}</td></tr>
+<tr><th>Email</th><td>${app.client_email}</td></tr>
+<tr><th>Passport No</th><td>${app.passport_number}</td></tr>
+<tr><th>Country</th><td>${app.country_display}</td></tr>
+<tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+<tr><th>Status</th>
+  <td><span id="application-status-badge" class="badge ${app.status_badge}">
+    ${app.status_display}
+  </span></td>
+</tr>
+${officerRow}
+<tr><th>Created On</th><td>${app.created_at ?? '-'}</td></tr>
+<tr>
+  <th>Visa Application URL</th>
+  <td id="visa-url-cell">
+    ${app.visa_application_url 
+      ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+         <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-soft-success ms-2">Go To URL</a>` 
+      : '<em>No URL added yet</em>'
+    }
+  </td>
+</tr>
+<tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
+<tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td>
+</tr>
+<tr>
+      <th>Rejection Letters</th>
+      <td id="rejection-letter-cell">
+        ${
+          Array.isArray(app.rejection_letters) && app.rejection_letters.length
+            ? app.rejection_letters
+                .map((r, i) =>
+                  r?.file
+                    ? `
+                      <div class="mb-1">
+                        <span class="badge bg-danger me-2">
+                          Letter ${i + 1}
+                        </span>
+                        <a href="${r.file}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                          View Rejection Letter
+                        </a>
+                      </div>
+                    `
+                    : ""
+                )
+                .join("") || "-"
+            : "-"
+        }
+      </td>
+      </tr>
+</table>
+`;
+
+let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
+
+// ===============================
+// 🎓 STUDENT VISA → STAGED VIEW
+// ===============================
+if (app.visa_type === "STUDENT") {
+
+  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stageLabels = {
+    ADMISSION: "Admission",
+    CAS: "CAS",
+    VISA: "Visa Application"
+  };
+
+  // Group documents by stage
+  let grouped = {};
+  stages.forEach(s => grouped[s] = []);
+
+  app.documents.forEach(doc => {
+    if (grouped[doc.stage]) {
+      grouped[doc.stage].push(doc);
+    }
+  });
+
+  // Tabs header
+  docsHtml += `
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      ${stages.map((stage, i) => `
+        <li class="nav-item">
+          <button class="nav-link ${i === 0 ? "active" : ""}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#stage-${stage}">
+            ${stageLabels[stage]}
+          </button>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+
+  // Tabs content
+  docsHtml += `<div class="tab-content border border-top-0 p-3">`;
+
+  stages.forEach((stage, i) => {
+    docsHtml += `
+      <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+           id="stage-${stage}">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Status</th>
+              <th>File</th>
+              <th>Comments</th>
+              <th>Uploaded</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    if (grouped[stage].length === 0) {
+      docsHtml += `
+        <tr>
+          <td colspan="5" class="text-center text-muted">
+            No documents for this stage.
+          </td>
+        </tr>
+      `;
+    } else {
+      grouped[stage].forEach(doc => {
+        docsHtml += `
+          <tr>
+            <td>${doc.requirement_name}</td>
+            <td><span class="badge ${doc.status_badge}">
+              ${doc.status_display}
+            </span></td>
+            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+            <td>${doc.review_comments ?? "-"}</td>
+            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+            <td>
+            <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    docsHtml += `</tbody></table></div>`;
+  });
+
+  docsHtml += `</div>`; // end tab-content
+}
+
+
+// ===============================
+// 🧳 NON-STUDENT VISA → FLAT VIEW
+// ===============================
+else {
+
+  docsHtml += `
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>Status</th>
+          <th>File</th>
+          <th>Comments</th>
+          <th>Uploaded</th>
+         <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (app.documents.length === 0) {
+    docsHtml += `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No documents uploaded yet.
+        </td>
+      </tr>
+    `;
+  } else {
+    app.documents.forEach(doc => {
+      docsHtml += `
+        <tr>
+          <td>${doc.requirement_name}</td>
+          <td><span class="badge ${doc.status_badge}">
+            ${doc.status_display}
+          </span></td>
+          <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
+          <td>${doc.review_comments ?? "-"}</td>
+          <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
+
+          <td><button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
+            </td>
+
+
+        </tr>
+      `;
+    });
+  }
+
+  docsHtml += `</tbody></table>`;
+  }
+
+
+
+// === Refusal Letters table ===
+// let refusalsHtml = `
+//     <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+//     <table class="table table-striped">
+//       <thead>
+//         <tr>
+//           <th>File</th>
+//           <th>Uploaded</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+// `;
+
+// if (!app.refusal_letters || app.refusal_letters.length === 0) {
+//     refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+// } else {
+//     app.refusal_letters.forEach(ref => {
+//         refusalsHtml += `
+//             <tr>
+//               <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+//               <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+//             </tr>
+//         `;
+//     });
+// }
+// refusalsHtml += "</tbody></table>";
+
+modalBody.innerHTML = detailsHtml + docsHtml;
+});
+});
+
+
+// === Document Review ===
+document.body.addEventListener("click", function (e) {
+    if (e.target.closest(".review-btn")) {
+        let btn = e.target.closest(".review-btn");
+        let docId = btn.dataset.id;
+        let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
+        let comments = commentInput ? commentInput.value : "";
+
+        fetch(`/api/documents/${docId}/review/`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify({ review_comments: comments })
+        })
+        .then(res => res.json())
+        .then(updatedDoc => {
+            let row = btn.closest("tr");
+            let statusCell = row.querySelector("td:nth-child(2) span");
+            if (statusCell) {
+                statusCell.textContent = updatedDoc.status_display;
+                statusCell.className = "badge " + updatedDoc.status_badge;
+            }
+
+            btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
+            if (commentInput) {
+                commentInput.value = updatedDoc.review_comments ?? "";
+                commentInput.setAttribute("readonly", "readonly");
+            }
+
+            fetch(`/api/applications/${updatedDoc.application}/`)
+                .then(r => r.json())
+                .then(updatedApp => {
+                    const badgeEl = document.getElementById("application-status-badge");
+                    if (badgeEl) {
+                        badgeEl.textContent = updatedApp.status_display;
+                        badgeEl.className = "badge " + updatedApp.status_badge;
+                    }
+
+                    const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+                    if (tableBadgeEl) {
+                        tableBadgeEl.textContent = updatedApp.status_display;
+                        tableBadgeEl.className = "badge " + updatedApp.status_badge;
+                    }
+                });
+        });
+    }
+});
+</script>
+
+
+
+
+
+
+{% endblock %}
+
+
+Maybe the solution is to clean out all refences to "rejection_letter" and "refusal_letters" in the template 

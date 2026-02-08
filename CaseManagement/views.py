@@ -138,7 +138,7 @@ def applications_list(request):
 
 
 @login_required
-def application_documents(request, pk):
+def application_documentsold(request, pk):
     app = get_object_or_404(VisaApplication, id=pk)
     client_profile = app.client  # access the related client
     return render(
@@ -146,6 +146,33 @@ def application_documents(request, pk):
         "case_officer/application_documents.html",
         {"application": app, "client_profile": client_profile},
     )
+
+
+
+@login_required
+def application_documents(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        id=pk  
+    )
+    client = application.client
+    stage_sequence = application.get_stage_sequence()
+    current_stage = application.stage
+
+    documents = application.documents.filter(
+        requirement__stage=current_stage
+    ).select_related("requirement")
+
+    
+    completed_stages = stage_sequence[:stage_sequence.index(current_stage)]
+
+    return render(request, "case_officer/visa_requirements_merged.html", {
+        "application": application,
+        "documents": documents,
+        "stage_sequence": stage_sequence,
+        "current_stage": current_stage,
+        "completed_stages": completed_stages,
+    })
 
 
 

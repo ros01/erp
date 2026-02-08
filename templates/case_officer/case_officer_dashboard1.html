@@ -412,10 +412,10 @@ System auto-assigned 2 applications to you
 </div>
 </th> -->
 <th class="align-middle">Reference No:</th>
-<th class="align-middle">Name</th>
+<th class="align-middle">Client</th>
 <th class="align-middle">Email</th>
 <th class="align-middle">Country</th>
-<th class="align-middle">Type</th>
+<th class="align-middle">Visa Type</th>
 <th class="align-middle">Status</th>
 <th class="align-middle">Date</th>
 <th class="align-middle">View Details</th>
@@ -529,17 +529,17 @@ $ 400
 
 <!-- Application Detail Modal -->
 <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title text-success">Application Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="application-detail-content">
-        <p class="text-muted">Select an application to view details.</p>
-      </div>
-    </div>
-  </div>
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-success">Application Details</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body" id="application-detail-content">
+<p class="text-muted">Select an application to view details.</p>
+</div>
+</div>
+</div>
 </div>
 
 
@@ -666,15 +666,15 @@ fetch(`/api/applications/${appId}/`)
         `;
     }
     // ✅ Only include Rejection Letter row if present
-    let rejectionLetterRow = "";
-    if (app.rejection_letter) {
-        rejectionLetterRow = `
-            <tr>
-                <th>Rejection Letter</th>
-                <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
-            </tr>
-        `;
-    }
+    // let rejectionLetterRow = "";
+    // if (app.rejection_letter) {
+    //     rejectionLetterRow = `
+    //         <tr>
+    //             <th>Rejection Letter</th>
+    //             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+    //         </tr>
+    //     `;
+    // }
 let detailsHtml = `
 <h5 class="text-info">Application Info</h5>
 <table class="table table-bordered">
@@ -703,28 +703,57 @@ ${app.visa_application_url
 </tr>
 <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-${rejectionLetterRow}
+
+<tr>
+<th>Rejection Letters</th>
+<td id="rejection-letter-cell">
+${
+Array.isArray(app.rejection_letters) && app.rejection_letters.length
+? app.rejection_letters
+.map((r, i) =>
+  r?.file
+    ? `
+      <div class="mb-1">
+        <span class="badge bg-danger me-2">
+          Letter ${i + 1}
+        </span>
+        <a href="${r.file}"
+           target="_blank"
+           rel="noopener noreferrer">
+          View Rejection Letter
+        </a>
+      </div>
+    `
+    : ""
+)
+.join("") || "-"
+: "-"
+}
+</td>
+</tr>
 </table>
 `;
 
-  // 🔹 Add Mark Finalized button (but will be locked later)
-  if (app.status !== "SUBMITTED") {
-      detailsHtml += `
-        <div class="mt-3 text-end">
-          <button class="btn btn-success" id="mark-finalized-btn" data-id="${app.id}">
-            Mark Finalized
-          </button>
-        </div>
-      `;
-  } else {
-      detailsHtml += `
-        <div class="mt-3 text-end">
-          <button class="btn btn-secondary" disabled>
-            ✅ Already Finalized
-          </button>
-        </div>
-      `;
-  }
+modalBody.innerHTML = detailsHtml;
+
+// 🔹 Add Mark Finalized button (but will be locked later)
+// if (app.status !== "SUBMITTED") {
+// detailsHtml += `
+// <div class="mt-3 text-end">
+// <button class="btn btn-success" id="mark-finalized-btn" data-id="${app.id}">
+// Mark Finalized
+// </button>
+// </div>
+// `;
+// } else {
+// detailsHtml += `
+// <div class="mt-3 text-end">
+// <button class="btn btn-secondary" disabled>
+// ✅ Already Finalized
+// </button>
+// </div>
+// `;
+// }
 
               // 🔹 Documents section
               // let docsHtml = `
@@ -830,7 +859,6 @@ if (app.visa_type === "STUDENT") {
               <th>File</th>
               <th>Comments</th>
               <th>Uploaded</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -855,9 +883,6 @@ if (app.visa_type === "STUDENT") {
             <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
             <td>${doc.review_comments ?? "-"}</td>
             <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
-            <td>
-            <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
-            </td>
           </tr>
         `;
       });
@@ -884,7 +909,6 @@ else {
           <th>File</th>
           <th>Comments</th>
           <th>Uploaded</th>
-         <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -909,11 +933,6 @@ else {
           <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
           <td>${doc.review_comments ?? "-"}</td>
           <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
-
-          <td><button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
-            </td>
-
-
         </tr>
       `;
     });
@@ -925,33 +944,35 @@ else {
 
 }
 // === Refusal Letters table ===
-let refusalsHtml = `
-<h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
-<table class="table table-striped">
-<thead>
-<tr>
-<th>File</th>
-<th>Uploaded</th>
-</tr>
-</thead>
-<tbody>
-`;
+// let refusalsHtml = `
+// <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>File</th>
+// <th>Uploaded</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
 
-if (!app.refusal_letters || app.refusal_letters.length === 0) {
-refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
-} else {
-app.refusal_letters.forEach(ref => {
-refusalsHtml += `
-<tr>
-<td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
-<td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
-</tr>
-`;
-});
-}
-refusalsHtml += "</tbody></table>";
+// if (!app.refusal_letters || app.refusal_letters.length === 0) {
+// refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+// } else {
+// app.refusal_letters.forEach(ref => {
+// refusalsHtml += `
+// <tr>
+// <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+// <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+// </tr>
+// `;
+// });
+// }
+// refusalsHtml += "</tbody></table>";
 
-modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+// modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+modalBody.innerHTML = detailsHtml + docsHtml;
+
 
 // 🔒 Lock modal after rendering
 const modal = document.querySelector("#applicationDetailModal");

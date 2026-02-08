@@ -369,8 +369,120 @@ def upload_refusals(request, pk):
         "refusal_letters": uploaded
     })
 
-
 class ApplicationReapplyView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReapplyApplicationSerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .select_related("client", "client__user")
+            .prefetch_related(
+                "documents",
+                "rejection_letters"   # 🔥 REQUIRED
+            )
+        )
+
+    def get(self, request, pk):
+        application = self.get_queryset().get(pk=pk)
+
+        if application.status not in ["APPROVED", "REJECTED"]:
+            return Response(
+                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                status=400
+            )
+
+        serializer = self.get_serializer(application)
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        application = get_object_or_404(VisaApplication, pk=pk)
+        staff_profile = getattr(request.user, "staff_profile", None)
+
+        # ===============================
+        # ✅ Update client profile
+        # ===============================
+        client = application.client
+        client.passport_number = request.data.get(
+            "passport_number", client.passport_number
+        )
+        client.save()
+
+        # ✅ Update linked user
+        user = client.user
+        user.first_name = request.data.get("first_name", user.first_name)
+        user.last_name = request.data.get("last_name", user.last_name)
+        user.email = request.data.get("email", user.email)
+        user.phone = request.data.get("phone", user.phone)
+        user.save()
+
+        # ===============================
+        # ✅ Create new application
+        # ===============================
+        new_app = VisaApplication.objects.create(
+            client=client,
+            country=request.data.get("country", application.country),
+            visa_type=request.data.get("visa_type", application.visa_type),
+            status="INITIATED",
+            reference_no=generate_reference_no(),
+            created_by_officer=staff_profile,
+        )
+
+        # ===============================
+        # 🔁 COPY EXISTING REJECTION LETTERS
+        # ===============================
+        copied_letters = []
+        for old_letter in application.rejection_letters.all():
+            copied_letters.append(
+                RejectionLetter.objects.create(
+                    application=new_app,
+                    file=old_letter.file   # ✅ reuse same file (no disk copy)
+                )
+            )
+
+        # ===============================
+        # ➕ SAVE NEWLY UPLOADED LETTERS
+        # ===============================
+        uploaded_letters = []
+        for f in request.FILES.getlist("rejection_letters"):
+            uploaded_letters.append(
+                RejectionLetter.objects.create(
+                    application=new_app,
+                    file=f
+                )
+            )
+
+        # ===============================
+        # ✅ Copy documents
+        # ===============================
+        for doc_id in request.data.getlist("doc_id[]"):
+            old_doc = get_object_or_404(Document, pk=doc_id)
+            new_file = request.FILES.get(f"document_{doc_id}")
+
+            Document.objects.create(
+                application=new_app,
+                requirement=old_doc.requirement,
+                file=new_file or old_doc.file,
+                status="UPLOADED"
+            )
+
+        # ===============================
+        # ✅ Return ALL rejection letters
+        # ===============================
+        all_letters = list(copied_letters) + list(uploaded_letters)
+
+        return Response({
+            "success": True,
+            "new_application_id": new_app.id,
+            "reference_no": new_app.reference_no,
+            "rejection_letters": RejectionLetterSerializer(
+                all_letters, many=True
+            ).data
+        })
+
+
+class ApplicationReapplyViewWL(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ReapplyApplicationSerializer
     lookup_field = "pk"
@@ -455,6 +567,7 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
                 uploaded_letters, many=True
             ).data
         })
+
 
 
 
