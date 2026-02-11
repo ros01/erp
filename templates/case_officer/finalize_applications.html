@@ -175,20 +175,32 @@ ${officerRow}
 <tr><th>Decision Date</th><td><span id="application-decision-date">${app.decision_date ?? '-'}</span></td></tr>
 
 <tr>
-  <th>Rejection Letter</th>
-  <td id="rejection-letter-cell">
-    ${
-      Array.isArray(app.rejection_letters) && app.rejection_letters.length
-        ? app.rejection_letters
-            .filter(r => r.file)
-            .map(r =>
-              `<a href="${r.file}" target="_blank" rel="noopener noreferrer">View</a>`
-            )
-            .join("<br>")
-        : "-"
-    }
-  </td>
-</tr>
+      <th>Rejection Letters</th>
+      <td id="rejection-letter-cell">
+        ${
+          Array.isArray(app.rejection_letters) && app.rejection_letters.length
+            ? app.rejection_letters
+                .map((r, i) =>
+                  r?.file
+                    ? `
+                      <div class="mb-1">
+                        <span class="badge bg-danger me-2">
+                          Letter ${i + 1}
+                        </span>
+                        <a href="${r.file}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                          View Rejection Letter
+                        </a>
+                      </div>
+                    `
+                    : ""
+                )
+                .join("") || "-"
+            : "-"
+        }
+      </td>
+      </tr>
 </table>
 `;
 

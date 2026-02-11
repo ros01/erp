@@ -9,16 +9,259 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db.models import Count, Q
-from Applications.models import VisaApplication, PreviousRefusalLetter
+from Applications.models import VisaApplication, RejectionLetter, PreviousRefusalLetter
 from Accounts.models import ClientProfile
 from Documents.models import Document
 from django.views.generic import TemplateView, ListView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+import zipfile, io
+from django.http import HttpResponse
+from collections import defaultdict
+from django.http import FileResponse, Http404
+from django.views.decorators.clickjacking import xframe_options_exempt
+from pathlib import Path
+from io import BytesIO
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 
 
 User = get_user_model()
+
+
+@login_required
+def download_documents_by_stage(request, pk, stage):
+    application = get_object_or_404(
+        VisaApplication,
+        pk=pk,
+        client__user=request.user
+    )
+
+    docs = (
+        application.documents
+        .select_related("requirement")
+        .filter(requirement__stage=stage)
+    )
+
+    if not docs.exists():
+        return HttpResponse("No documents found", status=404)
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipf:
+        for doc in docs:
+            if doc.file:
+                zipf.write(
+                    doc.file.path,
+                    arcname=f"{stage}/{doc.requirement.name}_{doc.id}{doc.file.path[-4:]}"
+                )
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type="application/zip")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{application.reference_no}_{stage}_documents.zip"'
+    )
+    return response
+
+
+@login_required
+def download_rejection_letters(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        pk=pk,
+        client__user=request.user
+    )
+
+    letters = application.rejection_letters.all()
+
+    if not letters.exists():
+        return HttpResponse("No rejection letters found", status=404)
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zipf:
+        for i, letter in enumerate(letters, start=1):
+            if letter.file:
+                zipf.write(
+                    letter.file.path,
+                    arcname=f"Rejection_Letter_{i}{letter.file.path[-4:]}"
+                )
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type="application/zip")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{application.reference_no}_rejection_letters.zip"'
+    )
+    return response
+
+@xframe_options_exempt
+@login_required
+def preview_media(request, path):
+    file_path = Path(settings.MEDIA_ROOT) / path
+    if not file_path.exists():
+        raise Http404()
+
+    return FileResponse(open(file_path, "rb"))
+
+
+
+@login_required
+def download_application_documents_zip(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        pk=pk,
+        client__user=request.user
+    )
+
+    buffer = io.BytesIO()
+    zip_file = zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED)
+
+    for doc in application.documents.all():
+        if doc.file:
+            zip_file.writestr(
+                f"documents/{doc.requirement.name}_{doc.id}.pdf",
+                doc.file.read()
+            )
+
+    for letter in application.rejection_letters.all():
+        zip_file.writestr(
+            f"rejection_letters/letter_{letter.id}.pdf",
+            letter.file.read()
+        )
+
+    zip_file.close()
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/zip")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{application.reference_no}_documents.zip"'
+    )
+    return response
+
+
+# class CaseOfficerHomeView(LoginRequiredMixin, TemplateView):
+#     template_name = "case_officer/documents/my_documents_home.html"
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+
+#         client = self.request.user.client_profile
+
+#         context["applications"] = (
+#             VisaApplication.objects
+#             .filter(client=client)
+#             .order_by("-created_at")
+#         )
+#         return context
+
+
+
+class CaseOfficerDocumentsHomeView(LoginRequiredMixin, TemplateView):
+    template_name = "case_officer/documents/caseofficer_documents_home.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        officer = getattr(self.request.user, "staff_profile", None)
+
+        if officer is None:
+            context["applications"] = VisaApplication.objects.none()
+            return context
+
+        context["applications"] = (
+            VisaApplication.objects
+            .filter(
+                Q(created_by_officer=officer) |
+                Q(assigned_officer=officer)
+            )
+            .select_related("client", "client__user")
+            .order_by("-created_at")
+        )
+
+        return context
+
+
+
+
+class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
+    template_name = "case_officer/documents/application_documents.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        officer = getattr(self.request.user, "staff_profile", None)
+
+        if officer is None:
+            raise PermissionDenied("You are not authorized to view this page.")
+
+        application = get_object_or_404(
+            VisaApplication,
+            Q(created_by_officer=officer) | Q(assigned_officer=officer),
+            pk=self.kwargs["pk"]
+        )
+
+        # 🔹 Fetch documents with requirements
+        documents = (
+            application.documents
+            .select_related("requirement")
+            .order_by("uploaded_at")
+        )
+
+        # 🔹 Group documents by requirement.stage
+        grouped_documents = defaultdict(list)
+        for doc in documents:
+            stage = doc.requirement.stage if doc.requirement else "OTHER"
+            grouped_documents[stage].append(doc)
+
+        # 🔹 Rejection letters
+        context["rejection_letters"] = (
+            RejectionLetter.objects
+            .filter(application=application)
+            .order_by("-uploaded_at")
+        )
+
+        context["application"] = application
+        context["grouped_documents"] = dict(grouped_documents)
+
+        return context
+
+
+class CaseOfficerApplicationDocumentsViewOld(LoginRequiredMixin, TemplateView):
+    template_name = "case_officer/documents/application_documents.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        application = get_object_or_404(
+            VisaApplication,
+            pk=self.kwargs["pk"],
+            client__user=self.request.user
+        )
+
+        # Fetch documents with their requirements
+        documents = (
+            application.documents
+            .select_related("requirement")
+            .order_by("uploaded_at")
+        )
+
+        # ✅ Group documents by requirement.stage
+        grouped_documents = defaultdict(list)
+        for doc in documents:
+            stage = doc.requirement.stage if doc.requirement else "OTHER"
+            grouped_documents[stage].append(doc)
+
+
+        context["rejection_letters"] = (
+            RejectionLetter.objects
+            .filter(application=application)
+            .order_by("-uploaded_at")
+        )
+
+        context["application"] = application
+        context["grouped_documents"] = dict(grouped_documents)
+
+        return context
+
 
 
 

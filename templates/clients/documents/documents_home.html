@@ -1,0 +1,40 @@
+{% extends "clients/clients_dashboard_base1.html" %}
+{% block content %}
+
+
+
+<div class="col-xl-9">
+<div class="card pb-3">
+<div class="card-body">
+
+<h4 class="text-info mb-4">My Documents</h4>
+<h5 class="mb-3">Visa Applications</h5>
+
+      {% if applications %}
+        <div class="list-group">
+          {% for app in applications %}
+            <a href="{% url 'Clients:application-documents' app.id %}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ app.reference_no }}</strong><br>
+                <small class="text-muted">
+                  {{ app.get_country_display }} · {{ app.get_visa_type_display }}
+                </small>
+              </div>
+              <span class="badge bg-primary">
+                Open
+              </span>
+            </a>
+
+
+            
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No applications found.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

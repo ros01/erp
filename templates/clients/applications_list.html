@@ -20,23 +20,23 @@
 <div class="table-responsive">
 
 <table id="datatable" class="table table-bordered dt-responsive">
-   <thead class="table-light">
-      <tr>
-        <th class="align-middle">Ref No:</th>
-        <th class="align-middle">Country</th>
-        <th class="align-middle">Visa Type</th>
-        <th class="align-middle">Status</th>
-        <th class="align-middle">Created On</th>
-        <th class="align-middle">Action</th>
-      </tr>
-    </thead>
-    <tbody id="datatable-tbody">
-  <tr>
-    <td colspan="8" class="text-center text-muted">Loading applications...</td>
-  </tr>
+ <thead class="table-light">
+    <tr>
+      <th class="align-middle">Ref No:</th>
+      <th class="align-middle">Country</th>
+      <th class="align-middle">Visa Type</th>
+      <th class="align-middle">Status</th>
+      <th class="align-middle">Created On</th>
+      <th class="align-middle">Action</th>
+    </tr>
+  </thead>
+  <tbody id="datatable-tbody">
+<tr>
+  <td colspan="8" class="text-center text-muted">Loading applications...</td>
+</tr>
 </tbody>
-  </table>
-  </div>
+</table>
+</div>
 
 
 <!-- <table id="datatable" class="table table-bordered dt-responsive  nowrap w-100">
@@ -100,19 +100,19 @@
 
 <!-- Modal -->
 <div class="modal fade" id="applicationDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title text-success">Application Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div id="application-detail-content">
-          <p class="text-muted">Loading...</p>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-success">Application Details</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body">
+<div id="application-detail-content">
+<p class="text-muted">Loading...</p>
+</div>
+</div>
+</div>
+</div>
 </div>
 
 <!-- jQuery (must come first) -->
@@ -227,69 +227,96 @@ $(document).ready(function () {
         ordering: true
     });
 
-    // 🔹 Fix Upload Documents links after table draw
-    $('#datatable').on('draw.dt', function () {
-        document.querySelectorAll(".upload-docs-btn").forEach(link => {
-            let appId = link.dataset.id;
-            link.href = "{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
-                          .replace("00000000-0000-0000-0000-000000000000", appId);
-        });
+// 🔹 Fix Upload Documents links after table draw
+$('#datatable').on('draw.dt', function () {
+    document.querySelectorAll(".upload-docs-btn").forEach(link => {
+        let appId = link.dataset.id;
+        link.href = "{% url 'Clients:application_documents' '00000000-0000-0000-0000-000000000000' %}"
+                      .replace("00000000-0000-0000-0000-000000000000", appId);
     });
+});
 
-    // 🔹 Handle View Details button clicks
-    $('#datatable').on('click', '.view-details-btn', function () {
-        let appId = $(this).data('id');
-        let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
-        modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
+// 🔹 Handle View Details button clicks
+$('#datatable').on('click', '.view-details-btn', function () {
+    let appId = $(this).data('id');
+    let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
+    modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
-        fetch(`/api/applications/${appId}/`)
-            .then(res => res.json())
-            .then(app => {
-              // ✅ Officer row logic with fallback
-                let officerRow = "";
-                if (app.created_by_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Initiating Officer</th>
-                            <td>${app.created_by_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else if (app.assigned_officer_name) {
-                    officerRow = `
-                        <tr>
-                            <th>Assigned Officer</th>
-                            <td>${app.assigned_officer_name ?? '-'}</td>
-                        </tr>
-                    `;
-                } else {
-                    officerRow = `
-                        <tr>
-                            <th>Officer</th>
-                            <td>-</td>
-                        </tr>
-                    `;
-                }
-                let detailsHtml = `
-                  <h5 class="text-info">Application Info</h5>
-                  <table class="table table-bordered">
-                    <tr><th>Reference</th><td>${app.reference_no}</td></tr>
-                    <tr><th>Country</th><td>${app.country_display}</td></tr>
-                    <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
-                    <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
-                    ${officerRow}
-                    <tr><th>Created At</th><td>${app.created_at ?? '-'}</td></tr>
-                    <tr><th>Visa Application URL</th>
-                        <td>
-                          ${app.visa_application_url 
-                            ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
-                               <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Go To URL</a>` 
-                            : '-'}
-                        </td>
+    fetch(`/api/applications/${appId}/`)
+        .then(res => res.json())
+        .then(app => {
+          // ✅ Officer row logic with fallback
+            let officerRow = "";
+            if (app.created_by_officer_name) {
+                officerRow = `
+                    <tr>
+                        <th>Initiating Officer</th>
+                        <td>${app.created_by_officer_name ?? '-'}</td>
                     </tr>
-                    <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
-                    <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-                  </table>
                 `;
+            } else if (app.assigned_officer_name) {
+                officerRow = `
+                    <tr>
+                        <th>Assigned Officer</th>
+                        <td>${app.assigned_officer_name ?? '-'}</td>
+                    </tr>
+                `;
+            } else {
+                officerRow = `
+                    <tr>
+                        <th>Officer</th>
+                        <td>-</td>
+                    </tr>
+                `;
+            }
+            let detailsHtml = `
+              <h5 class="text-info">Application Info</h5>
+              <table class="table table-bordered">
+                <tr><th>Reference</th><td>${app.reference_no}</td></tr>
+                <tr><th>Country</th><td>${app.country_display}</td></tr>
+                <tr><th>Visa Type</th><td>${app.visa_type_display}</td></tr>
+                <tr><th>Status</th><td><span class="badge ${app.status_badge}">${app.status_display}</span></td></tr>
+                ${officerRow}
+                <tr><th>Created At</th><td>${app.created_at ?? '-'}</td></tr>
+                <tr><th>Visa Application URL</th>
+                    <td>
+                      ${app.visa_application_url 
+                        ? `<a href="${app.visa_application_url}" target="_blank">${app.visa_application_url}</a>
+                           <a href="${app.visa_application_url}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Go To URL</a>` 
+                        : '-'}
+                    </td>
+                </tr>
+                <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
+                <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+              <tr>
+              <th>Rejection Letters</th>
+              <td id="rejection-letter-cell">
+              ${
+              Array.isArray(app.rejection_letters) && app.rejection_letters.length
+              ? app.rejection_letters
+              .map((r, i) =>
+              r?.file
+              ? `
+              <div class="mb-1">
+              <span class="badge bg-danger me-2">
+              Letter ${i + 1}
+              </span>
+              <a href="${r.file}"
+              target="_blank"
+              rel="noopener noreferrer">
+              View Rejection Letter
+              </a>
+              </div>
+              `
+              : ""
+              )
+              .join("") || "-"
+              : "-"
+              }
+              </td>
+              </tr>
+              </table>
+            `;
 
 let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
 

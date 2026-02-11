@@ -468,7 +468,7 @@ aria-labelledby="page-header-notifications-dropdown">
 </li>
 
 <li class="nav-item dropdown">
-<a class="nav-link dropdown-toggle arrow-none" href="#" id="topnav-uielement" role="button"
+<a class="nav-link dropdown-toggle arrow-none" href="{% url 'CaseManagement:documents-home' %}" id="topnav-uielement" role="button"
 >
 <i class="bx bx-tone me-2"></i>
 <span key="t-ui-elements"> Documents</span> 
@@ -955,11 +955,29 @@ role="button">
         </a>
     </li> -->
 
-    <li>
+    <!-- <li>
         <a href="#" class="waves-effect">
             <i class="bx bx-file"></i>
             <span key="t-file-manager">Documents Manager</span>
         </a>
+    </li>
+ -->
+    <li>
+        <a href="javascript: void(0);" class="has-arrow waves-effect">
+            <i class="bx bx-store"></i>
+            <span key="t-ecommerce">Documents Manager</span>
+        </a>
+        <ul class="sub-menu" aria-expanded="false">
+            <li><a href="{% url 'CaseManagement:documents-home' %}" key="t-file-manager">Applications Documents</a></li>
+
+            <!-- <li><a href="ecommerce-product-detail.html" key="t-product-detail">Pending Requesitions</a></li>
+            <li><a href="ecommerce-orders.html" key="t-orders">Issued Requisitions</a></li>
+            <li><a href="ecommerce-customers.html" key="t-customers">Requisition History</a></li> -->
+            <!-- <li><a href="ecommerce-cart.html" key="t-cart">Cart</a></li>
+            <li><a href="ecommerce-checkout.html" key="t-checkout">Checkout</a></li>
+            <li><a href="ecommerce-shops.html" key="t-shops">Shops</a></li>
+            <li><a href="ecommerce-add-product.html" key="t-add-product">Add Product</a></li> -->
+        </ul>
     </li>
 
     <li>

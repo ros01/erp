@@ -18,6 +18,12 @@ urlpatterns = [
 
     # path("applications/<uuid:pk>/form-filled/", form_filled_submission, name="form-filled"),
     path("applications/form-filled-submissions/", reviewed_applications_page, name="form-filled-submissions"),
+    path("documents/", CaseOfficerDocumentsHomeView.as_view(), name="documents-home"),
+    path("documents/application/<uuid:pk>/",CaseOfficerApplicationDocumentsView.as_view(), name="application-documents"),
+    path("documents/application/<uuid:pk>/download/", download_application_documents_zip, name="application-documents-zip"),
+    path("documents/preview/<path:path>/", preview_media, name="document-preview",),
+    path("documents/application/<uuid:pk>/download/<str:stage>/", download_documents_by_stage, name="application-documents-stage-zip",),
+    path("documents/application/<uuid:pk>/rejections/download/", download_rejection_letters, name="application-rejection-letters-zip",),
 
 ]
 

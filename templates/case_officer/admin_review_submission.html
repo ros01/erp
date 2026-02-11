@@ -155,15 +155,15 @@ $('#datatable tbody').on('click', '.view-details-btn', function () {
             }
 
 // ✅ Only include Rejection Letter row if present
-let rejectionLetterRow = "";
-if (app.rejection_letter) {
-    rejectionLetterRow = `
-        <tr>
-            <th>Rejection Letter</th>
-            <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
-        </tr>
-    `;
-}
+// let rejectionLetterRow = "";
+// if (app.rejection_letter) {
+//     rejectionLetterRow = `
+//         <tr>
+//             <th>Rejection Letter</th>
+//             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+//         </tr>
+//     `;
+// }
 
 
 let detailsHtml = `
@@ -196,7 +196,36 @@ let detailsHtml = `
 
       <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
       <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
-     ${rejectionLetterRow}
+     
+     <tr>
+      <th>Rejection Letters</th>
+      <td id="rejection-letter-cell">
+        ${
+          Array.isArray(app.rejection_letters) && app.rejection_letters.length
+            ? app.rejection_letters
+                .map((r, i) =>
+                  r?.file
+                    ? `
+                      <div class="mb-1">
+                        <span class="badge bg-danger me-2">
+                          Letter ${i + 1}
+                        </span>
+                        <a href="${r.file}"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                          View Rejection Letter
+                        </a>
+                      </div>
+                    `
+                    : ""
+                )
+                .join("") || "-"
+            : "-"
+        }
+      </td>
+      </tr>
+
+
     </table>
 `;
 
@@ -402,32 +431,33 @@ docsHtml += `</tbody></table>`;
 
 
 // === Refusal Letters table ===
-let refusalsHtml = `
-<h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
-<table class="table table-striped">
-<thead>
-<tr>
-<th>File</th>
-<th>Uploaded</th>
-</tr>
-</thead>
-<tbody>
-`;
+// let refusalsHtml = `
+// <h5 class="mt-4 text-danger">Previous Refusal Letters</h5>
+// <table class="table table-striped">
+// <thead>
+// <tr>
+// <th>File</th>
+// <th>Uploaded</th>
+// </tr>
+// </thead>
+// <tbody>
+// `;
 
-if (!app.refusal_letters || app.refusal_letters.length === 0) {
-    refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
-} else {
-    app.refusal_letters.forEach(ref => {
-        refusalsHtml += `
-            <tr>
-              <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
-              <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
-            </tr>
-        `;
-    });
-}
-refusalsHtml += "</tbody></table>";
-modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+// if (!app.refusal_letters || app.refusal_letters.length === 0) {
+//     refusalsHtml += `<tr><td colspan="2" class="text-center text-muted">No refusal letters uploaded.</td></tr>`;
+// } else {
+//     app.refusal_letters.forEach(ref => {
+//         refusalsHtml += `
+//             <tr>
+//               <td><a href="${ref.file}" target="_blank">View Refusal Letter</a></td>
+//               <td>${ref.uploaded_at ? new Date(ref.uploaded_at).toLocaleString() : '-'}</td>
+//             </tr>
+//         `;
+//     });
+// }
+// refusalsHtml += "</tbody></table>";
+// modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
+modalBody.innerHTML = detailsHtml + docsHtml;
 });
 });
 

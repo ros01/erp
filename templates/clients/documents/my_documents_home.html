@@ -1,0 +1,306 @@
+{% extends "clients/clients_dashboard_base1.html" %}
+{% load static %}
+
+
+
+{% block extrastyle %}
+<style>
+  ul li {
+    list-style-type: none;
+  }
+  .dot-separator {
+    height: 2px;
+    width: 2px;
+    background: #000;
+    border-radius: 50%;
+  }
+  .actions span {
+    cursor: pointer;
+  }
+  .modal {
+    z-index: 99999 !important;
+  }
+</style>
+{% endblock extrastyle %}
+<link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.css' %}">
+
+
+{% block content %}                
+<link href="{% static 'admin_assets/css/dashlite.css' %}" id="bootstrap-style" rel="stylesheet" type="text/css" />
+
+<!-- content @s -->
+<!-- div class="nk-content p-0">
+<div class="nk-content-inner">
+<div class="nk-content-body">
+<div class="nk-fmg"> -->
+<!-- <div class="nk-fmg-aside" data-content="files-aside" data-toggle-overlay="true" data-toggle-body="true" data-toggle-screen="lg" data-simplebar>
+<div class="nk-fmg-aside-wrap"> -->
+
+<!-- <div class="nk-fmg-aside-top">
+<ul class="nk-fmg-menu">
+<li class="active">
+<a class="nk-fmg-menu-item" href="#">
+<em class="icon ni ni-file-docs"></em>
+<span class="nk-fmg-menu-text">Files</span>
+</a>
+</li>
+<li>
+<a class="nk-fmg-menu-item" href="#">
+<em class="icon ni ni-star"></em>
+<span class="nk-fmg-menu-text">Starred</span>
+</a>
+</li>
+<li>
+<a class="nk-fmg-menu-item" href="#">
+<em class="icon ni ni-share-alt"></em>
+<span class="nk-fmg-menu-text">Shared</span>
+</a>
+</li>
+<li>
+<a class="nk-fmg-menu-item" href="#">
+<em class="icon ni ni-trash-alt"></em>
+<span class="nk-fmg-menu-text">Recovery</span>
+</a>
+</li>
+<li>
+<a class="nk-fmg-menu-item" href="#">
+<em class="icon ni ni-setting-alt"></em>
+<span class="nk-fmg-menu-text">Settings</span>
+</a>
+</li>
+</ul>
+</div>
+ -->
+
+<!-- <div class="nk-fmg-aside-bottom">
+<div class="nk-fmg-status">
+<h6 class="nk-fmg-status-title"><em class="icon ni ni-hard-drive"></em><span>Storage</span></h6>
+<div class="progress progress-md bg-light">
+<div class="progress-bar" data-progress="5"></div>
+</div>
+<div class="nk-fmg-status-info">12.47 GB of 50 GB used</div>
+<div class="nk-fmg-status-action">
+<a href="#" class="link link-primary link-sm">Upgrade Storage</a>
+</div>
+</div>
+<div class="nk-fmg-switch">
+<div class="dropdown">
+<a href="#" data-toggle="dropdown" data-offset="-10, 12" class="dropdown-toggle dropdown-indicator-unfold">
+<div class="lead-text">Folder Assisgnment</div>
+<div class="sub-text">Only you</div>
+</a>
+<div class="dropdown-menu dropdown-menu-right">
+<ul class="link-list-opt no-bdr">
+<li><a href="#"><span>Team Folders</span></a></li>
+<li><a class="active" href="#"><span>My Folders</span></a></li>
+<li class="divider"></li>
+<li><a class="link" href="#"><span>Shared Folders</span></a></li>
+</ul>
+</div>
+</div>
+</div>
+</div> -->
+
+
+<!-- </div>
+</div> -->
+<!-- .nk-fmg-aside -->
+
+
+<div class="col-xl-9">
+<!-- <div class="card pb-3"> -->
+<div id="file-dirs" class="nk-fmg-body">
+<!-- <div class="nk-fmg-body-head d-none d-lg-flex">
+<div class="nk-fmg-search">
+<em class="icon ni ni-search"></em>
+<input type="text" class="form-control border-transparent form-focus-none" placeholder="Search files, folders">
+</div>
+<div class="nk-fmg-actions">
+<ul class="nk-block-tools g-3">
+<li>
+<div class="dropdown">
+<a href="#" class="btn btn-light" data-toggle="dropdown"><em class="icon ni ni-plus"></em> <span>Create</span></a>
+<div class="dropdown-menu dropdown-menu-right">
+<ul class="link-list-opt no-bdr">
+<li><a href="#file-upload" data-toggle="modal"><em class="icon ni ni-upload-cloud"></em><span>Upload File</span></a></li>
+<li><a href="#"><em class="icon ni ni-file-plus"></em><span>Create File</span></a></li>
+<li><a href="#"><em class="icon ni ni-folder-plus"></em><span>Create Folder</span></a></li>
+<li><a href="#"><em class="icon ni ni-folder-plus"></em><span>Create New Folder</span></a></li>
+</ul>
+</div>
+</div>
+</li>
+<li><a href="#file-upload" class="btn btn-primary" data-toggle="modal"><em class="icon ni ni-upload-cloud"></em> <span>Upload</span></a></li>
+</ul>
+</div>
+</div> -->
+<!-- <div class="nk-fmg-body-content"> -->
+<!-- <div class="nk-block-head nk-block-head-sm">
+<div class="nk-block-between position-relative"> -->
+<!-- <div class="nk-block-head-content"> -->
+<h4 class="nk-block-title"><a href="#">My Documents Home</a></h4>
+<!-- </div> -->
+
+<!-- <div class="nk-block-head-content">
+<ul class="nk-block-tools g-1">
+<li class="d-lg-none">
+<a href="#" class="btn btn-trigger btn-icon search-toggle toggle-search" data-target="search"><em class="icon ni ni-search"></em></a>
+</li>
+<li class="d-lg-none">
+<div class="dropdown">
+<a href="#" class="btn btn-trigger btn-icon" data-toggle="dropdown"><em class="icon ni ni-plus"></em></a>
+<div class="dropdown-menu dropdown-menu-right">
+<ul class="link-list-opt no-bdr">
+<li><a href="#file-upload" data-toggle="modal"><em class="icon ni ni-upload-cloud"></em><span>Upload File</span></a></li>
+<li><a href="#"><em class="icon ni ni-file-plus"></em><span>Create File</span></a></li>
+<li><a href="#"><em class="icon ni ni-folder-plus"></em><span>Create Folder</span></a></li>
+</ul>
+</div>
+</div>
+</li>
+<li class="d-lg-none mr-n1"><a href="#" class="btn btn-trigger btn-icon toggle" data-target="files-aside"><em class="icon ni ni-menu-alt-r"></em></a></li>
+</ul>
+</div> -->
+<!-- <div class="search-wrap px-2 d-lg-none" data-search="search">
+<div class="search-content">
+<a href="#" class="search-back btn btn-icon toggle-search" data-target="search"><em class="icon ni ni-arrow-left"></em></a>
+<input type="text" class="form-control border-transparent form-focus-none" placeholder="Search by user or message">
+<button class="search-submit btn btn-icon"><em class="icon ni ni-search"></em></button>
+</div>
+</div> -->
+<!-- .search-wrap -->
+<!-- </div>
+</div> -->
+
+
+
+
+<!-- <div class="nk-fmg-quick-list nk-block">
+<div class="nk-block-head-xs">
+<div class="nk-block-between g-2"> -->
+
+
+<!-- <div class="nk-block-head-content">
+
+
+<nav aria-label="breadcrumb">
+<ol class="breadcrumb">
+{% for breadcrumb in breadcrumbs %}
+{% if forloop.last %}
+<li class="breadcrumb-item active text-primary" aria-current="page">{{ breadcrumb.name }}</li>
+{% else %}
+{% if breadcrumb.name|lower == 'media' %}
+<li class="breadcrumb-item active text-primary" aria-current="page">{{ breadcrumb.name }}</li>
+{% else %}
+<li class="breadcrumb-item text-primary">
+
+{{ breadcrumb.name }}
+
+</li>
+{% endif %}
+{% endif %}
+{% endfor %}
+</ol>
+</nav>
+</div> -->
+
+
+
+
+
+
+
+
+<!-- <div class="nk-block-head-content">
+<a href="#" class="link link-primary toggle-opt active" data-target="quick-access">
+<div class="inactive-text">Show</div>
+<div class="active-text">Hide</div>
+</a>
+</div> -->
+<!-- </div> -->
+</div><!-- .nk-block-head -->
+
+
+
+<!-- Start -->
+
+
+<div class="toggle-expand-content expanded" data-content="quick-access">
+
+<div class="nk-files nk-files-view-grid">
+
+
+  
+<!-- <div class="container-fluid py-4"> -->
+<div class="row">
+<div class="col-lg-12 py-2">
+<div class="nk-files-list">
+
+{% if applications %}
+
+
+{% for app in applications %}
+
+
+
+<div class="nk-file-item nk-file">
+<div class="nk-file-info">
+<a href="{% url 'Clients:application-documents' app.id %}" class="nk-file-link">
+<div class="nk-file-title">
+<div class="nk-file-icon">
+<span class="nk-file-icon-type">
+<svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 72 72">
+<path fill="#6C87FE" d="M57.5,31h-23c-1.4,0-2.5-1.1-2.5-2.5v-10c0-1.4,1.1-2.5,2.5-2.5h23c1.4,0,2.5,1.1,2.5,2.5v10
+C60,29.9,58.9,31,57.5,31z" />
+<path fill="#8AA3FF" d="M59.8,61H12.2C8.8,61,6,58,6,54.4V17.6C6,14,8.8,11,12.2,11h18.5c1.7,0,3.3,1,4.1,2.6L38,24h21.8
+c3.4,0,6.2,2.4,6.2,6v24.4C66,58,63.2,61,59.8,61z" />
+<path display="none" fill="#8AA3FF" d="M62.1,61H9.9C7.8,61,6,59.2,6,57c0,0,0-31.5,0-42c0-2.2,1.8-4,3.9-4h19.3
+c1.6,0,3.2,0.2,3.9,2.3l2.7,6.8c0.5,1.1,1.6,1.9,2.8,1.9h23.5c2.2,0,3.9,1.8,3.9,4v31C66,59.2,64.2,61,62.1,61z" />
+<path fill="#798BFF" d="M7.7,59c2.2,2.4,4.7,2,6.3,2h45c1.1,0,3.2,0.1,5.3-2H7.7z" />
+</svg>
+</span>
+</div>
+<div class="nk-file-name">
+<div class="nk-file-name-text">
+<span class="title">{{ app.get_country_display }} - {{ app.get_visa_type_display }} - {{ app.reference_no }}</span> 
+</div>
+</div>
+</div>
+</a>
+</div>
+</div>
+
+
+
+{% endfor %}
+
+
+{% else %}
+
+
+<div class="nk-files nk-files-view-grid">
+
+
+<div class="col-lg-12 border py-2 bg-white">
+
+
+
+<p class="lead">No folders found for this user!</p>
+
+<li><a href="% url 'Clients:client_dashboard' %}"><em class="icon ni ni-folder-plus bg-purple-dim"></em><span> Dashboard</span></a></li>
+</div>
+
+
+
+</div>
+{% endif %}
+
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- </div> -->
+<!-- </div> -->
+{% endblock %}

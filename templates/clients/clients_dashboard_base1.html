@@ -468,7 +468,7 @@ aria-labelledby="page-header-notifications-dropdown">
 </li>
 
 <li class="nav-item dropdown">
-<a class="nav-link dropdown-toggle arrow-none" href="#" id="topnav-uielement" role="button"
+<a class="nav-link dropdown-toggle arrow-none" href="{% url 'Clients:documents-home' %}" id="topnav-uielement" role="button"
 >
 <i class="bx bx-tone me-2"></i>
 <span key="t-ui-elements"> Documents</span> 
@@ -955,12 +955,27 @@ role="button">
         </a>
     </li> -->
 
-    <li>
-        <a href="#" class="waves-effect">
+    <!-- <li>
+        <a href="{% url 'Clients:documents-home' %}" class="waves-effect">
             <i class="bx bx-file"></i>
             <span key="t-file-manager">Documents Manager</span>
         </a>
+    </li> -->
+
+    <li>
+        <a href="javascript: void(0);" class="has-arrow waves-effect">
+            <i class="bx bx-file"></i>
+            <span key="t-dashboards">Documents Manager</span>
+        </a>
+        <ul class="sub-menu" aria-expanded="false">
+            <li><a href="{% url 'Clients:documents-home' %}" key="t-default">My Documents Home</a></li>
+            <!-- <li><a href="#" key="t-saas">Application Documents</a></li> -->
+            <!-- <li><a href="#" key="t-crypto">Crypto</a></li>
+            <li><a href="#" key="t-blog">Blog</a></li>
+            <li><a href="#" key="t-jobs">Jobs</a></li> -->
+        </ul>
     </li>
+
 
     <!-- <li>
         <a href="javascript: void(0);" class="has-arrow waves-effect">

@@ -1,0 +1,262 @@
+{% extends 'case_officer/case_officer_dashboard_base1.html'%}
+{% block content %}
+
+<div class="col-xl-9">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="text-info">
+      Documents — {{ application.reference_no }}
+    </h4>
+    <a href="{% url 'CaseManagement:documents-home' %}" class="btn btn-soft-primary btn-sm">
+      ← Back to Documents
+    </a>
+  </div>
+
+  <!-- Uploaded Documents -->
+  <div class="card p-2">
+
+    <input type="text"
+       id="docSearch"
+       class="form-control"
+       placeholder="Search documents…">
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="mb-3 text-success">Uploaded Documents</h5>
+        <ul class="nav nav-tabs mb-3">
+  {% for stage, docs in grouped_documents.items %}
+    <li class="nav-item">
+      <button class="nav-link {% if forloop.first %}active{% endif %}"
+              data-bs-toggle="tab"
+              data-bs-target="#{{ stage }}">
+        {{ stage }}
+      </button>
+    </li>
+  {% endfor %}
+</ul>
+
+<div class="tab-content">
+  {% for stage, docs in grouped_documents.items %}
+    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+         id="{{ stage }}">
+
+
+
+    <!-- <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0">{{ stage }}</h6>
+    <a href="{% url 'Clients:application-documents-stage-zip' application.id stage %}"
+    class="btn btn-sm btn-soft-primary">
+    ⬇ Download {{ stage }}
+    </a>
+    </div> -->
+
+
+      {% if docs %}
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>Uploaded</th>
+              <th>Status</th>
+              <th>File</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for doc in docs %}
+              <tr>
+                <td>{{ doc.requirement.name }}</td>
+                <td>{{ doc.uploaded_at|date:"d M Y, H:i" }}</td>
+                <td>
+                    <span class="badge badge-soft-primary">
+                      {{ doc.status }}
+                    </span>
+                  </td>
+                <td>
+                  <a href="{{ doc.file.url }}"
+                  class="preview-link"
+                  data-url="{% url 'Clients:document-preview' doc.file.name %}"
+                  data-name="{{ doc.file.name }}">
+                  Preview
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted">No documents.</p>
+      {% endif %}
+
+    <a href="{% url 'CaseManagement:application-documents-stage-zip' application.id stage %}"
+    class="btn btn-sm btn-soft-primary">
+    ⬇ Download All {{ stage }} Stage Documents (ZIP)
+    </a>
+
+    </div>
+  {% endfor %}
+</div>  
+</div>
+
+<div class="card-body">
+<h5 class="mb-3 text-danger">Refusal Letters</h5>
+{% if rejection_letters %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Refusal Letter</th>
+        <th>Uploaded</th>
+        <th>File</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for letter in rejection_letters %}
+        <tr>
+          <td><span class="badge badge-soft-danger">Refusal Letter {{ forloop.counter }}</span></td>
+          <td>{{ letter.uploaded_at|date:"d M Y, H:i" }}</td>
+          <td>
+            {% if letter.file %}
+              <a href="{{ letter.file.url }}" target="_blank">
+                View Refusal
+              </a>
+              {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="text-muted mb-0">No Refusals uploaded.</p>
+{% endif %}
+
+{% if rejection_letters %}
+  <a href="{% url 'CaseManagement:application-rejection-letters-zip' application.id %}"
+     class="btn btn-sm btn-soft-danger mb-3">
+     ⬇ Download All Rejection Letters (ZIP)
+  </a>
+{% endif %}
+
+</div>
+
+
+  <!-- Rejection Letters -->
+  <div class="card justify-content-end">
+    <div class="card-body">
+      <h5 class="mb-3 text-warning">Download Documents</h5>
+      <a href="{% url 'CaseManagement:application-documents-zip' application.id %}"
+                class="btn btn-soft-primary btn-sm mb-3">
+                ⬇ Download All Documents (ZIP)
+        </a>
+
+    </div>
+  </div>
+
+  
+</div>
+
+
+<!-- <div class="modal fade" id="filePreviewModal">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Document Preview</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <iframe id="previewFrame"
+                style="width:100%; height:80vh;"
+                frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<div class="modal fade" id="filePreviewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Document Preview</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- PDF Preview -->
+        <iframe id="previewFrame"
+                type="application/pdf"
+                style="width:100%; height:80vh; display:none;"
+                frameborder="0"></iframe>
+
+        <!-- Image Preview -->
+        <img id="previewImage"
+             class="img-fluid rounded"
+             style="max-width:100%; display:none;" />
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.getElementById("docSearch").addEventListener("keyup", function () {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll("tbody tr").forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q)
+      ? ""
+      : "none";
+  });
+});
+
+document.querySelectorAll(".preview-link").forEach(link => {
+  link.addEventListener("click", e => {
+    e.preventDefault();
+
+    const url = link.dataset.url;
+    const ext = url.split(".").pop().toLowerCase();
+
+    const iframe = document.getElementById("previewFrame");
+    const image = document.getElementById("previewImage");
+    const modalEl = document.getElementById("filePreviewModal");
+    const modalTitle = modalEl.querySelector(".modal-title");
+
+    // 🔄 FULL RESET (important)
+    iframe.src = "";
+    image.src = "";
+    iframe.style.display = "none";
+    image.style.display = "none";
+
+    // 📄 PDF PREVIEW (FIXED)
+    if (ext === "pdf") {
+      modalTitle.textContent = "PDF Preview";
+
+      // force PDF render, disable toolbar
+      iframe.src = `${url}#toolbar=0&navpanes=0&scrollbar=1`;
+      iframe.style.display = "block";
+    }
+
+    // 🖼 IMAGE PREVIEW
+    else if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+      modalTitle.textContent = "Image Preview";
+
+      image.src = url;
+      image.style.display = "block";
+    }
+
+    // ⛔ Unsupported → open new tab
+    else {
+      window.open(url, "_blank");
+      return;
+    }
+
+    new bootstrap.Modal(modalEl).show();
+  });
+});
+</script>
+
+
+
+
+{% endblock %}
+
