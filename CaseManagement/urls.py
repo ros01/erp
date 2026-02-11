@@ -24,6 +24,12 @@ urlpatterns = [
     path("documents/preview/<path:path>/", preview_media, name="document-preview",),
     path("documents/application/<uuid:pk>/download/<str:stage>/", download_documents_by_stage, name="application-documents-stage-zip",),
     path("documents/application/<uuid:pk>/rejections/download/", download_rejection_letters, name="application-rejection-letters-zip",),
+    path("documents/search/", CaseOfficerDocumentSearchView.as_view(), name="officer-document-search"),
+    path("documents/compliance-export/", ComplianceAuditExportView.as_view(), name="compliance-export"),
+    path("documents/analytics/", OfficerDocumentAnalyticsDashboardView.as_view(), name="officer-documents-analytics-dashboard"),
+
+
+
 
 ]
 

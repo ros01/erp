@@ -1,0 +1,95 @@
+{% extends 'case_officer/case_officer_dashboard_base1.html' %}
+
+{% block content %}
+<div class="col-xl-9">
+
+    <h4 class="mb-4 text-info">📊 Document Analytics</h4>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Total Documents</h6>
+                <h2 id="totalDocs">0</h2>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Reviewed %</h6>
+                <h2 class="text-success" id="reviewedPercent">0%</h2>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card p-3 text-center">
+                <h6>Missing %</h6>
+                <h2 class="text-danger" id="missingPercent">0%</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5>Stage Breakdown</h5>
+            <div style="height:400px;">
+                <canvas id="stageChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const canvas = document.getElementById("stageChart");
+    if (!canvas) {
+        console.error("Canvas not found");
+        return;
+    }
+
+    fetch("{% url 'Applications:officer-documents-analytics' %}")
+        .then(res => res.json())
+        .then(data => {
+
+            console.log("Analytics Data:", data);
+
+            document.getElementById("totalDocs").textContent =
+                data.total_documents;
+
+            document.getElementById("reviewedPercent").textContent =
+                data.reviewed_percent + "%";
+
+            document.getElementById("missingPercent").textContent =
+                data.missing_percent + "%";
+
+            new Chart(canvas.getContext("2d"), {
+                type: "bar",
+                data: {
+                    labels: data.stage_labels,
+                    datasets: [{
+                        label: "Documents per Stage",
+                        data: data.stage_counts,
+                        backgroundColor: "#556ee6"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+        })
+        .catch(err => console.error("Fetch error:", err));
+
+});
+</script>
+{% endblock %}

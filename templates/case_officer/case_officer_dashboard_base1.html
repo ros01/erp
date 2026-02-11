@@ -970,9 +970,10 @@ role="button">
         <ul class="sub-menu" aria-expanded="false">
             <li><a href="{% url 'CaseManagement:documents-home' %}" key="t-file-manager">Applications Documents</a></li>
 
-            <!-- <li><a href="ecommerce-product-detail.html" key="t-product-detail">Pending Requesitions</a></li>
-            <li><a href="ecommerce-orders.html" key="t-orders">Issued Requisitions</a></li>
-            <li><a href="ecommerce-customers.html" key="t-customers">Requisition History</a></li> -->
+            <li><a href="{% url 'CaseManagement:officer-document-search' %}" key="t-product-detail">Documents Search</a></li>
+
+           <li><a href="{% url 'CaseManagement:officer-documents-analytics-dashboard' %}" key="t-orders">Analytics Dashboard</a></li> 
+            <!-- <li><a href="ecommerce-customers.html" key="t-customers">Requisition History</a></li> -->
             <!-- <li><a href="ecommerce-cart.html" key="t-cart">Cart</a></li>
             <li><a href="ecommerce-checkout.html" key="t-checkout">Checkout</a></li>
             <li><a href="ecommerce-shops.html" key="t-shops">Shops</a></li>
@@ -1420,6 +1421,8 @@ role="button">
 <script src="{% static 'admin_assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js' %}"></script>
 
 <!-- Datatable init js -->
-<script src="{% static 'admin_assets/js/pages/datatables.init.js' %}"></script>    
+<script src="{% static 'admin_assets/js/pages/datatables.init.js' %}"></script> 
+{% block scripts %}{% endblock %}   
 </body>
+
 </html>

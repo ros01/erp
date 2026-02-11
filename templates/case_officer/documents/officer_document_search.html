@@ -1,0 +1,175 @@
+{% extends 'case_officer/case_officer_dashboard_base1.html'%}
+{% block content %}
+
+{% block scripts %}
+<!-- DataTables CSS -->
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+{% endblock %}
+
+
+<div class="col-xl-9">
+<h4 class="text-info mb-4">All Documents Search</h4>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-4">
+        <input type="text" name="q" class="form-control"
+               placeholder="Search reference, client, requirement..."
+               value="{{ query }}">
+    </div>
+
+    <div class="col-md-2">
+        <select name="status" class="form-select">
+            <option value="">All Status</option>
+            <option value="UPLOADED">Uploaded</option>
+            <option value="REVIEWED">Reviewed</option>
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <select name="stage" class="form-select">
+            <option value="">All Stages</option>
+            <option value="ADMISSION">Admission</option>
+            <option value="CAS">CAS</option>
+            <option value="VISA">Visa</option>
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <button class="btn btn-primary">Search</button>
+    </div>
+
+    <div class="col-md-2 text-end">
+        <a href="{% url 'CaseManagement:compliance-export' %}?q={{ query }}"
+           class="btn btn-soft-success">
+           ⬇ Export CSV
+        </a>
+    </div>
+</form>
+
+<table id="officerDocumentsTable"
+       class="table table-striped table-bordered w-100">
+    <thead>
+        <tr>
+            <th>Reference</th>
+            <th>Client</th>
+            <th>Requirement</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Uploaded</th>
+        </tr>
+    </thead>
+</table>
+
+<!-- <table id="officerDocumentsTable"
+       class="table table-striped table-bordered dt-responsive nowrap w-100">
+    <thead class="table-light">
+        <tr>
+            <th>Reference</th>
+            <th>Client</th>
+            <th>Requirement</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Uploaded</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.application.reference_no }}</td>
+            <td>{{ doc.application.client.user.get_full_name }}</td>
+            <td>{{ doc.requirement.name }}</td>
+            <td>{{ doc.requirement.stage }}</td>
+            <td>
+                <span class="badge 
+                    {% if doc.status == 'REVIEWED' %}
+                        badge-soft-success
+                    {% else %}
+                        badge-soft-primary
+                    {% endif %}
+                ">
+                    {{ doc.status }}
+                </span>
+            </td>
+            <td data-order="{{ doc.uploaded_at|date:'Y-m-d H:i:s' }}">
+                {{ doc.uploaded_at|date:"d M Y H:i" }}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-muted text-center">
+                No documents found.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table> -->
+</div>
+
+<script>
+$(document).ready(function () {
+
+    $('#officerDocumentsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{% url 'Applications:officer-documents-data' %}",
+            type: "GET"
+        },
+        pageLength: 25,
+        order: [[5, "desc"]],  // Sort by Uploaded column
+        columns: [
+            { data: "reference" },
+            { data: "client" },
+            { data: "requirement" },
+            { data: "stage" },
+            { 
+                data: "status",
+                render: function (data) {
+                    if (data === "REVIEWED") {
+                        return `<span class="badge badge-soft-success">${data}</span>`;
+                    }
+                    return `<span class="badge badge-soft-primary">${data}</span>`;
+                }
+            },
+            { data: "uploaded" }
+        ],
+        language: {
+            search: "🔍 Search Documents:",
+            lengthMenu: "Show _MENU_ documents",
+            info: "Showing _START_ to _END_ of _TOTAL_ documents",
+            emptyTable: "No documents found",
+            processing: "Loading documents..."
+        }
+    });
+
+});
+</script>
+
+
+<!-- <script>
+$(document).ready(function () {
+
+    $('#officerDocumentsTable').DataTable({
+        pageLength: 10,
+        responsive: true,
+        ordering: true,
+        order: [[5, "desc"]], // Sort by Uploaded date descending
+        language: {
+            search: "🔍 Search:",
+            lengthMenu: "Show _MENU_ documents",
+            info: "Showing _START_ to _END_ of _TOTAL_ documents",
+            emptyTable: "No documents available"
+        }
+    });
+
+});
+</script> -->
+
+{% endblock %}

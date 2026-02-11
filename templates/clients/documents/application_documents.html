@@ -41,16 +41,6 @@
          id="{{ stage }}">
 
 
-
-    <!-- <div class="d-flex justify-content-between align-items-center mb-2">
-    <h6 class="mb-0">{{ stage }}</h6>
-    <a href="{% url 'Clients:application-documents-stage-zip' application.id stage %}"
-    class="btn btn-sm btn-soft-primary">
-    ⬇ Download {{ stage }}
-    </a>
-    </div> -->
-
-
       {% if docs %}
         <table class="table table-striped">
           <thead>
@@ -72,13 +62,19 @@
                     </span>
                   </td>
                 <td>
-                  <a href="{{ doc.file.url }}"
-                  class="preview-link"
-                  data-url="{% url 'Clients:document-preview' doc.file.name %}"
-                  data-name="{{ doc.file.name }}">
-                  Preview
-                  </a>
+                {% if doc.file %}
+                <a href="#"
+                class="preview-link"
+                data-url="{% url 'Clients:document-preview' doc.file.name %}"
+                data-name="{{ doc.file.name }}">
+                Preview
+                </a>
+                {% else %}
+                <span class="text-muted">No file</span>
+                {% endif %}
                 </td>
+
+
               </tr>
             {% endfor %}
           </tbody>
@@ -155,22 +151,6 @@
   
 </div>
 
-
-<!-- <div class="modal fade" id="filePreviewModal">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Document Preview</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <iframe id="previewFrame"
-                style="width:100%; height:80vh;"
-                frameborder="0"></iframe>
-      </div>
-    </div>
-  </div>
-</div> -->
 
 <div class="modal fade" id="filePreviewModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">

@@ -71,14 +71,19 @@
                       {{ doc.status }}
                     </span>
                   </td>
-                <td>
-                  <a href="{{ doc.file.url }}"
+                  <td>
+                  {% if doc.file %}
+                  <a href="#"
                   class="preview-link"
-                  data-url="{% url 'Clients:document-preview' doc.file.name %}"
+                  data-url="{% url 'CaseManagement:document-preview' doc.file.name %}"
                   data-name="{{ doc.file.name }}">
                   Preview
                   </a>
-                </td>
+                  {% else %}
+                  <span class="text-muted">No file</span>
+                  {% endif %}
+                  </td>
+
               </tr>
             {% endfor %}
           </tbody>

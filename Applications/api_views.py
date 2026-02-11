@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.decorators import api_view, permission_classes
-from django.db.models import Q, Value
+from django.db.models import Q, Value, Count
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
 from .models import VisaApplication, PreviousRefusalLetter, RejectionLetter
@@ -55,11 +55,183 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 import pypdf
 from pypdf.generic import NameObject 
-
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 User = get_user_model()
 
-# views.py
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db.models import Count, Q
+from collections import defaultdict
+
+class OfficerDocumentAnalyticsAPIViewOld(APIView):
+
+    def get(self, request):
+
+        officer = request.user.staff_profile
+
+        documents = (
+            Document.objects
+            .filter(application__created_by_officer=officer)
+            .select_related("requirement", "application")
+        )
+
+        total_documents = documents.count()
+
+        # -----------------------------
+        # Status percentages
+        # -----------------------------
+        reviewed_count = documents.filter(status="REVIEWED").count()
+        missing_count = documents.filter(status="MISSING").count()
+
+        reviewed_percent = round(
+            (reviewed_count / total_documents) * 100, 2
+        ) if total_documents else 0
+
+        missing_percent = round(
+            (missing_count / total_documents) * 100, 2
+        ) if total_documents else 0
+
+        # -----------------------------
+        # Stage Breakdown
+        # -----------------------------
+        stage_counter = defaultdict(int)
+
+        for doc in documents:
+            stage = None
+
+            if doc.requirement:
+                stage = doc.requirement.stage
+
+            # 🔥 Handle non-student visas / empty stage
+            if not stage:
+                stage = "GENERAL"
+
+            # 🔥 Normalize numeric or inconsistent values
+            stage = str(stage).upper().strip()
+
+            stage_counter[stage] += 1
+
+        stage_labels = list(stage_counter.keys())
+        stage_counts = list(stage_counter.values())
+
+        return Response({
+            "total_documents": total_documents,
+            "reviewed_percent": reviewed_percent,
+            "missing_percent": missing_percent,
+            "stage_labels": stage_labels,
+            "stage_counts": stage_counts
+        })
+
+
+class OfficerDocumentAnalyticsAPIView(LoginRequiredMixin, View):
+
+    def get(self, request):
+
+        officer = request.user.staff_profile
+
+        documents = Document.objects.select_related(
+            "application",
+            "requirement"
+        ).filter(
+            Q(application__created_by_officer=officer) |
+            Q(application__assigned_officer=officer)
+        )
+
+        total_docs = documents.count()
+
+        reviewed_docs = documents.filter(status="REVIEWED").count()
+        missing_docs = documents.filter(status="MISSING").count()
+
+        reviewed_percent = (
+            round((reviewed_docs / total_docs) * 100, 1)
+            if total_docs > 0 else 0
+        )
+
+        missing_percent = (
+            round((missing_docs / total_docs) * 100, 1)
+            if total_docs > 0 else 0
+        )
+
+        stage_breakdown = (
+            documents
+            .values("requirement__stage")
+            .annotate(count=Count("id"))
+        )
+
+        return JsonResponse({
+            "total_documents": total_docs,
+            "reviewed_percent": reviewed_percent,
+            "missing_percent": missing_percent,
+            "stage_labels": [
+                item["requirement__stage"] or "OTHER"
+                for item in stage_breakdown
+            ],
+            "stage_counts": [
+                item["count"]
+                for item in stage_breakdown
+            ]
+        })
+
+
+class OfficerDocumentsDataAPIView(LoginRequiredMixin, View):
+
+    def get(self, request):
+
+        officer = request.user.staff_profile
+
+        draw = int(request.GET.get("draw", 1))
+        start = int(request.GET.get("start", 0))
+        length = int(request.GET.get("length", 10))
+        search_value = request.GET.get("search[value]", "")
+
+        queryset = Document.objects.select_related(
+            "application",
+            "application__client__user",
+            "requirement"
+        ).filter(
+            Q(application__created_by_officer=officer) |
+            Q(application__assigned_officer=officer)
+        )
+
+        total_records = queryset.count()
+
+        if search_value:
+            queryset = queryset.filter(
+                Q(application__reference_no__icontains=search_value) |
+                Q(application__client__user__first_name__icontains=search_value) |
+                Q(application__client__user__last_name__icontains=search_value) |
+                Q(requirement__name__icontains=search_value)
+            )
+
+        filtered_records = queryset.count()
+
+        queryset = queryset.order_by("-uploaded_at")[start:start + length]
+
+        data = []
+        for doc in queryset:
+            data.append({
+                "reference": doc.application.reference_no,
+                "client": doc.application.client.user.get_full_name,
+                "requirement": doc.requirement.name if doc.requirement else "-",
+                "stage": doc.requirement.stage if doc.requirement else "-",
+                "status": doc.status,
+                "uploaded": doc.uploaded_at.strftime("%d %b %Y %H:%M")
+            })
+
+        return JsonResponse({
+            "draw": draw,
+            "recordsTotal": total_records,
+            "recordsFiltered": filtered_records,
+            "data": data
+        })
+
+
+
+
+
+
 class StartAdmissionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

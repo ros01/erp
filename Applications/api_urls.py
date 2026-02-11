@@ -11,6 +11,8 @@ urlpatterns = [
     # path("requirements/", api_views.get_requirements, name="requirements"),
     path("user/", CurrentUserView.as_view(), name="current_user"),
     # path("pdf-form-fill/", pdf_form_fill, name="pdf-form-fill"),
+    path("officer/documents/data/", OfficerDocumentsDataAPIView.as_view(),name="officer-documents-data"),
+    path("officer/documents/analytics/", OfficerDocumentAnalyticsAPIView.as_view(), name="officer-documents-analytics"),
     path("student/admission/start/", StartAdmissionAPIView.as_view()),
     path("student/admission/submit/", SubmitAdmissionAPIView.as_view()),
     path("student/admission/<uuid:pk>/offer/", UploadOfferLetterAPIView.as_view()),

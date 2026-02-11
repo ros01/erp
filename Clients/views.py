@@ -94,9 +94,60 @@ def preview_media(request, path):
     return FileResponse(open(file_path, "rb"))
 
 
-
 @login_required
 def download_application_documents_zip(request, pk):
+    application = get_object_or_404(
+        VisaApplication,
+        pk=pk,
+        client__user=request.user
+    )
+
+    buffer = io.BytesIO()
+
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+
+        # 📂 DOCUMENTS
+        for doc in application.documents.select_related("requirement"):
+            if not doc.file:
+                continue
+
+            if not os.path.exists(doc.file.path):
+                continue  # skip broken files safely
+
+            filename = os.path.basename(doc.file.name)
+
+            zip_file.write(
+                doc.file.path,
+                arcname=f"documents/{filename}"
+            )
+
+        # 📂 REJECTION LETTERS
+        for letter in application.rejection_letters.all():
+            if not letter.file:
+                continue
+
+            if not os.path.exists(letter.file.path):
+                continue
+
+            filename = os.path.basename(letter.file.name)
+
+            zip_file.write(
+                letter.file.path,
+                arcname=f"rejection_letters/{filename}"
+            )
+
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type="application/zip")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{application.reference_no}_documents.zip"'
+    )
+
+    return response
+
+
+@login_required
+def download_application_documents_zipold(request, pk):
     application = get_object_or_404(
         VisaApplication,
         pk=pk,
