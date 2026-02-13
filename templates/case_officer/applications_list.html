@@ -318,50 +318,393 @@ document.getElementById("country").addEventListener("change", async function() {
 });
 
 // === Load Required Docs once Visa Type selected ===
-document.getElementById("visa-type").addEventListener("change", async function() {
+// document.getElementById("visa-type").addEventListener("change", async function() {
+//   const country = document.getElementById("country").value;
+//   const visaType = this.value;
+//   if (!country || !visaType) return;
+
+//   try {
+//     const res = await fetch(`/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`);
+//     const requiredDocs = await res.json();
+
+//     const list = document.getElementById("required-docs-list");
+//     list.innerHTML = "";
+
+//     if (!requiredDocs.length) {
+//       list.innerHTML = "<div class='text-muted'>No requirements found.</div>";
+//     } else {
+//       requiredDocs.forEach(doc => {
+//         const row = document.createElement("div");
+//         row.className = "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
+
+//         row.innerHTML = `
+//           <div>
+//             <strong>${doc.name}</strong><br/>
+//             <small class="text-muted">${doc.description || "—"}</small>
+//           </div>
+//           <span class="badge ${doc.is_mandatory ? "bg-danger" : "bg-secondary"}">
+//             ${doc.is_mandatory ? "Required" : "Optional"}
+//           </span>
+//         `;
+
+//         list.appendChild(row);
+//       });
+//     }
+
+//     document.getElementById("required-docs-container").classList.remove("d-none");
+
+//     // Enable create button only if a client is selected
+//     if (selectedClientId) {
+//       document.getElementById("create-application-btn").disabled = false;
+//     }
+
+//   } catch (err) {
+//     console.error("Failed to load visa requirements:", err);
+//   }
+// });
+
+
+// === Load Required Docs once Visa Type selected ===
+// document.getElementById("visa-type").addEventListener("change", async function() {
+
+//   const country = document.getElementById("country").value;
+//   const visaType = this.value;
+//   if (!country || !visaType) return;
+
+//   try {
+//     const res = await fetch(
+//       `/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`
+//     );
+
+//     const requiredDocs = await res.json();
+//     const list = document.getElementById("required-docs-list");
+
+//     list.innerHTML = "";
+
+//     if (!requiredDocs.length) {
+//       list.innerHTML =
+//         "<div class='text-muted'>No requirements found.</div>";
+//       return;
+//     }
+
+//     /* ============================================================
+//        🎓 STUDENT VISA → GROUP BY STAGE
+//        ============================================================ */
+//     if (visaType === "STUDENT") {
+
+//       const grouped = {};
+
+//       requiredDocs.forEach(doc => {
+//         const stageKey = doc.stage || "OTHER";
+//         if (!grouped[stageKey]) grouped[stageKey] = [];
+//         grouped[stageKey].push(doc);
+//       });
+
+//       Object.keys(grouped).forEach(stageKey => {
+
+//         const stageItems = grouped[stageKey];
+
+//         // Stage Header
+//         const stageHeader = document.createElement("h5");
+//         stageHeader.className = "mt-4 text-primary";
+//         stageHeader.textContent =
+//           stageItems[0].stage_display || stageKey;
+
+//         list.appendChild(stageHeader);
+
+//         stageItems.forEach(doc => {
+
+//           const row = document.createElement("div");
+//           row.className =
+//             "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
+
+//           row.innerHTML = `
+//             <div>
+//               <strong>${doc.name}</strong><br/>
+//               <small class="text-muted">
+//                 ${doc.description || "—"}
+//               </small>
+//             </div>
+//             <span class="badge ${
+//               doc.is_mandatory ? "bg-danger" : "bg-secondary"
+//             }">
+//               ${doc.is_mandatory ? "Required" : "Optional"}
+//             </span>
+//           `;
+
+//           list.appendChild(row);
+//         });
+//       });
+//     }
+
+//     /* ============================================================
+//        🧳 OTHER VISA TYPES → FLAT LIST
+//        ============================================================ */
+//     else {
+
+//       requiredDocs.forEach(doc => {
+
+//         const row = document.createElement("div");
+//         row.className =
+//           "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
+
+//         row.innerHTML = `
+//           <div>
+//             <strong>${doc.name}</strong><br/>
+//             <small class="text-muted">
+//               ${doc.description || "—"}
+//             </small>
+//           </div>
+//           <span class="badge ${
+//             doc.is_mandatory ? "bg-danger" : "bg-secondary"
+//           }">
+//             ${doc.is_mandatory ? "Required" : "Optional"}
+//           </span>
+//         `;
+
+//         list.appendChild(row);
+//       });
+//     }
+
+//     // Show container
+//     document.getElementById("required-docs-container")
+//       .classList.remove("d-none");
+
+//     // Enable create button only if client selected
+//     if (selectedClientId) {
+//       document.getElementById("create-application-btn")
+//         .disabled = false;
+//     }
+
+//   } catch (err) {
+//     console.error("Failed to load visa requirements:", err);
+//   }
+// });
+
+
+
+
+// === Load Required Docs once Visa Type selected ===
+document.getElementById("visa-type").addEventListener("change", async function () {
+
   const country = document.getElementById("country").value;
   const visaType = this.value;
   if (!country || !visaType) return;
 
+  const container = document.getElementById("required-docs-container");
+  const list = document.getElementById("required-docs-list");
+
+  list.innerHTML = "";
+  container.classList.remove("d-none");
+
   try {
-    const res = await fetch(`/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`);
-    const requiredDocs = await res.json();
+    const res = await fetch(
+      `/api/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visaType)}`
+    );
+    const requirements = await res.json();
 
-    const list = document.getElementById("required-docs-list");
-    list.innerHTML = "";
-
-    if (!requiredDocs.length) {
-      list.innerHTML = "<div class='text-muted'>No requirements found.</div>";
-    } else {
-      requiredDocs.forEach(doc => {
-        const row = document.createElement("div");
-        row.className = "req d-flex justify-content-between align-items-start mb-2 p-2 border rounded";
-
-        row.innerHTML = `
-          <div>
-            <strong>${doc.name}</strong><br/>
-            <small class="text-muted">${doc.description || "—"}</small>
-          </div>
-          <span class="badge ${doc.is_mandatory ? "bg-danger" : "bg-secondary"}">
-            ${doc.is_mandatory ? "Required" : "Optional"}
-          </span>
-        `;
-
-        list.appendChild(row);
-      });
+    if (!requirements.length) {
+      list.innerHTML =
+        "<div class='text-muted'>No requirements found.</div>";
+      return;
     }
 
-    document.getElementById("required-docs-container").classList.remove("d-none");
+    /* ============================================================
+       🎓 STUDENT VISA → TAB + COLLAPSIBLE PANELS
+       ============================================================ */
+    if (visaType === "STUDENT") {
 
-    // Enable create button only if a client is selected
+      const stages = ["ADMISSION", "CAS", "VISA"];
+      const grouped = {};
+      stages.forEach(s => grouped[s] = []);
+
+      requirements.forEach(r => {
+        const stage = r.stage || "OTHER";
+        if (grouped[stage]) grouped[stage].push(r);
+      });
+
+      // Create Tabs Header
+      let tabsHtml = `
+        <ul class="nav nav-tabs mt-3" role="tablist">
+      `;
+
+      stages.forEach((stage, i) => {
+        const count = grouped[stage].length;
+        tabsHtml += `
+          <li class="nav-item">
+            <button class="nav-link ${i === 0 ? "active" : ""}"
+                    data-bs-toggle="tab"
+                    data-bs-target="#stage-${stage}">
+              ${stage}
+              <span class="badge bg-secondary ms-1">
+                ${count}
+              </span>
+            </button>
+          </li>
+        `;
+      });
+
+      tabsHtml += `</ul>`;
+
+      // Create Tab Content
+      let contentHtml = `<div class="tab-content border border-top-0 p-3">`;
+
+      stages.forEach((stage, i) => {
+
+        const stageItems = grouped[stage];
+
+        const requiredCount =
+          stageItems.filter(r => r.is_mandatory).length;
+
+        const percent =
+          stageItems.length
+            ? Math.round((requiredCount / stageItems.length) * 100)
+            : 0;
+
+        contentHtml += `
+          <div class="tab-pane fade ${i === 0 ? "show active" : ""}"
+               id="stage-${stage}">
+        `;
+
+        // 🔹 Progress Indicator
+        contentHtml += `
+          <div class="mb-3">
+            <small class="text-muted">
+              Mandatory Requirements: ${requiredCount}/${stageItems.length}
+            </small>
+            <div class="progress mt-1" style="height:6px;">
+              <div class="progress-bar bg-danger"
+                   style="width:${percent}%">
+              </div>
+            </div>
+          </div>
+        `;
+
+        // 🔹 Collapsible Panel
+        contentHtml += `
+          <div class="accordion" id="accordion-${stage}">
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button ${i === 0 ? "" : "collapsed"}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapse-${stage}">
+                  ${stage} Requirements
+                </button>
+              </h2>
+
+              <div id="collapse-${stage}"
+                   class="accordion-collapse collapse ${i === 0 ? "show" : ""}">
+                <div class="accordion-body">
+        `;
+
+        if (!stageItems.length) {
+          contentHtml +=
+            "<p class='text-muted'>No requirements in this stage.</p>";
+        } else {
+          stageItems.forEach(r => {
+            contentHtml += `
+              <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
+                <div>
+                  <strong>${r.name}</strong><br/>
+                  <small class="text-muted">
+                    ${r.description || "—"}
+                  </small>
+                </div>
+                <span class="badge ${
+                  r.is_mandatory ? "bg-danger" : "bg-secondary"
+                }">
+                  ${r.is_mandatory ? "Required" : "Optional"}
+                </span>
+              </div>
+            `;
+          });
+        }
+
+        contentHtml += `
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        `;
+      });
+
+      contentHtml += `</div>`;
+
+      list.innerHTML = tabsHtml + contentHtml;
+
+      // 🔹 Auto scroll to first stage
+      setTimeout(() => {
+        const firstTab = document.querySelector(".nav-link.active");
+        if (firstTab) firstTab.scrollIntoView({ behavior: "smooth" });
+      }, 200);
+    }
+
+    /* ============================================================
+       🧳 OTHER VISA TYPES → SIMPLE ACCORDION
+       ============================================================ */
+    else {
+
+      let html = `
+        <div class="accordion" id="nonStudentAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button"
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#collapseNonStudent">
+                Requirements
+                <span class="badge bg-secondary ms-2">
+                  ${requirements.length}
+                </span>
+              </button>
+            </h2>
+            <div id="collapseNonStudent"
+                 class="accordion-collapse collapse show">
+              <div class="accordion-body">
+      `;
+
+      requirements.forEach(r => {
+        html += `
+          <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
+            <div>
+              <strong>${r.name}</strong><br/>
+              <small class="text-muted">
+                ${r.description || "—"}
+              </small>
+            </div>
+            <span class="badge ${
+              r.is_mandatory ? "bg-danger" : "bg-secondary"
+            }">
+              ${r.is_mandatory ? "Required" : "Optional"}
+            </span>
+          </div>
+        `;
+      });
+
+      html += `
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      list.innerHTML = html;
+    }
+
     if (selectedClientId) {
-      document.getElementById("create-application-btn").disabled = false;
+      document.getElementById("create-application-btn")
+        .disabled = false;
     }
 
   } catch (err) {
-    console.error("Failed to load visa requirements:", err);
+    console.error("Failed to load requirements:", err);
+    list.innerHTML =
+      "<div class='text-muted'>Failed to load requirements.</div>";
   }
 });
+
 
 
 // === Client Search ===
@@ -995,22 +1338,46 @@ if (app.visa_type === "STUDENT") {
         </tr>
       `;
     } else {
-      grouped[stage].forEach(doc => {
-        docsHtml += `
-          <tr>
-            <td>${doc.requirement_name}</td>
-            <td><span class="badge ${doc.status_badge}">
-              ${doc.status_display}
-            </span></td>
-            <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
-            <td>${doc.review_comments ?? "-"}</td>
-            <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
-            <td>
-            <button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
-            </td>
-          </tr>
-        `;
-      });
+  grouped[stage].forEach(doc => {
+  docsHtml += `
+    <tr>
+      <td>${doc.requirement_name}</td>
+
+      <td>
+        <span class="badge ${doc.status_badge}">
+          ${doc.status_display}
+        </span>
+      </td>
+
+      <td>
+        ${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}
+      </td>
+
+      <td>
+        <input type="text"
+               class="form-control form-control-sm review-comment-input"
+               data-doc-id="${doc.id}"
+               value="${doc.review_comments ?? ""}"
+               ${doc.status === "REVIEWED" ? "readonly" : ""}>
+      </td>
+
+      <td>
+        ${doc.uploaded_at
+          ? new Date(doc.uploaded_at).toLocaleString()
+          : "-"}
+      </td>
+
+      <td>
+        ${doc.status === "REVIEWED"
+          ? `<span class="text-success">✅ Reviewed</span>`
+          : `<button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">
+                Mark Reviewed
+             </button>`}
+      </td>
+    </tr>
+  `;
+});
+
     }
 
     docsHtml += `</tbody></table></div>`;
@@ -1057,7 +1424,14 @@ else {
             ${doc.status_display}
           </span></td>
           <td>${doc.file ? `<a href="${doc.file}" target="_blank">View</a>` : "-"}</td>
-          <td>${doc.review_comments ?? "-"}</td>
+          <td>
+          <input type="text"
+          class="form-control form-control-sm review-comment-input"
+          data-doc-id="${doc.id}"
+          value="${doc.review_comments ?? ""}"
+          ${doc.status === "REVIEWED" ? "readonly" : ""}>
+          </td>
+
           <td>${doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "-"}</td>
 
           <td><button class="btn btn-sm btn-success review-btn" data-id="${doc.id}">Mark Reviewed</button>
@@ -1107,54 +1481,133 @@ modalBody.innerHTML = detailsHtml + docsHtml;
 
 
 // === Document Review ===
+// document.body.addEventListener("click", function (e) {
+//     if (e.target.closest(".review-btn")) {
+//         let btn = e.target.closest(".review-btn");
+//         let docId = btn.dataset.id;
+//         let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
+//         let comments = commentInput ? commentInput.value : "";
+
+//         fetch(`/api/documents/${docId}/review/`, {
+//             method: "PATCH",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 "X-CSRFToken": csrftoken
+//             },
+//             body: JSON.stringify({ review_comments: comments })
+//         })
+//         .then(res => res.json())
+//         .then(updatedDoc => {
+//             let row = btn.closest("tr");
+//             let statusCell = row.querySelector("td:nth-child(2) span");
+//             if (statusCell) {
+//                 statusCell.textContent = updatedDoc.status_display;
+//                 statusCell.className = "badge " + updatedDoc.status_badge;
+//             }
+
+//             btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
+//             if (commentInput) {
+//                 commentInput.value = updatedDoc.review_comments ?? "";
+//                 commentInput.setAttribute("readonly", "readonly");
+//             }
+
+//             fetch(`/api/applications/${updatedDoc.application}/`)
+//                 .then(r => r.json())
+//                 .then(updatedApp => {
+//                     const badgeEl = document.getElementById("application-status-badge");
+//                     if (badgeEl) {
+//                         badgeEl.textContent = updatedApp.status_display;
+//                         badgeEl.className = "badge " + updatedApp.status_badge;
+//                     }
+
+//                     const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
+//                     if (tableBadgeEl) {
+//                         tableBadgeEl.textContent = updatedApp.status_display;
+//                         tableBadgeEl.className = "badge " + updatedApp.status_badge;
+//                     }
+//                 });
+//         });
+//     }
+// });
+
+
+// === Document Review ===
 document.body.addEventListener("click", function (e) {
-    if (e.target.closest(".review-btn")) {
-        let btn = e.target.closest(".review-btn");
-        let docId = btn.dataset.id;
-        let commentInput = document.querySelector(`.review-comment-input[data-doc-id="${docId}"]`);
-        let comments = commentInput ? commentInput.value : "";
 
-        fetch(`/api/documents/${docId}/review/`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrftoken
-            },
-            body: JSON.stringify({ review_comments: comments })
+    const btn = e.target.closest(".review-btn");
+    if (!btn) return;
+
+    const docId = btn.dataset.id;
+    const row = btn.closest("tr");
+
+    const commentInput = row.querySelector(
+        `.review-comment-input[data-doc-id="${docId}"]`
+    );
+
+    const comments = commentInput ? commentInput.value.trim() : "";
+
+    // Prevent double click
+    btn.disabled = true;
+    btn.innerHTML = "Saving...";
+
+    fetch(`/api/documents/${docId}/review/`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify({
+            review_comments: comments
         })
-        .then(res => res.json())
-        .then(updatedDoc => {
-            let row = btn.closest("tr");
-            let statusCell = row.querySelector("td:nth-child(2) span");
-            if (statusCell) {
-                statusCell.textContent = updatedDoc.status_display;
-                statusCell.className = "badge " + updatedDoc.status_badge;
-            }
+    })
+    .then(res => res.json())
+    .then(updatedDoc => {
 
-            btn.outerHTML = `<span class="text-success">✅ Reviewed</span>`;
-            if (commentInput) {
-                commentInput.value = updatedDoc.review_comments ?? "";
-                commentInput.setAttribute("readonly", "readonly");
-            }
+        // 🔹 Update status badge in row
+        const statusCell = row.querySelector("td:nth-child(2) span");
+        if (statusCell) {
+            statusCell.textContent = updatedDoc.status_display;
+            statusCell.className = "badge " + updatedDoc.status_badge;
+        }
 
-            fetch(`/api/applications/${updatedDoc.application}/`)
-                .then(r => r.json())
-                .then(updatedApp => {
-                    const badgeEl = document.getElementById("application-status-badge");
-                    if (badgeEl) {
-                        badgeEl.textContent = updatedApp.status_display;
-                        badgeEl.className = "badge " + updatedApp.status_badge;
-                    }
+        // 🔹 Lock comment input AFTER review
+        if (commentInput) {
+            commentInput.value = updatedDoc.review_comments ?? "";
+            commentInput.setAttribute("readonly", "readonly");
+        }
 
-                    const tableBadgeEl = document.getElementById(`application-status-badge-${updatedApp.id}`);
-                    if (tableBadgeEl) {
-                        tableBadgeEl.textContent = updatedApp.status_display;
-                        tableBadgeEl.className = "badge " + updatedApp.status_badge;
-                    }
-                });
-        });
-    }
+        // 🔹 Replace button
+        btn.outerHTML = `<span class="text-success fw-bold">✅ Reviewed</span>`;
+
+        // 🔹 Update application badge (modal + table)
+        fetch(`/api/applications/${updatedDoc.application}/`)
+            .then(r => r.json())
+            .then(updatedApp => {
+
+                const badgeEl = document.getElementById("application-status-badge");
+                if (badgeEl) {
+                    badgeEl.textContent = updatedApp.status_display;
+                    badgeEl.className = "badge " + updatedApp.status_badge;
+                }
+
+                const tableBadgeEl = document.getElementById(
+                    `application-status-badge-${updatedApp.id}`
+                );
+                if (tableBadgeEl) {
+                    tableBadgeEl.textContent = updatedApp.status_display;
+                    tableBadgeEl.className = "badge " + updatedApp.status_badge;
+                }
+            });
+
+    })
+    .catch(err => {
+        console.error("Review error:", err);
+        btn.disabled = false;
+        btn.innerHTML = "Mark Reviewed";
+        alert("Failed to review document.");
+    });
 });
+
 </script>
 
 
