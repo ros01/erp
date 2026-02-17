@@ -20,6 +20,13 @@ urlpatterns = [
     path("admin_review_list/", admin_review_list, name="admin_review_list"),
     path("submitted_applications_list/", submitted_applications_list, name="submitted_applications_list"),
     path("finalized_applications_list/", finalized_applications_list, name="finalized_applications_list"),
+    path("documents/", AdminDocumentsHomeView.as_view(), name="admin-documents-home"),
+    path("documents/officer/<int:officer_id>/", CaseOfficerApplicationsView.as_view(), name="case-officer-applications"),
+    path("documents/application/<uuid:pk>/", CaseOfficerApplicationDocumentsView.as_view(), name="application-documents"),
+    path("documents/application/<uuid:pk>/download/", download_application_documents_zip, name="application-documents-zip"),
+    path("documents/preview/<path:path>/", preview_media, name="document-preview",),
+    path("documents/application/<uuid:pk>/download/<str:stage>/", download_documents_by_stage, name="application-documents-stage-zip",),
+    path("documents/application/<uuid:pk>/rejections/download/", download_rejection_letters, name="application-rejection-letters-zip",),
 
 ]
 

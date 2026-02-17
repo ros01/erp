@@ -382,7 +382,6 @@ class CaseOfficerDocumentsHomeView(LoginRequiredMixin, TemplateView):
 
 
 
-
 class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
     template_name = "case_officer/documents/application_documents.html"
 
