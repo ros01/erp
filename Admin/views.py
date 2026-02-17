@@ -271,7 +271,7 @@ class CaseOfficerApplicationsView(LoginRequiredMixin, TemplateView):
 
 
 class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
-    template_name = "Admin/documents/application_documents.html"
+    template_name = "admin/documents/application_documents.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
