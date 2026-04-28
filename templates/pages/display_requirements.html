@@ -74,7 +74,9 @@
 <div class="container">
   <div class="wrap">
     <h3 class="text-warning">Start Your Visa Application</h3>
-    <p>Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p>
+    <!-- <p>Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then confirm to start your application.</p> -->
+
+    <p class="text-muted">Select a <strong>country</strong> and <strong>visa type</strong> to preview requirements. Then register or login to start the application from your dashboard.</p>  
 
     <div class="card">
 
@@ -114,6 +116,14 @@
       <a id="downloadPdfBtn" href="#" class="btn btn-outline-secondary" style="display:none">
       <i class="bx bxs-file-pdf align-middle me-1"></i> Download PDF
       </a>
+
+     <!--  <a id="registerLink" href="{% url 'Accounts:login' %}"
+      class="btn btn-success file-dl-toast"
+      style="display:none">
+      <i class="bx bxs-log-out align-middle me-1"></i> Login to Continue
+      </a> -->
+
+
 
       <a id="registerLink" href="{% url 'Clients:client-register' %}" 
       class="btn btn-primary file-dl-toast" 

@@ -49,6 +49,7 @@ class DocumentRequirement(BaseModel):
         ("QATAR", "Qatar"),
         ("DUBAI", "Dubai"),
         ("SOUTH AFRICA", "South Africa"),
+        ("Schengen", "Schengen"),
     ]
 
     stage = models.CharField(max_length=20, choices=STAGES)
