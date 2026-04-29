@@ -209,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+
   // 🟢 Show requirements with inline PDF download
   showBtn.addEventListener("click", async () => {
     resetRequirements();
@@ -305,6 +306,9 @@ document.addEventListener("DOMContentLoaded", () => {
               "<div class='muted'>Failed to load requirements.</div>";
           }
         },
+
+
+
         { once: true } // 🚫 prevents duplicate rendering
       );
 

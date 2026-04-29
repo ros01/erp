@@ -252,34 +252,117 @@ document.addEventListener("DOMContentLoaded", () => {
     resetRequirements();
   });
 
+
+
+
+
   // 🟢 Show requirements
-  showBtn.addEventListener("click", async () => {
-    resetRequirements();
-    const country = countrySel.value;
-    const visa = visaSel.value;
-    if (!country || !visa) return;
+  // showBtn.addEventListener("click", async () => {
+  //   resetRequirements();
+  //   const country = countrySel.value;
+  //   const visa = visaSel.value;
+  //   if (!country || !visa) return;
 
-    try {
-      const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
-      if (!reqs.length) {
-        reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
-        return;
-      }
+  //   try {
+  //     const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+  //     if (!reqs.length) {
+  //       reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+  //       return;
+  //     }
 
-      reqs.forEach(r => {
+  //     reqs.forEach(r => {
+  //       const row = document.createElement("div");
+  //       row.className = "req";
+
+  //       let pdfLink = "";
+  //       if (r.form_file_url) {
+          // Auto-fill if logged in, else static link
+      //     const pdfUrl = currentUser
+      //       ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+      //       : r.form_file_url;
+
+      //     pdfLink = `<a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-danger flash-button" style="margin-left:10px">
+      //                  <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+      //                </a>`;
+      //   }
+
+      //   row.innerHTML = `
+      //     <div>
+      //       <strong>${r.name}</strong><br/>
+      //       <small class="muted">${r.description || "—"}</small>
+      //     </div>
+      //     ${pdfLink}
+      //     <div style="display:flex;align-items:center;gap:10px;">
+      //       <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+      //         ${r.is_mandatory ? "Required" : "Optional"}
+      //       </span>
+      //     </div>
+      //   `;
+      //   reqsEl.appendChild(row);
+      // });
+
+      // // Show Register to Continue button
+      // registerLink.style.display = "inline-block";
+
+      // Show Register & Login buttons
+  //     registerLink.style.display = "inline-block";
+  //     loginLink.style.display = "inline-block";
+
+  //   } catch (e) {
+  //     console.error(e);
+  //   }
+  // });
+
+
+
+
+// 🟢 Show requirements
+showBtn.addEventListener("click", async () => {
+  resetRequirements();
+  const country = countrySel.value;
+  const visa = visaSel.value;
+  if (!country || !visa) return;
+
+  try {
+    const reqs = await fetchJSON(`${API_BASE}/requirements/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`);
+
+    if (!reqs.length) {
+      reqsEl.innerHTML = "<div class='muted'>No requirements found.</div>";
+      return;
+    }
+
+    // 🔥 GROUP REQUIREMENTS BY STAGE
+    const grouped = {};
+    reqs.forEach(r => {
+      if (!grouped[r.stage]) grouped[r.stage] = [];
+      grouped[r.stage].push(r);
+    });
+
+    // 🔥 RENDER EACH STAGE
+    Object.values(grouped).forEach(stageItems => {
+      const stageTitle = document.createElement("h5");
+      stageTitle.style.marginTop = "20px";
+      stageTitle.style.color = "#2563eb";
+      stageTitle.textContent = stageItems[0].stage_display;
+      reqsEl.appendChild(stageTitle);
+
+      stageItems.forEach(r => {
         const row = document.createElement("div");
         row.className = "req";
 
         let pdfLink = "";
         if (r.form_file_url) {
-          // Auto-fill if logged in, else static link
           const pdfUrl = currentUser
             ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
             : r.form_file_url;
 
-          pdfLink = `<a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline-danger flash-button" style="margin-left:10px">
-                       <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
-                     </a>`;
+          pdfLink = `
+            <a href="${pdfUrl}" target="_blank"
+               class="btn btn-sm btn-outline-danger flash-button"
+               style="margin-left:10px">
+              <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+            </a>
+          `;
         }
 
         row.innerHTML = `
@@ -294,29 +377,32 @@ document.addEventListener("DOMContentLoaded", () => {
             </span>
           </div>
         `;
+
         reqsEl.appendChild(row);
       });
+    });
 
-      // // Show Register to Continue button
-      // registerLink.style.display = "inline-block";
-
-      // Show Register & Login buttons
-      registerLink.style.display = "inline-block";
+    // ✅ SMART UX BUTTON LOGIC
+    if (currentUser) {
+      // if logged in → show continue (if you add it later)
+      loginLink.style.display = "none";
+      registerLink.style.display = "none";
+    } else {
       loginLink.style.display = "inline-block";
-
-    } catch (e) {
-      console.error(e);
+      registerLink.style.display = "inline-block";
     }
-  });
+
+  } catch (e) {
+    console.error(e);
+    reqsEl.innerHTML = "<div class='muted'>Failed to load requirements.</div>";
+  }
 });
+
+});
+
 </script>
 
 
-
-
-
-
-
-  {% endblock %} 
+{% endblock %} 
 
 
