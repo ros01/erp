@@ -112,10 +112,10 @@
       </div> -->
 
 
-      <div class="d-flex justify-content-end gap-2" style="margin-top:20px">
+      <!-- <div class="d-flex justify-content-end gap-2" style="margin-top:20px">
       <a id="downloadPdfBtn" href="#" class="btn btn-outline-secondary" style="display:none">
       <i class="bx bxs-file-pdf align-middle me-1"></i> Download PDF
-      </a>
+      </a> -->
 
      <!--  <a id="registerLink" href="{% url 'Accounts:login' %}"
       class="btn btn-success file-dl-toast"
@@ -125,16 +125,36 @@
 
 
 
+      <!-- <a id="registerLink" href="{% url 'Clients:client-register' %}" 
+      class="btn btn-primary file-dl-toast" 
+      style="display:none">
+      <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
+      </a>
+      </div> -->
+
+
+
+      <div class="d-flex justify-content-end gap-2" style="margin-top:20px">
+
+      <a id="downloadPdfBtn" href="#" class="btn btn-outline-secondary" style="display:none">
+      <i class="bx bxs-file-pdf align-middle me-1"></i> Download PDF
+      </a>
+
+      <a id="loginLink" href="{% url 'Accounts:login' %}" 
+      class="btn btn-outline-primary" 
+      style="display:none">
+      <i class="bx bx-log-in align-middle me-1"></i> Login to Continue
+      </a>
+
       <a id="registerLink" href="{% url 'Clients:client-register' %}" 
       class="btn btn-primary file-dl-toast" 
       style="display:none">
       <i class="bx bxs-log-out align-middle me-1"></i> Register to Continue
       </a>
+
       </div>
 
-
-
-      <div id="appResult" class="reqs"></div>
+    <div id="appResult" class="reqs"></div>
 
 
       
@@ -153,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const showBtn = document.getElementById("showBtn");
   const reqsEl = document.getElementById("requirements");
   const registerLink = document.getElementById("registerLink");
+  const loginLink = document.getElementById("loginLink");
 
   let currentUser = null;
 
@@ -173,9 +194,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function resetRequirements() {
-    reqsEl.innerHTML = "";
-    registerLink.style.display = "none";
-  }
+  reqsEl.innerHTML = "";
+  registerLink.style.display = "none";
+  loginLink.style.display = "none";
+ }
+
+  // function resetRequirements() {
+  //   reqsEl.innerHTML = "";
+  //   registerLink.style.display = "none";
+  // }
 
   // 🟢 Fetch current user info
   async function checkLoginStatus() {
@@ -270,8 +297,12 @@ document.addEventListener("DOMContentLoaded", () => {
         reqsEl.appendChild(row);
       });
 
-      // Show Register to Continue button
+      // // Show Register to Continue button
+      // registerLink.style.display = "inline-block";
+
+      // Show Register & Login buttons
       registerLink.style.display = "inline-block";
+      loginLink.style.display = "inline-block";
 
     } catch (e) {
       console.error(e);
