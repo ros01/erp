@@ -31,6 +31,7 @@ urlpatterns = [
     path("applications/new_case/", api_views.ApplicationCreateAPICaseView.as_view(), name="application-case-create"),
     path("documents/<uuid:pk>/upload/", DocumentUploadAPIView.as_view(), name="document-upload"),
     path("applications/", VisaApplicationListAPIView.as_view(), name="application-list"),
+    path("applications/students/", VisaApplicationListStudentAPIView.as_view(), name="application-list"),
     path("applications/review/", VisaApplicationListReviewAPIView.as_view(), name="application-list-review"),
     path("applications/<uuid:id>/", VisaApplicationDetailAPIView.as_view(), name="applications-detail"),
     path("documents/<uuid:id>/review/", DocumentReviewAPIView.as_view(), name="document-review"),

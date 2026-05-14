@@ -581,6 +581,10 @@ def applications_list(request):
 
 
 @login_required
+def students_list(request):
+    return render(request, "case_officer/students_list.html")
+
+@login_required
 def application_documentsold(request, pk):
     app = get_object_or_404(VisaApplication, id=pk)
     client_profile = app.client  # access the related client

@@ -10,6 +10,7 @@ urlpatterns = [
     path("case_officer_dashboard/", case_officer_dashboard_view, name="case_officer_dashboard"),
     path('start/', StartApplication.as_view(), name='start-application'),
     path("applications/", applications_list, name="applications-list"),
+    path("students/", students_list, name="students-list"),
     path("applications/<uuid:pk>/", application_details, name="application-details"),
     path("applications/<uuid:pk>/documents/", application_documents, name="application_documents"),
     path("applications/admin-review-submission-list/", admin_review_submission, name="admin-review-submission-list"),

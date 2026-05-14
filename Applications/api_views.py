@@ -1388,6 +1388,34 @@ class DocumentUploadAPIViewLL(APIView):
         # })
 
 
+class VisaApplicationListStudentAPIView(generics.ListAPIView):
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = VisaApplication.objects.all()
+
+        if user.role == "Client":
+            qs = qs.filter(client=user.client_profile)
+
+        elif user.role == "Case Officer":
+            qs = qs.filter(Q(assigned_officer=user.staff_profile) | Q(created_by_officer=user.staff_profile))
+
+        elif user.role in ["Admin", "Finance", "Support"] or user.is_superuser:
+            pass  # keep all
+
+        else:
+            return qs.none()
+
+        # 🔹 only show ASSIGNED or INITIATED apps
+        #qs = qs.filter(Q(status="ASSIGNED") | Q(status="INITIATED"))
+        qs = qs.filter(Q(status__in=["ASSIGNED", "INITIATED"]), visa_type="STUDENT")
+
+        return qs.order_by("-created_at")
+
+
+
 
 
 class VisaApplicationListAPIView(generics.ListCreateAPIView, generics.RetrieveUpdateAPIView):

@@ -491,6 +491,9 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     client_email = serializers.CharField(
         source="client.user.email", read_only=True
     )
+    client_phone = serializers.CharField(
+        source="client.user.phone", read_only=True
+    )
     passport_number = serializers.CharField(
         source="client.passport_number", read_only=True
     )
@@ -500,7 +503,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = VisaApplication
         fields = [
-            "id", "client_name", "client_email", "passport_number",
+            "id", "client_name", "client_email", "client_phone","passport_number",
             "reference_no",
             "visa_type", "visa_type_display",
             "country", "country_display",
