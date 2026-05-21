@@ -412,7 +412,7 @@ class AutoFilledPDFView(View):
                 field_data = {}
                 for field_name in fields.keys():
                     lname = field_name.lower()
-                    if "name" in lname:
+                    if "full_name" in lname:
                         field_data[field_name] = full_name
                     elif "email" in lname:
                         field_data[field_name] = email
