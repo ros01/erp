@@ -16,7 +16,7 @@ class DocumentRequirementAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             "fields": (
-                "country", "visa_type", "name", "description",
+                "country", "visa_type", "stage", "name", "description",
                 "category", "is_mandatory", "form_file"
             )
         }),
