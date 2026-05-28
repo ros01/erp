@@ -220,7 +220,10 @@ class ClientApplicationDocumentsView(LoginRequiredMixin, TemplateView):
         # ✅ Group documents by requirement.stage
         grouped_documents = defaultdict(list)
         for doc in documents:
-            stage = doc.requirement.stage if doc.requirement else "OTHER"
+            stage = "OTHER"
+            if doc.requirement and doc.requirement.stage:
+                stage = doc.requirement.stage.strip() or "OTHER"
+            #stage = doc.requirement.stage if doc.requirement else "OTHER"
             grouped_documents[stage].append(doc)
 
 
