@@ -23,22 +23,25 @@
   <div class="card mb-4">
     <div class="card-body">
       <h5 class="mb-3 text-success">Uploaded Documents</h5>
-        <ul class="nav nav-tabs mb-3">
+
+
+  <ul class="nav nav-tabs mb-3">
   {% for stage, docs in grouped_documents.items %}
     <li class="nav-item">
       <button class="nav-link {% if forloop.first %}active{% endif %}"
               data-bs-toggle="tab"
-              data-bs-target="#{{ stage }}">
+              data-bs-target="#stage-{{ stage|slugify }}">
         {{ stage }}
       </button>
     </li>
   {% endfor %}
 </ul>
 
+
 <div class="tab-content">
   {% for stage, docs in grouped_documents.items %}
     <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
-         id="{{ stage }}">
+         id="stage-{{ stage|slugify }}">
 
 
 
