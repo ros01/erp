@@ -603,22 +603,43 @@ document.getElementById("visa-type").addEventListener("change", async function (
             "<p class='text-muted'>No requirements in this stage.</p>";
         } else {
           stageItems.forEach(r => {
-            contentHtml += `
-              <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
-                <div>
-                  <strong>${r.name}</strong><br/>
-                  <small class="text-muted">
-                    ${r.description || "—"}
-                  </small>
-                </div>
-                <span class="badge ${
-                  r.is_mandatory ? "bg-danger" : "bg-secondary"
-                }">
-                  ${r.is_mandatory ? "Required" : "Optional"}
-                </span>
-              </div>
-            `;
-          });
+
+  let pdfLink = "";
+
+  if (r.form_file_url) {
+    const pdfUrl = r.form_file_url;
+
+    pdfLink = `
+      <a href="${pdfUrl}" target="_blank"
+         class="btn btn-sm btn-outline-danger flash-yellow"
+         style="margin-left:10px">
+        <i class="bx bxs-file-pdf me-1"></i> Download Form
+      </a>`;
+  }
+
+  contentHtml += `
+    <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
+      <div>
+        <strong>${r.name}</strong><br/>
+        <small class="text-muted">
+          ${r.description || "—"}
+        </small>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        ${pdfLink}
+        <span class="badge ${
+          r.is_mandatory ? "bg-danger" : "bg-secondary"
+        }">
+          ${r.is_mandatory ? "Required" : "Optional"}
+        </span>
+      </div>
+    </div>
+  `;
+});
+
+
+
         }
 
         contentHtml += `
@@ -666,22 +687,44 @@ document.getElementById("visa-type").addEventListener("change", async function (
       `;
 
       requirements.forEach(r => {
-        html += `
-          <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
-            <div>
-              <strong>${r.name}</strong><br/>
-              <small class="text-muted">
-                ${r.description || "—"}
-              </small>
-            </div>
-            <span class="badge ${
-              r.is_mandatory ? "bg-danger" : "bg-secondary"
-            }">
-              ${r.is_mandatory ? "Required" : "Optional"}
-            </span>
-          </div>
-        `;
-      });
+
+  let pdfLink = "";
+
+  if (r.form_file_url) {
+    const pdfUrl = r.form_file_url;
+
+    pdfLink = `
+      <a href="${pdfUrl}" target="_blank"
+         class="btn btn-sm btn-outline-danger flash-yellow"
+         style="margin-left:10px">
+        <i class="bx bxs-file-pdf me-1"></i> Download Form
+      </a>`;
+  }
+
+  html += `
+    <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
+      <div>
+        <strong>${r.name}</strong><br/>
+        <small class="text-muted">
+          ${r.description || "—"}
+        </small>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        ${pdfLink}
+        <span class="badge ${
+          r.is_mandatory ? "bg-danger" : "bg-secondary"
+        }">
+          ${r.is_mandatory ? "Required" : "Optional"}
+        </span>
+      </div>
+    </div>
+  `;
+});
+
+
+
+      
 
       html += `
               </div>
