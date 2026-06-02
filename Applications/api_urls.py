@@ -32,6 +32,7 @@ urlpatterns = [
     path("documents/<uuid:pk>/upload/", DocumentUploadAPIView.as_view(), name="document-upload"),
     path("applications/", VisaApplicationListAPIView.as_view(), name="application-list"),
     path("applications/students/", VisaApplicationListStudentAPIView.as_view(), name="application-list"),
+    path("applications/students/admin_view/", VisaApplicationListStudentAdminAPIView.as_view(), name="application-list-admin"),
     path("applications/review/", VisaApplicationListReviewAPIView.as_view(), name="application-list-review"),
     path("applications/<uuid:id>/", VisaApplicationDetailAPIView.as_view(), name="applications-detail"),
     path("documents/<uuid:id>/review/", DocumentReviewAPIView.as_view(), name="document-review"),

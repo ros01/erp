@@ -18,6 +18,7 @@ app_name = "Admin"
 urlpatterns = [
     path("admin_dashboard/", admin_dashboard_view, name="admin_dashboard"),
     path("admin_review_list/", admin_review_list, name="admin_review_list"),
+    path("students/", students_list, name="students-list"),
     path("submitted_applications_list/", submitted_applications_list, name="submitted_applications_list"),
     path("finalized_applications_list/", finalized_applications_list, name="finalized_applications_list"),
     path("documents/", AdminDocumentsHomeView.as_view(), name="admin-documents-home"),

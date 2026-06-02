@@ -39,7 +39,10 @@ def preview_media(request, path):
     return FileResponse(open(file_path, "rb"))
 
 
-
+@login_required
+def students_list(request):
+    return render(request, "admin/students_list.html")
+    
 
 def get_application_for_user(request, pk):
     user = request.user
