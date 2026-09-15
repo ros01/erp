@@ -331,56 +331,148 @@ showBtn.addEventListener("click", async () => {
       return;
     }
 
-    // 🔥 GROUP REQUIREMENTS BY STAGE
-    const grouped = {};
-    reqs.forEach(r => {
-      if (!grouped[r.stage]) grouped[r.stage] = [];
-      grouped[r.stage].push(r);
-    });
+    // Shared row markup for a single requirement (used inside both the
+    // tabbed panels and the plain accordion below).
+    function requirementRowHtml(r) {
+      let pdfLink = "";
+      if (r.form_file_url) {
+        const pdfUrl = currentUser
+          ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
+          : r.form_file_url;
 
-    // 🔥 RENDER EACH STAGE
-    Object.values(grouped).forEach(stageItems => {
-      const stageTitle = document.createElement("h5");
-      stageTitle.style.marginTop = "20px";
-      stageTitle.style.color = "#2563eb";
-      stageTitle.textContent = stageItems[0].stage_display;
-      reqsEl.appendChild(stageTitle);
+        pdfLink = `
+          <a href="${pdfUrl}" target="_blank"
+             class="btn btn-sm btn-outline-danger flash-button"
+             style="margin-left:10px">
+            <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
+          </a>
+        `;
+      }
 
-      stageItems.forEach(r => {
-        const row = document.createElement("div");
-        row.className = "req";
-
-        let pdfLink = "";
-        if (r.form_file_url) {
-          const pdfUrl = currentUser
-            ? `${API_BASE}/pdf-form-fill/?country=${encodeURIComponent(country)}&visa_type=${encodeURIComponent(visa)}`
-            : r.form_file_url;
-
-          pdfLink = `
-            <a href="${pdfUrl}" target="_blank"
-               class="btn btn-sm btn-outline-danger flash-button"
-               style="margin-left:10px">
-              <i class="bx bxs-file-pdf align-middle me-1"></i> Download Form
-            </a>
-          `;
-        }
-
-        row.innerHTML = `
+      return `
+        <div class="d-flex justify-content-between align-items-start mb-2 p-2 border rounded">
           <div>
             <strong>${r.name}</strong><br/>
             <small class="muted">${r.description || "—"}</small>
           </div>
-          ${pdfLink}
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span class="tag ${r.is_mandatory ? "req" : "opt"}">
+          <div class="d-flex align-items-center gap-2">
+            ${pdfLink}
+            <span class="badge ${r.is_mandatory ? "bg-danger" : "bg-secondary"}">
               ${r.is_mandatory ? "Required" : "Optional"}
             </span>
           </div>
-        `;
+        </div>
+      `;
+    }
 
-        reqsEl.appendChild(row);
+    /* ============================================================
+       🎓 STUDENT VISA → TAB + COLLAPSIBLE PANELS
+       (matches templates/case_officer/applications_list.html)
+       ============================================================ */
+    if (visa === "STUDENT") {
+
+      const stages = ["ADMISSION", "VISA"];
+      const grouped = {};
+      stages.forEach(s => grouped[s] = []);
+
+      reqs.forEach(r => {
+        const stage = r.stage || "OTHER";
+        if (grouped[stage]) grouped[stage].push(r);
       });
-    });
+
+      // Tabs header
+      let tabsHtml = `<ul class="nav nav-tabs mt-3" role="tablist">`;
+      stages.forEach((stage, i) => {
+        const count = grouped[stage].length;
+        tabsHtml += `
+          <li class="nav-item">
+            <button class="nav-link ${i === 0 ? "active" : ""}"
+                    data-bs-toggle="tab"
+                    data-bs-target="#stage-${stage}">
+              ${stage}
+              <span class="badge bg-secondary ms-1">${count}</span>
+            </button>
+          </li>
+        `;
+      });
+      tabsHtml += `</ul>`;
+
+      // Tab content
+      let contentHtml = `<div class="tab-content border border-top-0 p-3">`;
+      stages.forEach((stage, i) => {
+        const stageItems = grouped[stage];
+        const requiredCount = stageItems.filter(r => r.is_mandatory).length;
+        const percent = stageItems.length
+          ? Math.round((requiredCount / stageItems.length) * 100)
+          : 0;
+
+        contentHtml += `
+          <div class="tab-pane fade ${i === 0 ? "show active" : ""}" id="stage-${stage}">
+            <div class="mb-3">
+              <small class="muted">
+                Mandatory Requirements: ${requiredCount}/${stageItems.length}
+              </small>
+              <div class="progress mt-1" style="height:6px;">
+                <div class="progress-bar bg-danger" style="width:${percent}%"></div>
+              </div>
+            </div>
+            <div class="accordion" id="accordion-${stage}">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button ${i === 0 ? "" : "collapsed"}"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#collapse-${stage}">
+                    ${stage} Requirements
+                  </button>
+                </h2>
+                <div id="collapse-${stage}" class="accordion-collapse collapse ${i === 0 ? "show" : ""}">
+                  <div class="accordion-body">
+                    ${stageItems.length
+                      ? stageItems.map(requirementRowHtml).join("")
+                      : "<p class='muted'>No requirements in this stage.</p>"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      contentHtml += `</div>`;
+
+      reqsEl.innerHTML = tabsHtml + contentHtml;
+
+      // Auto-scroll to the first tab
+      setTimeout(() => {
+        const firstTab = reqsEl.querySelector(".nav-link.active");
+        if (firstTab) firstTab.scrollIntoView({ behavior: "smooth" });
+      }, 200);
+    }
+
+    /* ============================================================
+       🧳 ALL OTHER VISA TYPES → SIMPLE ACCORDION
+       ============================================================ */
+    else {
+      reqsEl.innerHTML = `
+        <div class="accordion" id="nonStudentAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#collapseNonStudent">
+                Requirements
+                <span class="badge bg-secondary ms-2">${reqs.length}</span>
+              </button>
+            </h2>
+            <div id="collapseNonStudent" class="accordion-collapse collapse show">
+              <div class="accordion-body">
+                ${reqs.map(requirementRowHtml).join("")}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     // ✅ SMART UX BUTTON LOGIC
     if (currentUser) {

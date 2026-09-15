@@ -38,7 +38,6 @@ def seed_student_requirements(apps, schema_editor):
             ("Offer Letter", "Admission letter"),
             ("Tuition Fee Payment Proof", "Paid fees"),
             ("Proof of Funds", "Financial statements"),
-            ("CAS Letter", "Issued by university"),
             ("Medical / TB Certificate", "If required"),
             ("Visa Application Form", "Completed online"),
             ("Passport Photograph", "Embassy specification"),
@@ -56,9 +55,12 @@ def seed_student_requirements(apps, schema_editor):
 
     for country in COUNTRIES:
         for stage, items in DATA.items():
+            # CAS is UK-only.
+            if stage == "CAS" and country != "UK":
+                continue
             for name, desc in items:
                 DocumentRequirement.objects.get_or_create(
-                    country=COUNTRY,
+                    country=country,
                     visa_type=VISA_TYPE,
                     stage=stage,
                     name=name,

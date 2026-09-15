@@ -238,7 +238,7 @@ $(document).ready(function () {
             url: "/api/applications/",
             dataSrc: "" // change to "results" if API wraps results
         },
-        order: [[3, "desc"]], // column index of "Created On / Date"
+        order: [[4, "desc"]], // column index of "Created On / Date"
         columns: [
             { data: "reference_no" },
             { data: "country_display" },
@@ -255,6 +255,9 @@ $(document).ready(function () {
             {
                 data: "created_at",
                 render: function (data, type, row) {
+                    if (type === "sort" || type === "type") {
+                        return row.created_at_ts != null ? row.created_at_ts : 0;
+                    }
                     return data ? data : "-";   // ✅ fallback to '-' if null/empty
                 }
             },
@@ -383,10 +386,9 @@ let docsHtml = `<h5 class="mt-4 text-info">Documents</h5>`;
 // ===============================
 if (app.visa_type === "STUDENT") {
 
-  const stages = ["ADMISSION", "CAS", "VISA"];
+  const stages = ["ADMISSION", "VISA"];
   const stageLabels = {
     ADMISSION: "Admission",
-    CAS: "CAS",
     VISA: "Visa Application"
   };
 

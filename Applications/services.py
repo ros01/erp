@@ -42,8 +42,8 @@ def advance_stage_if_complete(application):
 
 
 def get_stage_sequence(country):
-    if country == "UK":
-        return ["ADMISSION", "CAS", "VISA"]
+    # CAS is collapsed into VISA for every country now (previously UK had
+    # its own 3-stage ADMISSION -> CAS -> VISA sequence).
     return ["ADMISSION", "VISA"]
 
 

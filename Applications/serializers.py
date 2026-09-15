@@ -470,6 +470,12 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
 
 class VisaApplicationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
+    # Raw, numerically-sortable value for the same created_at moment. The
+    # `created_at` field above is a human-readable "%d/%m/%Y, %H:%M:%S"
+    # string, which is NOT chronologically sortable as plain text (e.g.
+    # "05/01/2026" sorts before "15/09/2025" as a string even though it's
+    # the later date) - front-end tables sort by this field instead.
+    created_at_ts = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
     rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
@@ -513,6 +519,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "assigned_officer_name",
             "created_by_officer_name",
             "created_at",
+            "created_at_ts",
             "visa_application_url",
             "submission_date",
             "decision_date",
@@ -525,6 +532,9 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
         if obj.created_at:
             return obj.created_at.strftime("%d/%m/%Y, %H:%M:%S")
         return None
+
+    def get_created_at_ts(self, obj):
+        return obj.created_at.timestamp() if obj.created_at else None
 
     def get_decision_date(self, obj):
         if obj.decision_date:

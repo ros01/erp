@@ -76,6 +76,7 @@ class VisaApplication(BaseModel):
         ("TOURIST - EMPLOYED", "Tourist Visa - Employed"),
         ("TOURIST - SELF EMPLOYED", "Tourist Visa - Self Employed"),
         ("STUDENT", "Student Visa"),
+        ("CHILD STUDENT", "Child Student Visa"),
         ("WORK", "Work Visa"),
         ("BUSINESS", "Business Visa"),
         ("TRANSIT", "Transit Visa"),

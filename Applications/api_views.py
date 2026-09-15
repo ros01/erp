@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.decorators import api_view, permission_classes
-from django.db.models import Q, Value, Count
+from django.db.models import Q, Value, Count, Case, When, IntegerField
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
 from .models import VisaApplication, PreviousRefusalLetter, RejectionLetter
@@ -1675,6 +1675,17 @@ class RequirementListAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = DocumentRequirementSerializer
 
+    # Deterministic stage order (Admission -> CAS -> Visa) so the
+    # "tabbed"/grouped-by-stage requirement views on the front end never
+    # depend on incidental DB insertion order.
+    STAGE_ORDER = Case(
+        When(stage="ADMISSION", then=0),
+        When(stage="CAS", then=1),
+        When(stage="VISA", then=2),
+        default=3,
+        output_field=IntegerField(),
+    )
+
     def get_queryset(self):
         country = self.request.query_params.get("country")
         visa_type = self.request.query_params.get("visa_type")
@@ -1683,7 +1694,7 @@ class RequirementListAPIView(generics.ListAPIView):
             qs = qs.filter(country=country)
         if visa_type:
             qs = qs.filter(visa_type=visa_type)
-        return qs
+        return qs.annotate(stage_order=self.STAGE_ORDER).order_by("stage_order", "name")
 
 
 
