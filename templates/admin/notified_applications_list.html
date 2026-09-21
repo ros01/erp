@@ -13,7 +13,7 @@
 <div class="card pb-3">
 <div class="card-body">
 <div class="d-flex justify-content-between align-items-center mb-3">
-<h4 class="card-title text-info">Finalized Applications</h4>
+<h4 class="card-title text-info">Notified Applications</h4>
 </div>
 
 <table id="datatable" class="table table-bordered dt-responsive">
@@ -26,6 +26,7 @@
         <th>Visa Type</th>
         <th>Status</th>
         <th>Created On</th>
+        <th>Notified On</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -49,7 +50,7 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title text-success">Finalized Applications</h5>
+        <h5 class="modal-title text-success">Notified Applications</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" id="application-detail-content">
@@ -67,7 +68,7 @@ $(document).ready(function () {
     // 🔹 Initialize DataTable
     let table = $('#datatable').DataTable({
         ajax: {
-            url: "/api/applications/finalized_applications_list/",
+            url: "/api/applications/notified_applications_list/",
             dataSrc: "" // if your API wraps results in {results: [...]}, change to "results"
         },
         columns: [
@@ -91,6 +92,12 @@ $(document).ready(function () {
                 }
             },
             {
+                data: "client_notified_at_display",
+                render: function (data) {
+                    return data ? data : "-";
+                }
+            },
+            {
                 data: "id",
                 render: function (id, type, row) {
                     return `<button type="button"
@@ -99,11 +106,6 @@ $(document).ready(function () {
                               data-bs-toggle="modal"
                               data-bs-target="#applicationDetailModal">
                               View Details
-                            </button>
-                            <button type="button"
-                              class="btn btn-success btn-sm btn-rounded notify-client-btn"
-                              data-id="${id}">
-                              Notify Client
                             </button>`;
                 }
             }
@@ -111,39 +113,6 @@ $(document).ready(function () {
         pageLength: 10,
         responsive: true,
         ordering: true
-    });
-
-    // 🔹 Notify Client button
-    $('#datatable tbody').on('click', '.notify-client-btn', function () {
-        if (!confirm("Are you sure you want to notify client of visa application decision?")) {
-            return;
-        }
-        let btn = this;
-        let appId = $(btn).data('id');
-        btn.disabled = true;
-
-        fetch(`/api/applications/${appId}/notify_client/`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCookie("csrftoken")
-            }
-        })
-        .then(res => res.json().then(data => ({ ok: res.ok, data })))
-        .then(({ ok, data }) => {
-            if (!ok) {
-                alert(data.error || "Could not notify the client for this application.");
-                btn.disabled = false;
-                return;
-            }
-            // ✅ Notified - it moves to the Notified Applications list.
-            alert("Client notified successfully");
-            table.ajax.reload();
-        })
-        .catch(() => {
-            alert("Something went wrong notifying the client.");
-            btn.disabled = false;
-        });
     });
 
     // 🔹 Handle "View Details" button click (event delegation)

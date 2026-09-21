@@ -198,6 +198,13 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 #EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
+# 🔕 TEMPORARY: the smtp.sendgrid.net account below is currently inactive,
+# which was causing noticeable lags on every action that triggers a client
+# notification email (Applications.notifications.send_email checks this
+# flag and skips sending, logging instead, while it is False). Flip back
+# to True once a working email service is in place.
+EMAIL_NOTIFICATIONS_ENABLED = False
+
 EMAIL_HOST = "smtp.sendgrid.net"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

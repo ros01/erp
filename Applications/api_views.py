@@ -8,7 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from django.db.models import Q, Value, Count, Case, When, IntegerField
 from Documents.models import DocumentRequirement, Document
 from Accounts.models import *
-from .models import VisaApplication, PreviousRefusalLetter, RejectionLetter
+from CaseManagement.models import TaskAssignment, ReassignmentLog
+from .models import VisaApplication, PreviousRefusalLetter, RefusalLetter
 from .services import *
 # from Documents.serializers import DocumentRequirementSerializer
 from .serializers import (
@@ -20,7 +21,7 @@ from .serializers import (
     VisaApplicationUrlUpdateSerializer,
     ReapplyApplicationSerializer,
     PreviousRefusalLetterSerializer,
-    RejectionLetterSerializer,
+    RefusalLetterSerializer,
     # FormProcessingSerializer,
 )
 from django.contrib.auth import get_user_model
@@ -28,6 +29,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from Accounts.choices import *
 from Documents.serializers import CountrySerializer, VisaTypeSerializer
 import uuid
+import calendar
+from datetime import datetime, timedelta
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
@@ -552,7 +555,7 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
             .select_related("client", "client__user")
             .prefetch_related(
                 "documents",
-                "rejection_letters"   # 🔥 REQUIRED
+                "refusal_letter"   # 🔥 REQUIRED
             )
         )
 
@@ -602,12 +605,12 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
         )
 
         # ===============================
-        # 🔁 COPY EXISTING REJECTION LETTERS
+        # 🔁 COPY EXISTING REFUSAL LETTERS
         # ===============================
         copied_letters = []
-        for old_letter in application.rejection_letters.all():
+        for old_letter in application.refusal_letter.all():
             copied_letters.append(
-                RejectionLetter.objects.create(
+                RefusalLetter.objects.create(
                     application=new_app,
                     file=old_letter.file   # ✅ reuse same file (no disk copy)
                 )
@@ -617,9 +620,9 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
         # ➕ SAVE NEWLY UPLOADED LETTERS
         # ===============================
         uploaded_letters = []
-        for f in request.FILES.getlist("rejection_letters"):
+        for f in request.FILES.getlist("refusal_letters"):
             uploaded_letters.append(
-                RejectionLetter.objects.create(
+                RefusalLetter.objects.create(
                     application=new_app,
                     file=f
                 )
@@ -640,7 +643,7 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
             )
 
         # ===============================
-        # ✅ Return ALL rejection letters
+        # ✅ Return ALL refusal letters
         # ===============================
         all_letters = list(copied_letters) + list(uploaded_letters)
 
@@ -648,7 +651,7 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
             "success": True,
             "new_application_id": new_app.id,
             "reference_no": new_app.reference_no,
-            "rejection_letters": RejectionLetterSerializer(
+            "refusal_letters": RefusalLetterSerializer(
                 all_letters, many=True
             ).data
         })
@@ -665,7 +668,7 @@ class ApplicationReapplyViewWL(generics.RetrieveAPIView):
             .select_related("client", "client__user")
             .prefetch_related(
                 "documents",
-                "rejection_letters"   # 🔥 REQUIRED
+                "refusal_letter"   # 🔥 REQUIRED
             )
         )
 
@@ -710,10 +713,10 @@ class ApplicationReapplyViewWL(generics.RetrieveAPIView):
             created_by_officer=staff_profile,
         )
 
-        # ✅ SAVE REJECTION LETTERS (FIXED MODEL + FIELD)
+        # ✅ SAVE REFUSAL LETTERS (FIXED MODEL + FIELD)
         uploaded_letters = []
-        for f in request.FILES.getlist("rejection_letters"):
-            letter = RejectionLetter.objects.create(
+        for f in request.FILES.getlist("refusal_letters"):
+            letter = RefusalLetter.objects.create(
                 application=new_app,
                 file=f
             )
@@ -735,7 +738,7 @@ class ApplicationReapplyViewWL(generics.RetrieveAPIView):
             "success": True,
             "new_application_id": new_app.id,
             "reference_no": new_app.reference_no,
-            "rejection_letters": RejectionLetterSerializer(
+            "refusal_letters": RefusalLetterSerializer(
                 uploaded_letters, many=True
             ).data
         })
@@ -873,7 +876,7 @@ class ApplicationCreateAPICaseView(generics.GenericAPIView):
 class AddVisaApplicationDecisionAPIView(APIView):
     """
     PATCH → approve / reject application
-    POST  → upload one or more rejection letters (REJECTED only)
+    POST  → upload one or more refusal letters (REJECTED only)
     """
 
     def patch(self, request, pk):
@@ -910,19 +913,19 @@ class AddVisaApplicationDecisionAPIView(APIView):
         except VisaApplication.DoesNotExist:
             return Response({"error": "Application not found"}, status=404)
 
-        files = request.FILES.getlist("rejection_letters")
+        files = request.FILES.getlist("refusal_letters")
         if not files:
             return Response({"error": "No files uploaded"}, status=400)
 
         for file in files:
-            RejectionLetter.objects.create(
+            RefusalLetter.objects.create(
                 application=application,
                 file=file
             )
 
         # 🔥 IMPORTANT: re-fetch with related data
         application = VisaApplication.objects.prefetch_related(
-            "rejection_letters"
+            "refusal_letter"
         ).get(pk=pk)
 
         return Response(
@@ -944,10 +947,40 @@ class VisaApplicationDetailAPIView(RetrieveAPIView):
                 "assigned_officer"
             )
             .prefetch_related(
-                "rejection_letters",     # 🔥 THIS IS THE KEY
+                "refusal_letter",     # 🔥 THIS IS THE KEY
                 "documents",
             )
         )
+
+    def get_object(self):
+        application = super().get_object()
+        # 🔒 This is the "View Details" endpoint on the Case Officer's
+        # applications list - a Case Officer can't even view an
+        # auto-assigned application until Admin validates or reassigns it.
+        enforce_officer_not_locked(
+            application,
+            self.request.user,
+            message="Contact Admin to validate this application before you can proceed.",
+        )
+        return application
+
+
+class CaseOfficerDashboardApplicationDetailAPIView(VisaApplicationDetailAPIView):
+    """
+    Same application-detail data as VisaApplicationDetailAPIView, but
+    WITHOUT the Admin-validation gate. Backs the "Latest Applications"
+    widget on the Case Officer's own dashboard
+    (case_officer/case_officer_dashboard1.html) - that View Details modal
+    is read-only (no stage-transition action is reachable from it), so
+    there is nothing to gate there. CaseManagement/applications/ (the
+    View/Review Applications table) keeps the gate via the parent view;
+    this is a deliberate, narrow bypass for the dashboard widget only.
+    """
+
+    def get_object(self):
+        # Intentionally skip VisaApplicationDetailAPIView.get_object()'s
+        # gate - go straight to RetrieveAPIView's lookup.
+        return RetrieveAPIView.get_object(self)
 
 
     # def post(self, request, pk):
@@ -960,7 +993,7 @@ class VisaApplicationDetailAPIView(RetrieveAPIView):
     #             status=status.HTTP_400_BAD_REQUEST
     #         )
 
-    #     files = request.FILES.getlist("rejection_letters")
+    #     files = request.FILES.getlist("refusal_letters")
 
     #     if not files:
     #         return Response(
@@ -970,7 +1003,7 @@ class VisaApplicationDetailAPIView(RetrieveAPIView):
 
     #     uploaded = []
     #     for file in files:
-    #         letter = RejectionLetter.objects.create(
+    #         letter = RefusalLetter.objects.create(
     #             application=application,
     #             file=file
     #         )
@@ -979,56 +1012,11 @@ class VisaApplicationDetailAPIView(RetrieveAPIView):
     #     return Response(
     #         {
     #             "message": "Rejection letter(s) uploaded successfully",
-    #             "rejection_letters": uploaded
+    #             "refusal_letters": uploaded
     #         },
     #         status=status.HTTP_200_OK
     #     )
 
-
-
-class AddVisaApplicationDecisionAPIViewW(APIView):
-    def patch(self, request, pk):
-        """Approve/Reject a visa application"""
-        try:
-            application = VisaApplication.objects.get(pk=pk)
-        except VisaApplication.DoesNotExist:
-            return Response({"error": "Application not found"}, status=404)
-
-        decision = request.data.get("status")
-        if decision not in ["APPROVED", "REJECTED"]:
-            return Response({"error": "Invalid decision"}, status=400)
-
-        # ✅ Update application decision
-        application.status = decision
-        application.decision_date = timezone.now()
-        application.save(update_fields=["status", "decision_date", "updated_at"])
-
-        # ✅ Decrease workload on officer (initiator or assigned)
-        staff = application.assigned_officer or application.created_by_officer
-        if staff and staff.workload > 0:
-            staff.workload -= 1
-            staff.save(update_fields=["workload"])
-
-        return Response(VisaApplicationSerializer(application).data, status=200)
-
-    def post(self, request, pk):
-        """Upload a rejection letter for a rejected application"""
-        try:
-            application = VisaApplication.objects.get(pk=pk)
-        except VisaApplication.DoesNotExist:
-            return Response({"error": "Application not found"}, status=404)
-
-        if "rejection_letter" not in request.FILES:
-            return Response({"error": "No file uploaded"}, status=400)
-
-        # ✅ Save rejection letter
-        application.rejection_letter = request.FILES["rejection_letter"]
-        application.save(update_fields=["rejection_letter", "updated_at"])
-
-        return Response(
-            {"rejection_letter": application.rejection_letter.url},
-            status=200
-        )
 
 
 class AddVisaApplicationDecisionAPIView00(APIView):
@@ -1056,37 +1044,20 @@ class AddVisaApplicationDecisionAPIView00(APIView):
         return Response(VisaApplicationSerializer(application).data)
 
 
-class UploadRejectionLetterAPIViewW(APIView):
-    def patch(self, request, pk):
-        try:
-            application = VisaApplication.objects.get(pk=pk)
-        except VisaApplication.DoesNotExist:
-            return Response({"error": "Application not found"}, status=404)
-
-        file = request.FILES.get("rejection_letter")
-        if not file:
-            return Response({"error": "No file uploaded"}, status=400)
-
-        application.rejection_letter = file
-        application.save(update_fields=["rejection_letter", "updated_at"])
-
-        return Response(VisaApplicationSerializer(application).data)
-
-
 # api_views.py
 
-class UploadRejectionLetterAPIView(APIView):
+class UploadRefusalLetterAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         application = get_object_or_404(VisaApplication, pk=pk)
 
-        files = request.FILES.getlist("rejection_letters")
+        files = request.FILES.getlist("refusal_letters")
         if not files:
             return Response({"detail": "No files uploaded"}, status=400)
 
         for f in files:
-            RejectionLetter.objects.create(
+            RefusalLetter.objects.create(
                 application=application,
                 file=f
             )
@@ -1131,6 +1102,229 @@ class AdminVisaApplicationListAPIView(generics.ListAPIView):
             .order_by("-created_at")
         )
 
+
+class AssignedApplicationsListAPIView(generics.ListAPIView):
+    """
+    Applications auto-assigned to a Case Officer and STILL awaiting Admin
+    action (status == "ASSIGNED", admin_validated == False). Backs the
+    Admin dashboard's "Assigned Applications" queue - Admin either
+    validates the auto-assignment or reassigns it to a different officer
+    before the officer can act on it (see
+    Applications.services.enforce_officer_not_locked). The moment either
+    action happens, admin_validated flips to True and the application
+    drops off this queue - it then lives on in the "All Applications"
+    list (see AllApplicationsListAPIView), where it can still be
+    reassigned at any later point in its lifecycle.
+    """
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .filter(status="ASSIGNED", admin_validated=False)
+            .select_related("client", "client__user", "assigned_officer__user")
+            .order_by("-created_at")
+        )
+
+
+class AllApplicationsListAPIView(generics.ListAPIView):
+    """
+    Every application, regardless of status. Backs the Admin dashboard's
+    "All Applications" list, from which Admin can reassign an
+    application to a different Case Officer at any point in its
+    lifecycle (see ReassignApplicationOfficerAPIView) - unlike
+    AssignedApplicationsListAPIView, which only surfaces applications
+    still pending Admin's initial validate/reassign action.
+    """
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            VisaApplication.objects
+            .select_related("client", "client__user", "assigned_officer__user")
+            .order_by("-created_at")
+        )
+
+
+class AvailableCaseOfficersListAPIView(APIView):
+    """
+    Lists Case Officers, for the Admin dashboard's "Reassign" picker.
+
+    Pass ?application_id=<uuid> to exclude that application's current
+    assigned_officer and created_by_officer (initiating officer) from
+    the list - reassigning "to" either of them is a no-op the picker
+    shouldn't offer in the first place.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        officers = (
+            StaffProfile.objects
+            .filter(user__role="Case Officer")
+            .select_related("user")
+            .order_by("workload", "id")
+        )
+
+        application_id = request.query_params.get("application_id")
+        if application_id:
+            application = VisaApplication.objects.filter(pk=application_id).first()
+            if application:
+                exclude_ids = [
+                    pk for pk in (
+                        application.assigned_officer_id,
+                        application.created_by_officer_id,
+                    ) if pk
+                ]
+                if exclude_ids:
+                    officers = officers.exclude(pk__in=exclude_ids)
+
+        data = [
+            {
+                "id": officer.id,
+                "name": officer.user.get_full_name or officer.user.email,
+                "email": officer.user.email,
+                "workload": officer.workload,
+                "is_available": officer.is_available,
+            }
+            for officer in officers
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ValidateApplicationAssignmentAPIView(APIView):
+    """
+    Admin validates the current auto-assignment as-is: the assigned Case
+    Officer is confirmed and can now review documents / continue
+    processing the application (see Applications.services.enforce_officer_not_locked).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        if not (user.role == "Admin" or user.is_superuser):
+            return Response({"error": "Only Admin can validate an assignment."}, status=status.HTTP_403_FORBIDDEN)
+
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        if application.status != "ASSIGNED":
+            return Response(
+                {"error": "Only applications with status ASSIGNED can be validated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        application.admin_validated = True
+        application.validated_by = getattr(user, "staff_profile", None)
+        application.validated_at = timezone.now()
+        application.save(update_fields=["admin_validated", "validated_by", "validated_at"])
+
+        AuditLog.objects.create(
+            user=user,
+            action="assign",
+            module="Applications",
+            description=(
+                f"Validated auto-assignment of {application.reference_no} "
+                f"to {application.assigned_officer}"
+            ),
+        )
+
+        return Response(VisaApplicationSerializer(application).data, status=status.HTTP_200_OK)
+
+
+class ReassignApplicationOfficerAPIView(APIView):
+    """
+    Admin reassigns an application to a different Case Officer, at ANY
+    point in its lifecycle - not just while status == "ASSIGNED". Backs
+    the "Reassign" action on both the Admin dashboard's "Assigned
+    Applications" queue (pre-validation hand-off) and its "All
+    Applications" list (ownership changes later in the lifecycle).
+    This also validates the assignment (no separate validate step needed
+    afterwards) - the newly-assigned officer can immediately review
+    documents / continue processing. For an application that isn't
+    status == "ASSIGNED", admin_validated is already irrelevant to
+    gating (Applications.services.is_pending_admin_validation only
+    locks "ASSIGNED" applications), so setting it True here is a no-op
+    for those cases.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        if not (user.role == "Admin" or user.is_superuser):
+            return Response({"error": "Only Admin can reassign an application."}, status=status.HTTP_403_FORBIDDEN)
+
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        officer_id = request.data.get("officer_id")
+        if not officer_id:
+            return Response({"error": "officer_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_officer = StaffProfile.objects.get(pk=officer_id, user__role="Case Officer")
+        except StaffProfile.DoesNotExist:
+            return Response({"error": "Invalid officer_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_officer = application.assigned_officer
+
+        if old_officer and old_officer.pk == new_officer.pk:
+            return Response({"error": "Application is already assigned to this officer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if application.created_by_officer_id and application.created_by_officer_id == new_officer.pk:
+            return Response(
+                {"error": "Cannot reassign to the officer who initiated this application."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Move workload from old officer to new officer
+        if old_officer and old_officer.workload > 0:
+            old_officer.workload -= 1
+            old_officer.save(update_fields=["workload"])
+
+        new_officer.workload += 1
+        new_officer.save(update_fields=["workload"])
+
+        application.assigned_officer = new_officer
+        application.admin_validated = True
+        application.validated_by = getattr(user, "staff_profile", None)
+        application.validated_at = timezone.now()
+        application.save(update_fields=[
+            "assigned_officer", "admin_validated", "validated_by", "validated_at",
+        ])
+
+        # TaskAssignment is OneToOne with the application - update in place
+        # rather than creating a second row.
+        TaskAssignment.objects.update_or_create(
+            application=application,
+            defaults={
+                "assigned_to": new_officer,
+                "status": "Assigned",
+                "description": f"Reassigned by Admin for application {application.reference_no}",
+                "completed": False,
+            },
+        )
+
+        ReassignmentLog.objects.create(
+            application=application,
+            from_officer=old_officer,
+            to_officer=new_officer,
+            reason=request.data.get("reason", ""),
+            reassigned_by=getattr(user, "staff_profile", None),
+            strategy="manual",
+        )
+
+        AuditLog.objects.create(
+            user=user,
+            action="assign",
+            module="Applications",
+            description=(
+                f"Reassigned {application.reference_no} from {old_officer} to {new_officer}"
+            ),
+        )
+
+        return Response(VisaApplicationSerializer(application).data, status=status.HTTP_200_OK)
+
+
 class DocumentReviewAPIView(generics.UpdateAPIView):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
@@ -1138,6 +1332,8 @@ class DocumentReviewAPIView(generics.UpdateAPIView):
     lookup_field = "id"
 
     def perform_update(self, serializer):
+        enforce_officer_not_locked(serializer.instance.application, self.request.user)
+
         doc = serializer.save(
             verified=True,
             status="REVIEWED",
@@ -1556,6 +1752,14 @@ class SubmittedVisaApplicationListAPIView(generics.ListAPIView):
         return qs.order_by("-created_at")
 
 class FinalizedVisaApplicationsListAPIView(generics.ListAPIView):
+    """
+    Applications with a recorded decision (status APPROVED/REJECTED)
+    that Admin has NOT yet notified the client about. Backs the Admin
+    dashboard's "Finalized Applications" list - once Admin clicks
+    "Notify Client" (see NotifyClientAPIView), the application drops off
+    this list and moves to "Notified Applications"
+    (see NotifiedApplicationsListAPIView).
+    """
     serializer_class = VisaApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1578,10 +1782,97 @@ class FinalizedVisaApplicationsListAPIView(generics.ListAPIView):
         qs = qs.filter(
                         Q(status="APPROVED") |
                         Q(status="REJECTED") 
-                    )
+                    ).filter(client_notified=False)
 
         # 🔹 sort by submission_date first, else created_at
         return qs.order_by(Coalesce("submission_date", "created_at").desc())
+
+
+class NotifiedApplicationsListAPIView(generics.ListAPIView):
+    """
+    Applications with a recorded decision that Admin HAS notified the
+    client about (client_notified=True). Backs the Admin dashboard's
+    "Notified Applications" list - the counterpart queue an application
+    moves to once NotifyClientAPIView fires for it.
+    """
+    serializer_class = VisaApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = VisaApplication.objects.all()
+
+        if user.role == "Client":
+            qs = qs.filter(client=user.client_profile)
+
+        elif user.role == "Case Officer":
+            qs = qs.filter(Q(assigned_officer=user.staff_profile) | Q(created_by_officer=user.staff_profile))
+
+        elif user.role in ["Admin", "Finance", "Support"] or user.is_superuser:
+            pass  # keep all
+
+        else:
+            return qs.none()
+
+        qs = qs.filter(
+                        Q(status="APPROVED") |
+                        Q(status="REJECTED")
+                    ).filter(client_notified=True)
+
+        return qs.order_by(Coalesce("client_notified_at", "submission_date", "created_at").desc())
+
+
+class NotifyClientAPIView(APIView):
+    """
+    Admin notifies the client that a decision (APPROVED/REJECTED) has
+    been recorded. Until this fires, client-facing serializers cap the
+    application's visible status at "SUBMITTED" ("Awaiting Embassy
+    Decision") - see VisaApplicationSerializer.to_representation and
+    VisaApplicationDetailSerializer.to_representation. Backs the
+    "Notify Client" action on the Admin dashboard's Finalized
+    Applications list - once notified, the application moves off that
+    list onto "Notified Applications" (see NotifiedApplicationsListAPIView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        if not (user.role == "Admin" or user.is_superuser):
+            return Response({"error": "Only Admin can notify the client."}, status=status.HTTP_403_FORBIDDEN)
+
+        application = get_object_or_404(VisaApplication, pk=pk)
+
+        if application.status not in ("APPROVED", "REJECTED"):
+            return Response(
+                {"error": "Only applications with a recorded decision (Approved/Rejected) can be notified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if application.client_notified:
+            return Response(
+                {"error": "Client has already been notified for this application."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        application.client_notified = True
+        application.notified_by = getattr(user, "staff_profile", None)
+        application.client_notified_at = timezone.now()
+        application.save(update_fields=["client_notified", "notified_by", "client_notified_at"])
+
+        AuditLog.objects.create(
+            user=user,
+            action="update",
+            module="Applications",
+            description=(
+                f"Notified client of {application.get_status_display()} decision "
+                f"for {application.reference_no}"
+            ),
+        )
+
+        return Response(
+            VisaApplicationSerializer(application, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class VisaApplicationDetailAPIViewW(RetrieveAPIView):
@@ -2628,3 +2919,294 @@ class VisaApplicationListAPIView1(generics.ListCreateAPIView, generics.RetrieveU
 
 
 
+
+
+# ------------------------------------------------------------------
+# Shared dashboard-metrics helpers, used by both
+# CaseOfficerDashboardMetricsAPIView (scoped to one officer's caseload)
+# and AdminDashboardMetricsAPIView (system-wide) so the "Monthly Output",
+# "Visa Applications" and "Trending visa locations" widgets compute
+# identically regardless of which dashboard is asking - only the
+# queryset scope (and, for Admin, the activity source) differs.
+# ------------------------------------------------------------------
+
+def _dashboard_month_bounds(year, month):
+    start = timezone.make_aware(datetime(year, month, 1))
+    last_day = calendar.monthrange(year, month)[1]
+    end = timezone.make_aware(datetime(year, month, last_day, 23, 59, 59))
+    return start, end
+
+
+def _dashboard_monthly_output(applications, now):
+    """
+    this month's decided-applications count within `applications`, the
+    month-over-month % change, and a radial "share of the total set
+    closed out this month" percentage.
+    """
+    this_start, this_end = _dashboard_month_bounds(now.year, now.month)
+    prev_month = now.month - 1 or 12
+    prev_year = now.year if now.month > 1 else now.year - 1
+    prev_start, prev_end = _dashboard_month_bounds(prev_year, prev_month)
+
+    decided = applications.filter(status__in=["APPROVED", "REJECTED"])
+    this_month_count = decided.filter(decision_date__range=(this_start, this_end)).count()
+    previous_month_count = decided.filter(decision_date__range=(prev_start, prev_end)).count()
+
+    if previous_month_count == 0:
+        percent_change = 100 if this_month_count > 0 else 0
+        trend = "up" if this_month_count > 0 else "flat"
+    else:
+        percent_change = round(
+            (this_month_count - previous_month_count) / previous_month_count * 100
+        )
+        trend = "up" if percent_change > 0 else ("down" if percent_change < 0 else "flat")
+
+    total = applications.count()
+    radial_percent = (
+        min(100, round(this_month_count / total * 100))
+        if total else 0
+    )
+
+    return {
+        "this_month": this_month_count,
+        "previous_month": previous_month_count,
+        "percent_change": abs(percent_change),
+        "trend": trend,
+        "radial_percent": radial_percent,
+    }
+
+
+def _dashboard_visa_applications_series(applications, now):
+    """
+    Week / Month / Year stacked series (Approved / Rejected / Pending) of
+    `applications`, bucketed by created_at.
+    """
+    rows = list(applications.values("created_at", "status"))
+
+    def build_series(labels, key_fn):
+        buckets = {label: {"Approved": 0, "Rejected": 0, "Pending": 0} for label in labels}
+        for row in rows:
+            created = timezone.localtime(row["created_at"])
+            key = key_fn(created)
+            if key not in buckets:
+                continue
+            if row["status"] == "APPROVED":
+                buckets[key]["Approved"] += 1
+            elif row["status"] == "REJECTED":
+                buckets[key]["Rejected"] += 1
+            else:
+                buckets[key]["Pending"] += 1
+        return {
+            "categories": labels,
+            "series": [
+                {"name": "Approved", "data": [buckets[l]["Approved"] for l in labels]},
+                {"name": "Rejected", "data": [buckets[l]["Rejected"] for l in labels]},
+                {"name": "Pending", "data": [buckets[l]["Pending"] for l in labels]},
+            ],
+        }
+
+    # Year: Jan..Dec of the current year
+    year_labels = [calendar.month_abbr[m] for m in range(1, 13)]
+    year_data = build_series(
+        year_labels,
+        lambda d: calendar.month_abbr[d.month] if d.year == now.year else None,
+    )
+
+    # Month: every day of the current month
+    days_in_month = calendar.monthrange(now.year, now.month)[1]
+    month_labels = [str(d) for d in range(1, days_in_month + 1)]
+    month_data = build_series(
+        month_labels,
+        lambda d: str(d.day) if (d.year, d.month) == (now.year, now.month) else None,
+    )
+
+    # Week: the last 7 days, including today
+    week_dates = [(now - timedelta(days=i)).date() for i in range(6, -1, -1)]
+    week_labels = [d.strftime("%a %d") for d in week_dates]
+    week_label_by_date = dict(zip(week_dates, week_labels))
+    week_data = build_series(
+        week_labels,
+        lambda d: week_label_by_date.get(d.date()),
+    )
+
+    return {"week": week_data, "month": month_data, "year": year_data}
+
+
+def _dashboard_trending_locations():
+    """System-wide top 3 destination countries by total application count."""
+    country_counts = list(
+        VisaApplication.objects.values("country")
+        .annotate(total=Count("id"))
+        .order_by("-total")[:3]
+    )
+    country_display = dict(VisaApplication.COUNTRIES)
+    max_count = country_counts[0]["total"] if country_counts else 0
+    return [
+        {
+            "country": country_display.get(c["country"], c["country"]),
+            "count": c["total"],
+            "percent": round(c["total"] / max_count * 100) if max_count else 0,
+        }
+        for c in country_counts
+    ]
+
+
+class CaseOfficerDashboardMetricsAPIView(APIView):
+    """
+    Aggregated metrics for the Case Officer dashboard
+    (case_officer/case_officer_dashboard1.html), replacing the theme's
+    static/hardcoded placeholder numbers:
+
+      - monthly_output: this month's decided-applications count for the
+        officer, the month-over-month % change, and a radial "share of
+        total caseload closed out this month" percentage.
+      - visa_applications: Week / Month / Year stacked series (Approved /
+        Rejected / Pending) of the officer's own applications (assigned to
+        or initiated by them), bucketed by created_at.
+      - activity: the officer's last 4 real events - application
+        initiated, decision recorded, a task assigned to them, or a
+        reassignment to/from them - merged from VisaApplication /
+        TaskAssignment / ReassignmentLog and sorted by timestamp.
+      - trending_locations: system-wide top 3 destination countries by
+        total application count.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        officer = getattr(request.user, "staff_profile", None)
+        if officer is None:
+            return Response(
+                {"error": "No case officer profile for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        applications = VisaApplication.objects.filter(
+            Q(created_by_officer=officer) | Q(assigned_officer=officer)
+        )
+
+        now = timezone.localtime(timezone.now())
+
+        monthly_output = _dashboard_monthly_output(applications, now)
+        visa_applications = _dashboard_visa_applications_series(applications, now)
+
+        # ------------------------------------------------------------
+        # Activity - the officer's last 4 real events
+        # ------------------------------------------------------------
+        events = []
+
+        initiated = VisaApplication.objects.filter(
+            created_by_officer=officer
+        ).select_related("client__user")
+        for app in initiated:
+            events.append({
+                "timestamp": app.created_at,
+                "description": (
+                    f"You initiated application {app.reference_no} for "
+                    f"{app.client.user.get_full_name}"
+                ),
+            })
+
+        decisions = applications.filter(
+            status__in=["APPROVED", "REJECTED"], decision_date__isnull=False
+        )
+        for app in decisions:
+            events.append({
+                "timestamp": app.decision_date,
+                "description": (
+                    f"You recorded a decision ({app.get_status_display()}) "
+                    f"on {app.reference_no}"
+                ),
+            })
+
+        tasks = TaskAssignment.objects.filter(assigned_to=officer).select_related("application")
+        for task in tasks:
+            events.append({
+                "timestamp": task.created_at,
+                "description": f"Application {task.application.reference_no} was assigned to you",
+            })
+
+        reassigned_to_me = ReassignmentLog.objects.filter(to_officer=officer).select_related("application")
+        for log in reassigned_to_me:
+            events.append({
+                "timestamp": log.created_at,
+                "description": f"Application {log.application.reference_no} was reassigned to you",
+            })
+
+        reassigned_from_me = ReassignmentLog.objects.filter(from_officer=officer).select_related("application")
+        for log in reassigned_from_me:
+            events.append({
+                "timestamp": log.created_at,
+                "description": f"Application {log.application.reference_no} was reassigned away from you",
+            })
+
+        events.sort(key=lambda e: e["timestamp"], reverse=True)
+        activity = [
+            {
+                "date": timezone.localtime(e["timestamp"]).strftime("%d %b"),
+                "description": e["description"],
+            }
+            for e in events[:4]
+        ]
+
+        return Response({
+            "monthly_output": monthly_output,
+            "visa_applications": visa_applications,
+            "activity": activity,
+            "trending_locations": _dashboard_trending_locations(),
+        })
+
+
+class AdminDashboardMetricsAPIView(APIView):
+    """
+    Aggregated metrics for the Admin dashboard (admin/admin_dashboard.html),
+    replacing the theme's static/hardcoded placeholder numbers. Unlike the
+    Case Officer version, everything here is system-wide (all applications,
+    not one officer's caseload):
+
+      - monthly_output: this month's system-wide decided-applications
+        count, the month-over-month % change, and a radial "share of all
+        applications closed out this month" percentage.
+      - visa_applications: Week / Month / Year stacked series (Approved /
+        Rejected / Pending) across every application, bucketed by
+        created_at.
+      - activity: the logged-in Admin's own last 4 actions, read from
+        AuditLog (validate-assignment, reassign, notify-client - the
+        actions Admin views already write there).
+      - trending_locations: system-wide top 3 destination countries by
+        total application count (identical computation to the Case
+        Officer dashboard's version, since it was never officer-scoped).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not (user.role == "Admin" or user.is_superuser):
+            return Response(
+                {"error": "Only Admin can view this dashboard's metrics."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        applications = VisaApplication.objects.all()
+        now = timezone.localtime(timezone.now())
+
+        monthly_output = _dashboard_monthly_output(applications, now)
+        visa_applications = _dashboard_visa_applications_series(applications, now)
+
+        # ------------------------------------------------------------
+        # Activity - this Admin's last 4 logged actions
+        # ------------------------------------------------------------
+        recent_logs = AuditLog.objects.filter(user=user).order_by("-timestamp")[:4]
+        activity = [
+            {
+                "date": timezone.localtime(log.timestamp).strftime("%d %b"),
+                "description": log.description or log.get_action_display(),
+            }
+            for log in recent_logs
+        ]
+
+        return Response({
+            "monthly_output": monthly_output,
+            "visa_applications": visa_applications,
+            "activity": activity,
+            "trending_locations": _dashboard_trending_locations(),
+        })

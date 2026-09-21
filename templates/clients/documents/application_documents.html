@@ -97,7 +97,7 @@
 
 <div class="card-body">
 <h5 class="mb-3 text-danger">Refusal Letters</h5>
-{% if rejection_letters %}
+{% if refusal_letters %}
   <table class="table table-striped">
     <thead>
       <tr>
@@ -107,7 +107,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for letter in rejection_letters %}
+      {% for letter in refusal_letters %}
         <tr>
           <td><span class="badge badge-soft-danger">Refusal Letter {{ forloop.counter }}</span></td>
           <td>{{ letter.uploaded_at|date:"d M Y, H:i" }}</td>
@@ -128,17 +128,17 @@
   <p class="text-muted mb-0">No Refusals uploaded.</p>
 {% endif %}
 
-{% if rejection_letters %}
-  <a href="{% url 'Clients:application-rejection-letters-zip' application.id %}"
+{% if refusal_letters %}
+  <a href="{% url 'Clients:application-refusal-letters-zip' application.id %}"
      class="btn btn-sm btn-soft-danger mb-3">
-     ⬇ Download All Rejection Letters (ZIP)
+     ⬇ Download All Refusal Letters (ZIP)
   </a>
 {% endif %}
 
 </div>
 
 
-  <!-- Rejection Letters -->
+  <!-- Refusal Letters -->
   <div class="card justify-content-end">
     <div class="card-body">
       <h5 class="mb-3 text-warning">Download Documents</h5>

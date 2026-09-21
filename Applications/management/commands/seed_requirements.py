@@ -82,6 +82,31 @@ CANADA_CHILD_STUDENT_DOCUMENTS = [
     ("Required Information PDF Form", "", "ADMISSION", True),
 ]
 
+# UK "Child Student": a flat checklist (no admission/visa split in the
+# source list), stored under the VISA stage - same convention as Canada
+# "Child Student" above. Not part of the STUDENT staged-flow group, so it
+# uses the flat all-documents completion flow.
+UK_CHILD_STUDENT_DOCUMENTS = [
+    ("Birth Certificate", "", "IDENTITY", True),
+    ("CAS", "", "ADMISSION", True),
+    ("TB Test", "", "OTHER", True),
+    ("Guardian or Non-Guardian Support Letter", "", "FAMILY", True),
+    ("Guardian Data Page", "", "FAMILY", True),
+    ("International Passport", "", "IDENTITY", True),
+    ("Previous Travels", "", "OTHER", True),
+    ("Parental Consent Letter", "", "FAMILY", True),
+    ("Authorization to Use Bank Statement", "", "FINANCIAL", True),
+    ("Sponsor Financial Evidence", "", "FINANCIAL", True),
+    ("Parents' Data and Visa Pages", "", "FAMILY", True),
+    ("Consent Letter", "", "FAMILY", True),
+    ("Offer Letter", "", "ADMISSION", True),
+    ("Introduction Letter/Sponsorship Letter", "", "FAMILY", True),
+    ("Study Permit Form", "", "ADMISSION", True),
+    ("Family Information Form", "", "FAMILY", True),
+    ("Temporary Residence Form", "", "ADMISSION", True),
+    ("Additional Information Form", "", "ADMISSION", True),
+]
+
 # USA is untouched by this amendment - kept as the original generic
 # checklist it already had.
 USA_STUDENT_DOCUMENTS = {
@@ -127,6 +152,9 @@ REQUIREMENTS_BY_COUNTRY = {
     },
     ("CANADA", "CHILD STUDENT"): {
         "VISA": CANADA_CHILD_STUDENT_DOCUMENTS,
+    },
+    ("UK", "CHILD STUDENT"): {
+        "VISA": UK_CHILD_STUDENT_DOCUMENTS,
     },
     ("USA", "STUDENT"): USA_STUDENT_DOCUMENTS,
 }

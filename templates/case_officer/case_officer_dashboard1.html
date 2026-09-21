@@ -68,16 +68,16 @@
 <div class="row">
 <div class="col-sm-6">
 <p class="text-muted">This month</p>
-<h3>5</h3>
-<p class="text-muted"><span class="text-success me-2"> 12% <i class="mdi mdi-arrow-up"></i> </span> From previous period</p>
+<h3 id="monthly-output-count">-</h3>
+<p class="text-muted"><span id="monthly-output-trend" class="text-muted me-2"> - </span> From previous period</p>
 
 <div class="mt-4">
-<a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View More <i class="mdi mdi-arrow-right ms-1"></i></a>
+<a href="{% url 'CaseManagement:applications-list' %}" class="btn btn-primary waves-effect waves-light btn-sm">View More <i class="mdi mdi-arrow-right ms-1"></i></a>
 </div>
 </div>
 <div class="col-sm-6">
 <div class="mt-4 mt-sm-0">
-<div id="radialBar-chart" data-colors='["--bs-primary"]' class="apex-charts"></div>
+<div id="officer-monthly-radial-chart" data-colors='["--bs-primary"]' class="apex-charts"></div>
 </div>
 </div>
 </div>
@@ -182,21 +182,21 @@
 <div class="d-sm-flex flex-wrap">
 <h4 class="card-title mb-4">Visa Applications</h4>
 <div class="ms-auto">
-<ul class="nav nav-pills">
+<ul class="nav nav-pills" id="visa-applications-range-pills">
 <li class="nav-item">
-<a class="nav-link" href="#">Week</a>
+<a class="nav-link" href="javascript: void(0);" data-range="week">Week</a>
 </li>
 <li class="nav-item">
-<a class="nav-link" href="#">Month</a>
+<a class="nav-link" href="javascript: void(0);" data-range="month">Month</a>
 </li>
 <li class="nav-item">
-<a class="nav-link active" href="#">Year</a>
+<a class="nav-link active" href="javascript: void(0);" data-range="year">Year</a>
 </li>
 </ul>
 </div>
 </div>
 
-<div id="stacked-column-chart" data-colors='["--bs-primary", "--bs-warning", "--bs-success"]' class="apex-charts" dir="ltr"></div>
+<div id="officer-visa-applications-chart" data-colors='["--bs-primary", "--bs-warning", "--bs-success"]' class="apex-charts" dir="ltr"></div>
 </div>
 </div>
 </div>
@@ -215,7 +215,7 @@
 </span>
 </div>
 <p class="font-16 text-muted mb-2"></p>
-<h5><a href="javascript: void(0);" class="text-dark">Facebook - <span class="text-muted font-16">125 mentions</span> </a></h5>
+<h5><a href="javascript: void(0);" class="text-dark">Instagram - <span class="text-muted font-16">125 mentions</span> </a></h5>
 <p class="text-muted">Total leads generated from online sources</p>
 <a href="javascript: void(0);" class="text-primary font-16">Learn more <i class="mdi mdi-chevron-right"></i></a>
 </div>
@@ -262,67 +262,8 @@
 <div class="card">
 <div class="card-body">
 <h4 class="card-title mb-5">Activity</h4>
-<ul class="verti-timeline list-unstyled">
-<li class="event-list">
-<div class="event-timeline-dot">
-<i class="bx bx-right-arrow-circle font-size-18"></i>
-</div>
-<div class="d-flex">
-<div class="flex-shrink-0 me-3">
-<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
-</div>
-<div class="flex-grow-1">
-<div>
-You requested for A4 paper
-</div>
-</div>
-</div>
-</li>
-<li class="event-list">
-<div class="event-timeline-dot">
-<i class="bx bx-right-arrow-circle font-size-18"></i>
-</div>
-<div class="d-flex">
-<div class="flex-shrink-0 me-3">
-<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
-</div>
-<div class="flex-grow-1">
-<div>
-Admin has finalized 3 Applications you sent for review  <a href="javascript: void(0);">View details</a>
-</div>
-</div>
-</div>
-</li>
-<li class="event-list active">
-<div class="event-timeline-dot">
-<i class="bx bxs-right-arrow-circle font-size-18 bx-fade-right"></i>
-</div>
-<div class="d-flex">
-<div class="flex-shrink-0 me-3">
-<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
-</div>
-<div class="flex-grow-1">
-<div>
-You sent and application to Admin for Review
-</div>
-</div>
-</div>
-</li>
-<li class="event-list">
-<div class="event-timeline-dot">
-<i class="bx bx-right-arrow-circle font-size-18"></i>
-</div>
-<div class="d-flex">
-<div class="flex-shrink-0 me-3">
-<h5 class="font-size-14">10 Sep <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>
-</div>
-<div class="flex-grow-1">
-<div>
-System auto-assigned 2 applications to you
-</div>
-</div>
-</div>
-</li>
+<ul class="verti-timeline list-unstyled" id="activity-list">
+<li class="text-muted">Loading recent activity&hellip;</li>
 </ul>
 <div class="text-center mt-4"><a href="javascript: void(0);" class="btn btn-primary waves-effect waves-light btn-sm">View More <i class="mdi mdi-arrow-right ms-1"></i></a></div>
 </div>
@@ -332,57 +273,20 @@ System auto-assigned 2 applications to you
 <div class="col-xl-4">
 <div class="card">
 <div class="card-body">
-<h4 class="card-title mb-4">Trending visa loctions</h4>
+<h4 class="card-title mb-4">Trending visa locations</h4>
 
 <div class="text-center">
 <div class="mb-4">
 <i class="bx bx-map-pin text-primary display-4"></i>
 </div>
-<h3>1,456</h3>
-<p>United Kingdom</p>
+<h3 id="trending-top-count">-</h3>
+<p id="trending-top-country">-</p>
 </div>
 
 <div class="table-responsive mt-4">
 <table class="table align-middle table-nowrap">
-<tbody>
-<tr>
-<td style="width: 30%">
-<p class="mb-0">United Kingdom</p>
-</td>
-<td style="width: 25%">
-<h5 class="mb-0">1,456</h5></td>
-<td>
-<div class="progress bg-transparent progress-sm">
-<div class="progress-bar bg-primary rounded" role="progressbar" style="width: 94%" aria-valuenow="94" aria-valuemin="0" aria-valuemax="100"></div>
-</div>
-</td>
-</tr>
-<tr>
-<td>
-<p class="mb-0">Canada</p>
-</td>
-<td>
-<h5 class="mb-0">1,123</h5>
-</td>
-<td>
-<div class="progress bg-transparent progress-sm">
-<div class="progress-bar bg-success rounded" role="progressbar" style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"></div>
-</div>
-</td>
-</tr>
-<tr>
-<td>
-<p class="mb-0">United States</p>
-</td>
-<td>
-<h5 class="mb-0">1,026</h5>
-</td>
-<td>
-<div class="progress bg-transparent progress-sm">
-<div class="progress-bar bg-warning rounded" role="progressbar" style="width: 70%" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100"></div>
-</div>
-</td>
-</tr>
+<tbody id="trending-locations-body">
+<tr><td class="text-muted">Loading&hellip;</td></tr>
 </tbody>
 </table>
 </div>
@@ -641,7 +545,10 @@ let modalBody = document.querySelector("#applicationDetailModal #application-det
 
 modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
-fetch(`/api/applications/${appId}/`)
+// 🔓 Dashboard widget is read-only (no stage-transition actions in
+// this modal), so it uses the ungated dashboard-detail endpoint and
+// is never blocked by the Admin-validation gate.
+fetch(`/api/applications/${appId}/dashboard-detail/`)
 .then(res => res.json())
 .then(app => {
     // ✅ Officer row logic with fallback
@@ -668,13 +575,13 @@ fetch(`/api/applications/${appId}/`)
             </tr>
         `;
     }
-    // ✅ Only include Rejection Letter row if present
-    // let rejectionLetterRow = "";
-    // if (app.rejection_letter) {
-    //     rejectionLetterRow = `
+    // ✅ Only include Refusal Letter row if present
+    // let refusalLetterRow = "";
+    // if (app.refusal_letter) {
+    //     refusalLetterRow = `
     //         <tr>
-    //             <th>Rejection Letter</th>
-    //             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+    //             <th>Refusal Letter</th>
+    //             <td><a href="${app.refusal_letter}" target="_blank">View Letter</a></td>
     //         </tr>
     //     `;
     // }
@@ -708,11 +615,11 @@ ${app.visa_application_url
 <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
 
 <tr>
-<th>Rejection Letters</th>
-<td id="rejection-letter-cell">
+<th>Refusal Letter(s)</th>
+<td id="refusal-letter-cell">
 ${
-Array.isArray(app.rejection_letters) && app.rejection_letters.length
-? app.rejection_letters
+Array.isArray(app.refusal_letter) && app.refusal_letter.length
+? app.refusal_letter
 .map((r, i) =>
   r?.file
     ? `
@@ -723,7 +630,7 @@ Array.isArray(app.rejection_letters) && app.rejection_letters.length
         <a href="${r.file}"
            target="_blank"
            rel="noopener noreferrer">
-          View Rejection Letter
+          View Refusal Letter
         </a>
       </div>
     `
@@ -1015,6 +922,151 @@ modal.querySelectorAll("a").forEach(link => {
 });
 });
 });
+});
+</script>
+
+<script>
+$(document).ready(function () {
+    var dashboardMetrics = null;
+    var visaApplicationsChart = null;
+    var monthlyRadialChart = null;
+    var currentRange = "year";
+
+    function renderMonthlyOutput(mo) {
+        $("#monthly-output-count").text(mo.this_month);
+        var trendEl = $("#monthly-output-trend");
+        if (mo.trend === "up") {
+            trendEl.attr("class", "text-success me-2")
+                   .html(mo.percent_change + '% <i class="mdi mdi-arrow-up"></i>');
+        } else if (mo.trend === "down") {
+            trendEl.attr("class", "text-danger me-2")
+                   .html(mo.percent_change + '% <i class="mdi mdi-arrow-down"></i>');
+        } else {
+            trendEl.attr("class", "text-muted me-2").text("No change");
+        }
+
+        var radialColors = getChartColorsArray("officer-monthly-radial-chart");
+        var options = {
+            chart: { height: 200, type: "radialBar", offsetY: -10 },
+            plotOptions: {
+                radialBar: {
+                    startAngle: -135,
+                    endAngle: 135,
+                    dataLabels: {
+                        name: { fontSize: "13px", offsetY: 60 },
+                        value: { offsetY: 22, fontSize: "16px", formatter: function (v) { return v + "%"; } }
+                    }
+                }
+            },
+            colors: radialColors || ["#556ee6"],
+            fill: {
+                type: "gradient",
+                gradient: { shade: "dark", shadeIntensity: 0.15, inverseColors: false, opacityFrom: 1, opacityTo: 1, stops: [0, 50, 65, 91] }
+            },
+            stroke: { dashArray: 4 },
+            series: [mo.radial_percent],
+            labels: ["This month"]
+        };
+        if (monthlyRadialChart) { monthlyRadialChart.destroy(); }
+        monthlyRadialChart = new ApexCharts(document.querySelector("#officer-monthly-radial-chart"), options);
+        monthlyRadialChart.render();
+    }
+
+    function renderVisaApplicationsChart(range) {
+        if (!dashboardMetrics) { return; }
+        var dataset = dashboardMetrics.visa_applications[range];
+        var colors = getChartColorsArray("officer-visa-applications-chart");
+        var options = {
+            chart: { height: 360, type: "bar", stacked: true, toolbar: { show: false }, zoom: { enabled: true } },
+            plotOptions: { bar: { horizontal: false, columnWidth: "45%", endingShape: "rounded", borderRadius: 4 } },
+            dataLabels: { enabled: false },
+            series: dataset.series,
+            xaxis: { categories: dataset.categories },
+            colors: colors || ["#556ee6", "#f1b44c", "#34c38f"],
+            legend: { position: "bottom" },
+            fill: { opacity: 1 }
+        };
+        if (visaApplicationsChart) { visaApplicationsChart.destroy(); }
+        visaApplicationsChart = new ApexCharts(document.querySelector("#officer-visa-applications-chart"), options);
+        visaApplicationsChart.render();
+    }
+
+    function renderActivity(activity) {
+        var list = $("#activity-list");
+        list.empty();
+        if (!activity.length) {
+            list.append('<li class="text-muted">No recent activity yet.</li>');
+            return;
+        }
+        activity.forEach(function (item, idx) {
+            var dotIcon = idx === 0 ? "bx bxs-right-arrow-circle bx-fade-right" : "bx bx-right-arrow-circle";
+            var liClass = idx === 0 ? "event-list active" : "event-list";
+            list.append(
+                '<li class="' + liClass + '">' +
+                    '<div class="event-timeline-dot"><i class="' + dotIcon + ' font-size-18"></i></div>' +
+                    '<div class="d-flex">' +
+                        '<div class="flex-shrink-0 me-3">' +
+                            '<h5 class="font-size-14">' + item.date + ' <i class="bx bx-right-arrow-alt font-size-16 text-primary align-middle ms-2"></i></h5>' +
+                        '</div>' +
+                        '<div class="flex-grow-1"><div>' + item.description + '</div></div>' +
+                    '</div>' +
+                '</li>'
+            );
+        });
+    }
+
+    function renderTrending(locations) {
+        if (!locations.length) {
+            $("#trending-top-count").text("0");
+            $("#trending-top-country").text("No applications yet");
+            $("#trending-locations-body").html('<tr><td class="text-muted">No applications yet.</td></tr>');
+            return;
+        }
+        var top = locations[0];
+        $("#trending-top-count").text(top.count.toLocaleString());
+        $("#trending-top-country").text(top.country);
+
+        var barColors = ["bg-primary", "bg-success", "bg-warning"];
+        var body = $("#trending-locations-body");
+        body.empty();
+        locations.forEach(function (loc, idx) {
+            body.append(
+                '<tr>' +
+                    '<td style="width: 30%"><p class="mb-0">' + loc.country + '</p></td>' +
+                    '<td style="width: 25%"><h5 class="mb-0">' + loc.count.toLocaleString() + '</h5></td>' +
+                    '<td>' +
+                        '<div class="progress bg-transparent progress-sm">' +
+                            '<div class="progress-bar ' + (barColors[idx] || "bg-info") + ' rounded" role="progressbar" ' +
+                                 'style="width: ' + loc.percent + '%" aria-valuenow="' + loc.percent + '" aria-valuemin="0" aria-valuemax="100"></div>' +
+                        '</div>' +
+                    '</td>' +
+                '</tr>'
+            );
+        });
+    }
+
+    fetch("{% url 'Applications:case-officer-dashboard-metrics' %}")
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            dashboardMetrics = data;
+            renderMonthlyOutput(data.monthly_output);
+            renderVisaApplicationsChart(currentRange);
+            renderActivity(data.activity);
+            renderTrending(data.trending_locations);
+        })
+        .catch(function () {
+            $("#monthly-output-count").text("-");
+            $("#activity-list").html('<li class="text-danger">Could not load activity.</li>');
+            $("#trending-locations-body").html('<tr><td class="text-danger">Could not load trending locations.</td></tr>');
+        });
+
+    $("#visa-applications-range-pills").on("click", "a.nav-link", function (e) {
+        e.preventDefault();
+        $("#visa-applications-range-pills a.nav-link").removeClass("active");
+        $(this).addClass("active");
+        currentRange = $(this).data("range");
+        renderVisaApplicationsChart(currentRange);
+    });
 });
 </script>
 

@@ -211,13 +211,13 @@ fetch(`/api/applications/${appId}/`)
                 </tr>
             `;
         }
-        // ✅ Only include Rejection Letter row if present
-        // let rejectionLetterRow = "";
-        // if (app.rejection_letter) {
-        //     rejectionLetterRow = `
+        // ✅ Only include Refusal Letter row if present
+        // let refusalLetterRow = "";
+        // if (app.refusal_letter) {
+        //     refusalLetterRow = `
         //         <tr>
-        //             <th>Rejection Letter</th>
-        //             <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+        //             <th>Refusal Letter</th>
+        //             <td><a href="${app.refusal_letter}" target="_blank">View Letter</a></td>
         //         </tr>
         //     `;
         // }
@@ -252,11 +252,11 @@ fetch(`/api/applications/${appId}/`)
          <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
 
       <tr>
-      <th>Rejection Letters</th>
-      <td id="rejection-letter-cell">
+      <th>Refusal Letter(s)</th>
+      <td id="refusal-letter-cell">
         ${
-          Array.isArray(app.rejection_letters) && app.rejection_letters.length
-            ? app.rejection_letters
+          Array.isArray(app.refusal_letter) && app.refusal_letter.length
+            ? app.refusal_letter
                 .map((r, i) =>
                   r?.file
                     ? `
@@ -267,7 +267,7 @@ fetch(`/api/applications/${appId}/`)
                         <a href="${r.file}"
                            target="_blank"
                            rel="noopener noreferrer">
-                          View Rejection Letter
+                          View Refusal Letter
                         </a>
                       </div>
                     `
@@ -283,23 +283,23 @@ fetch(`/api/applications/${appId}/`)
         </table>
       `;
 
-let rejectionUploadHtml = "";
+let refusalUploadHtml = "";
 
-// ✅ If already rejected AND no rejection letter yet → allow upload
-if (app.status === "REJECTED" && (!Array.isArray(app.rejection_letters) || app.rejection_letters.length === 0)) {
+// ✅ If already rejected AND no refusal letter yet → allow upload
+if (app.status === "REJECTED" && (!Array.isArray(app.refusal_letter) || app.refusal_letter.length === 0)) {
 
-  rejectionUploadHtml = `
+  refusalUploadHtml = `
     <div class="mt-4 p-3 border rounded bg-light">
-      <h6 class="text-danger">Upload Rejection Letter</h6>
-    <input type="file" id="rejection-file-${app.id}" multiple class="form-control mb-2">
-    <button class="btn btn-danger" id="upload-rejection-btn" data-id="${app.id}">
-    Upload Rejection Letter(s)
+      <h6 class="text-danger">Upload Refusal Letter</h6>
+    <input type="file" id="refusal-file-${app.id}" multiple class="form-control mb-2">
+    <button class="btn btn-danger" id="upload-refusal-btn" data-id="${app.id}">
+    Upload Refusal Letter(s)
     </button>
 
     </div>
   `;
 }
-modalBody.innerHTML = detailsHtml + rejectionUploadHtml;
+modalBody.innerHTML = detailsHtml + refusalUploadHtml;
 
 
 /// 🔹 Add Decision button 
@@ -557,7 +557,7 @@ docsHtml += `</tbody></table>`;
 
 // modalBody.innerHTML = detailsHtml + docsHtml + refusalsHtml;
 
-modalBody.innerHTML = detailsHtml + rejectionUploadHtml + docsHtml;
+modalBody.innerHTML = detailsHtml + refusalUploadHtml + docsHtml;
 
 });
 });
@@ -785,9 +785,9 @@ if (e.target.closest("#add-decision-btn")) {
             let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
             modalBody.insertAdjacentHTML("beforeend", `
                 <div class="mt-4 p-3 border rounded bg-light">
-                    <h6 class="text-danger">Upload Rejection Letter</h6>
-                    <input type="file" id="rejection-file-${updatedApp.id}" class="form-control mb-2">
-                    <button class="btn btn-danger" id="upload-rejection-btn" data-id="${updatedApp.id}">
+                    <h6 class="text-danger">Upload Refusal Letter</h6>
+                    <input type="file" id="refusal-file-${updatedApp.id}" class="form-control mb-2">
+                    <button class="btn btn-danger" id="upload-refusal-btn" data-id="${updatedApp.id}">
                         Upload Letter
                     </button>
                 </div>
@@ -806,13 +806,13 @@ if (e.target.closest("#add-decision-btn")) {
 }
 });
 
-// 🔹 Handle rejection letter upload
+// 🔹 Handle refusal letter upload
 document.body.addEventListener("click", function (e) {
-  const btn = e.target.closest("#upload-rejection-btn");
+  const btn = e.target.closest("#upload-refusal-btn");
   if (!btn) return;
 
   const appId = btn.dataset.id;
-  const fileInput = document.getElementById(`rejection-file-${appId}`);
+  const fileInput = document.getElementById(`refusal-file-${appId}`);
 
   if (!fileInput || !fileInput.files.length) {
     alert("Please select at least one file.");
@@ -821,7 +821,7 @@ document.body.addEventListener("click", function (e) {
 
   const formData = new FormData();
   [...fileInput.files].forEach(file => {
-    formData.append("rejection_letters", file);
+    formData.append("refusal_letters", file);
   });
 
   fetch(`/api/applications/${appId}/add_decision/`, {
@@ -834,18 +834,18 @@ document.body.addEventListener("click", function (e) {
   .then(res => res.json())
   .then(updatedApp => {
     btn.parentElement.innerHTML =
-      `<p class="text-success">Rejection letter(s) uploaded successfully.</p>`;
+      `<p class="text-success">Refusal letter(s) uploaded successfully.</p>`;
 
-    const cell = document.getElementById("rejection-letter-cell");
-        if (cell && Array.isArray(updatedApp.rejection_letters)) {
-          cell.innerHTML = updatedApp.rejection_letters
+    const cell = document.getElementById("refusal-letter-cell");
+        if (cell && Array.isArray(updatedApp.refusal_letter)) {
+          cell.innerHTML = updatedApp.refusal_letter
             .filter(r => r.file)
             .map(r => `<a href="${r.file}" target="_blank">View</a>`)
             .join("<br>") || "-";
         }
 
   })
-  .catch(() => alert("Failed to upload rejection letters."));
+  .catch(() => alert("Failed to upload refusal letters."));
 });
 
 
@@ -906,16 +906,16 @@ document.body.addEventListener("click", function (e) {
 //             </div>
 
             
-//             <h5>Previous Rejection Letters</h5>
-//             <div id="existingRejectionLetters" class="mb-3"></div>
+//             <h5>Existing Refusal Letter(s)</h5>
+//             <div id="existingRefusalLetters" class="mb-3"></div>
 
 //             <div class="mb-3">
-//             <label for="rejectionLetters" class="form-label">
-//             Upload New Rejection Letters
+//             <label for="refusalLetters" class="form-label">
+//             Upload New Refusal Letters
 //             </label>
 //             <input type="file"
-//             name="rejection_letters"
-//             id="rejectionLetters"
+//             name="refusal_letters"
+//             id="refusalLetters"
 //             class="form-control"
 //             multiple>
 //             </div>
@@ -927,21 +927,21 @@ document.body.addEventListener("click", function (e) {
 //         modalBody.innerHTML = formHtml;
 
 //         // 🔹 Render existing refusal letters
-//         let list = document.getElementById("existingRejectionLetters");
+//         let list = document.getElementById("existingRefusalLetters");
 
-//         if (Array.isArray(app.rejection_letters) && app.rejection_letters.length) {
-//           list.innerHTML = app.rejection_letters
+//         if (Array.isArray(app.refusal_letter) && app.refusal_letter.length) {
+//           list.innerHTML = app.refusal_letter
 //             .map(l =>
 //               `<div>
 //                 <a href="${l.file}" target="_blank" rel="noopener noreferrer">
-//                   View Rejection Letter
+//                   View Refusal Letter
 //                 </a>
 //               </div>`
 //             )
 //             .join("");
 //         } else {
 //           list.innerHTML =
-//             `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+//             `<p class="text-muted">No refusal letters uploaded yet.</p>`;
 //         }
 
 //         // Save app id globally for submit
@@ -1031,16 +1031,16 @@ $('#datatable tbody').on('click', '.reapply-btn', function () {
                    value="${app.passport_number}" />
           </div>
 
-          <h5 class="mt-4">Previous Rejection Letters</h5>
-          <div id="existingRejectionLetters" class="mb-3"></div>
+          <h5 class="mt-4">Existing Refusal Letter(s)</h5>
+          <div id="existingRefusalLetters" class="mb-3"></div>
 
           <div class="mb-3">
-            <label for="rejectionLetters" class="form-label">
-              Upload New Rejection Letters
+            <label for="refusalLetters" class="form-label">
+              Upload New Refusal Letters
             </label>
             <input type="file"
-                   name="rejection_letters"
-                   id="rejectionLetters"
+                   name="refusal_letters"
+                   id="refusalLetters"
                    class="form-control"
                    multiple>
           </div>
@@ -1053,12 +1053,12 @@ $('#datatable tbody').on('click', '.reapply-btn', function () {
       modalBody.innerHTML = formHtml;
 
       // -------------------------
-      // Render existing rejection letters
+      // Render existing refusal letters
       // -------------------------
-      let list = document.getElementById("existingRejectionLetters");
+      let list = document.getElementById("existingRefusalLetters");
 
-      if (Array.isArray(app.rejection_letters) && app.rejection_letters.length) {
-        list.innerHTML = app.rejection_letters
+      if (Array.isArray(app.refusal_letter) && app.refusal_letter.length) {
+        list.innerHTML = app.refusal_letter
           .map((l, i) =>
             l.file
               ? `
@@ -1069,16 +1069,16 @@ $('#datatable tbody').on('click', '.reapply-btn', function () {
                   <a href="${l.file}"
                      target="_blank"
                      rel="noopener noreferrer">
-                    View Rejection Letter
+                    View Refusal Letter
                   </a>
                 </div>
               `
               : ""
           )
-          .join("") || `<p class="text-muted">No rejection letters uploaded.</p>`;
+          .join("") || `<p class="text-muted">No refusal letters uploaded.</p>`;
       } else {
         list.innerHTML =
-          `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+          `<p class="text-muted">No refusal letters uploaded yet.</p>`;
       }
 
       // Save app id for submit
@@ -1129,17 +1129,17 @@ $('#datatable tbody').on('click', '.reapply-btn', function () {
 //                 $("#reapplyModal").modal("hide");
 //             }, 5000);
 
-//             // refresh rejection letters list
-//             let list = document.getElementById("existingRejectionLetters");
+//             // refresh refusal letters list
+//             let list = document.getElementById("existingRefusalLetters");
 //             list.innerHTML = "";
 
-//             if (Array.isArray(data.rejection_letters)) {
-//             data.rejection_letters.forEach(letter => {
+//             if (Array.isArray(data.refusal_letters)) {
+//             data.refusal_letters.forEach(letter => {
 //             if (!letter.file) return;
 //             list.innerHTML += `
 //             <div>
 //             <a href="${letter.file}" target="_blank" rel="noopener noreferrer">
-//               View Rejection Letter
+//               View Refusal Letter
 //             </a>
 //             </div>
 //             `;
@@ -1179,11 +1179,11 @@ $('#submitReapplyBtn').on('click', function () {
   let formData = new FormData(form);
   let appId = $(this).data("appid");
 
-  // 🔥 Append rejection letters explicitly
-  const rejectionInput = document.getElementById("rejectionLetters");
-  if (rejectionInput && rejectionInput.files.length) {
-    [...rejectionInput.files].forEach(file => {
-      formData.append("rejection_letters", file);
+  // 🔥 Append refusal letters explicitly
+  const refusalInput = document.getElementById("refusalLetters");
+  if (refusalInput && refusalInput.files.length) {
+    [...refusalInput.files].forEach(file => {
+      formData.append("refusal_letters", file);
     });
   }
 
@@ -1204,12 +1204,12 @@ $('#submitReapplyBtn').on('click', function () {
                Reference: <strong>${data.reference_no}</strong>`)
         .fadeIn();
 
-      // refresh rejection letters list
-      let list = document.getElementById("existingRejectionLetters");
+      // refresh refusal letters list
+      let list = document.getElementById("existingRefusalLetters");
       list.innerHTML = "";
 
-      if (Array.isArray(data.rejection_letters) && data.rejection_letters.length) {
-        data.rejection_letters.forEach((letter, i) => {
+      if (Array.isArray(data.refusal_letters) && data.refusal_letters.length) {
+        data.refusal_letters.forEach((letter, i) => {
           if (!letter.file) return;
           list.innerHTML += `
             <div class="mb-1">
@@ -1217,14 +1217,14 @@ $('#submitReapplyBtn').on('click', function () {
                 Letter ${i + 1}
               </span>
               <a href="${letter.file}" target="_blank" rel="noopener noreferrer">
-                View Rejection Letter
+                View Refusal Letter
               </a>
             </div>
           `;
         });
       } else {
         list.innerHTML =
-          `<p class="text-muted">No rejection letters uploaded yet.</p>`;
+          `<p class="text-muted">No refusal letters uploaded yet.</p>`;
       }
 
       // auto close modal

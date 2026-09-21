@@ -240,11 +240,11 @@ fetch(`/api/applications/${appId}/`)
       <tr><th>Submission Date</th><td id="submission-date-cell">${app.submission_date ?? '-'}</td></tr>
       <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
     <tr>
-    <th>Rejection Letters</th>
-    <td id="rejection-letter-cell">
+    <th>Refusal Letter(s)</th>
+    <td id="refusal-letter-cell">
     ${
-      Array.isArray(app.rejection_letters) && app.rejection_letters.length
-        ? app.rejection_letters
+      Array.isArray(app.refusal_letter) && app.refusal_letter.length
+        ? app.refusal_letter
             .map((r, i) =>
               r?.file
                 ? `
@@ -255,7 +255,7 @@ fetch(`/api/applications/${appId}/`)
                     <a href="${r.file}"
                        target="_blank"
                        rel="noopener noreferrer">
-                      View Rejection Letter
+                      View Refusal Letter
                     </a>
                   </div>
                 `

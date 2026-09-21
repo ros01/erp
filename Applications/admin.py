@@ -14,8 +14,8 @@ class PreviousRefusalLetterAdmin(admin.ModelAdmin):
     list_filter = ("application", "file")
 
 
-@admin.register(RejectionLetter)
-class RejectionLetterAdmin(admin.ModelAdmin):
+@admin.register(RefusalLetter)
+class RefusalLetterAdmin(admin.ModelAdmin):
     list_display = ("application", "file", "uploaded_at")
     search_fields = ("application", "file")
     list_filter = ("application", "file")

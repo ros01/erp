@@ -1,8 +1,9 @@
 # applications/serializers.py
 from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
-from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline, RejectionLetter
+from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline, RefusalLetter
 from django.contrib.auth import get_user_model
+from .services import is_pending_admin_validation
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
 
@@ -89,11 +90,11 @@ class VisaApplicationReapplySerializer(serializers.ModelSerializer):
             "documents", "refusal_letters"
         ]
 
-class RejectionLetterSerializer(serializers.ModelSerializer):
+class RefusalLetterSerializer(serializers.ModelSerializer):
     file = serializers.SerializerMethodField()
 
     class Meta:
-        model = RejectionLetter
+        model = RefusalLetter
         fields = ("id", "file", "uploaded_at")
 
     def get_file(self, obj):
@@ -106,7 +107,7 @@ class ReapplyApplicationSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
-    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
+    refusal_letter = RefusalLetterSerializer(many=True, read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -129,7 +130,6 @@ class ReapplyApplicationSerializer(serializers.ModelSerializer):
         source="client.passport_number", read_only=True
     )
     documents = DocumentSerializer(many=True, read_only=True)
-    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
     refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)
 
     class Meta:
@@ -149,8 +149,7 @@ class ReapplyApplicationSerializer(serializers.ModelSerializer):
             "submission_date",
             "decision_date",
             "documents",
-            "rejection_letter",
-            "rejection_letters",  
+            "refusal_letter",
             "refusal_letters",
         ]
 
@@ -287,7 +286,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
-    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
+    refusal_letter = RefusalLetterSerializer(many=True, read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -308,7 +307,6 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         source="client.passport_number", read_only=True
     )
     documents = DocumentSerializer(many=True, read_only=True)
-    # rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
     # refusal_letters = PreviousRefusalLetterSerializer(many=True, read_only=True)  # ✅ include here
 
     class Meta:
@@ -317,7 +315,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "id", "client_name", "client_email", "reference_no", "country", "country_display", "passport_number",
             "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
             "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
-            "submission_date", "decision_date", "documents",  "rejection_letters"
+            "submission_date", "decision_date", "documents",  "refusal_letter"
         ]
 
     def get_created_at(self, obj):
@@ -347,6 +345,30 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # 🔒 Client-visibility gate: a Client can't see a recorded
+        # APPROVED/REJECTED decision until Admin clicks "Notify Client"
+        # (see VisaApplication.client_notified). Cap what they see at
+        # "SUBMITTED" ("Awaiting Embassy Decision") until then - other
+        # roles (Admin, Case Officer, Finance, Support) always see the
+        # real status through this same endpoint.
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if (
+            getattr(user, "role", None) == "Client"
+            and instance.status in ("APPROVED", "REJECTED")
+            and not instance.client_notified
+        ):
+            data["status"] = "SUBMITTED"
+            data["status_display"] = dict(VisaApplication.STATUS_CHOICES).get(
+                "SUBMITTED", "Awaiting Embassy Decision"
+            )
+            data["status_badge"] = "badge-soft-warning"
+            data["decision_date"] = None
+            data["refusal_letter"] = []
+        return data
 
 # class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -478,7 +500,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     created_at_ts = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
-    rejection_letters = RejectionLetterSerializer(many=True, read_only=True)
+    refusal_letter = RefusalLetterSerializer(many=True, read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -491,6 +513,18 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     created_by_officer_name = serializers.CharField(
         source="created_by_officer.user.get_full_name", read_only=True
     )
+    # 🔒 Admin-validation gate (see Applications.services.is_pending_admin_validation)
+    validated_by_name = serializers.CharField(
+        source="validated_by.user.get_full_name", read_only=True, default=None
+    )
+    is_locked_for_officer = serializers.SerializerMethodField()
+    # 🔒 Client-notification gate (see VisaApplicationSerializer.to_representation
+    # below, and Applications.api_views.NotifyClientAPIView)
+    client_notified_display = serializers.SerializerMethodField()
+    notified_by_name = serializers.CharField(
+        source="notified_by.user.get_full_name", read_only=True, default=None
+    )
+    client_notified_at_display = serializers.SerializerMethodField()
     client_name = serializers.CharField(
         source="client.user.get_full_name", read_only=True
     )
@@ -504,7 +538,6 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
         source="client.passport_number", read_only=True
     )
     documents = DocumentSerializer(many=True, read_only=True)
-    rejection_letter = serializers.FileField(read_only=True)  # ✅ add this
 
     class Meta:
         model = VisaApplication
@@ -518,14 +551,19 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "created_by_officer",
             "assigned_officer_name",
             "created_by_officer_name",
+            "admin_validated",
+            "validated_by_name",
+            "is_locked_for_officer",
+            "client_notified_display",
+            "notified_by_name",
+            "client_notified_at_display",
             "created_at",
             "created_at_ts",
             "visa_application_url",
             "submission_date",
             "decision_date",
             "documents",
-            "rejection_letters",
-            "rejection_letter",  # ✅ include here
+            "refusal_letter",
         ]
 
     def get_created_at(self, obj):
@@ -535,6 +573,17 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
 
     def get_created_at_ts(self, obj):
         return obj.created_at.timestamp() if obj.created_at else None
+
+    def get_is_locked_for_officer(self, obj):
+        return is_pending_admin_validation(obj)
+
+    def get_client_notified_display(self, obj):
+        return obj.client_notified
+
+    def get_client_notified_at_display(self, obj):
+        if obj.client_notified_at:
+            return obj.client_notified_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
 
     def get_decision_date(self, obj):
         if obj.decision_date:
@@ -558,6 +607,30 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
             "QUEUED": "badge-soft-secondary",
         }
         return mapping.get(obj.status, "badge-soft-secondary")
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # 🔒 Client-visibility gate: a Client can't see a recorded
+        # APPROVED/REJECTED decision until Admin clicks "Notify Client"
+        # (see VisaApplication.client_notified). Cap what they see at
+        # "SUBMITTED" ("Awaiting Embassy Decision") until then - other
+        # roles (Admin, Case Officer, Finance, Support) always see the
+        # real status through this same endpoint/table.
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if (
+            getattr(user, "role", None) == "Client"
+            and instance.status in ("APPROVED", "REJECTED")
+            and not instance.client_notified
+        ):
+            data["status"] = "SUBMITTED"
+            data["status_display"] = dict(VisaApplication.STATUS_CHOICES).get(
+                "SUBMITTED", "Awaiting Embassy Decision"
+            )
+            data["status_badge"] = "badge-soft-warning"
+            data["decision_date"] = None
+            data["refusal_letter"] = []
+        return data
 
     def create(self, validated_data):
         user = self.context["request"].user

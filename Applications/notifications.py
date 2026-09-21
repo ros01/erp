@@ -6,6 +6,19 @@ logger = logging.getLogger(__name__)
 
 
 def send_email(subject, message, recipient):
+    # 🔕 TEMPORARY: email notifications are switched off system-wide via
+    # settings.EMAIL_NOTIFICATIONS_ENABLED while the sendgrid.net account
+    # is inactive (was causing lags on every action that sends a client
+    # notification). Every notify_* function below funnels through this
+    # one wrapper, so this is the single place that needs flipping back
+    # (set EMAIL_NOTIFICATIONS_ENABLED = True in erp/settings.py) once a
+    # working email service is in place.
+    if not getattr(settings, "EMAIL_NOTIFICATIONS_ENABLED", True):
+        logger.info(
+            f"Email notifications disabled - skipped '{subject}' to {recipient}"
+        )
+        return
+
     send_mail(
         subject,
         message,
@@ -68,17 +81,17 @@ def notify_next_stage_advanced(application):
 
     print("📧 notify_stage_advanced CALLED")
 
-    send_mail(
-        subject="Visa Application Stage Updated",
-        message=(
+    # ✅ Routed through send_email() so this also honors
+    # settings.EMAIL_NOTIFICATIONS_ENABLED, same as every other notify_*.
+    send_email(
+        "Visa Application Stage Updated",
+        (
             f"Dear {user.get_full_name},\n\n"
             f"Your visa application has progressed to the "
             f"{application.stage} stage.\n\n"
             "Please log in to continue."
         ),
-        from_email=None,
-        recipient_list=[user.email],
-        fail_silently=False,
+        user.email,
     )
 
 
@@ -87,16 +100,16 @@ def notify_application_completed(application):
 
     print("📧 notify_application_completed CALLED")
 
-    send_mail(
-        subject="Visa Documents Completed",
-        message=(
+    # ✅ Routed through send_email() so this also honors
+    # settings.EMAIL_NOTIFICATIONS_ENABLED, same as every other notify_*.
+    send_email(
+        "Visa Documents Completed",
+        (
             f"Dear {user.get_full_name},\n\n"
             "Your student visa document upload is complete.\n"
             "Your application has now been assigned to a case officer."
         ),
-        from_email=None,
-        recipient_list=[user.email],
-        fail_silently=False,
+        user.email,
     )
 
 
@@ -132,7 +145,7 @@ Reference No: {application.reference_no}
 Country: {application.get_country_display()}
 Visa Type: {application.get_visa_type_display()}
 
-Please review the rejection letter(s) uploaded by the officer.
+Please review the refusal letter(s) uploaded by the officer.
 
 — Suave ERP
 """

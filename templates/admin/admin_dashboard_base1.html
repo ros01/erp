@@ -894,9 +894,12 @@ role="button">
             <span key="t-dashboards">Applications</span>
         </a>
         <ul class="sub-menu" aria-expanded="false">
-            <li><a href="{% url 'Admin:admin_review_list' %}" key="t-default">Applications</a></li>
+            <li><a href="{% url 'Admin:assigned_applications_list' %}" key="t-assigned">Assigned Applications</a></li>
+            <li><a href="{% url 'Admin:admin_review_list' %}" key="t-default">Admin Review List</a></li>
             <li><a href="{% url 'Admin:submitted_applications_list' %}" key="t-saas">Submitted Applications</a></li>
             <li><a href="{% url 'Admin:finalized_applications_list' %}" key="t-crypto">Finalized Applications</a></li>
+            <li><a href="{% url 'Admin:notified_applications_list' %}" key="t-notified">Notified Applications</a></li>
+            <li><a href="{% url 'Admin:all_applications_list' %}" key="t-all">All Applications List</a></li>
             <!-- <li><a href="#" key="t-blog">Blog</a></li>
             <li><a href="#" key="t-jobs">Jobs</a></li> -->
         </ul>

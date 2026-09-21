@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
+from django.core.exceptions import PermissionDenied
+from Applications.services import is_pending_admin_validation
 from django.shortcuts import render, redirect, get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.response import Response
@@ -9,7 +11,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db.models import Count, Q
-from Applications.models import VisaApplication, RejectionLetter, PreviousRefusalLetter
+from Applications.models import VisaApplication, RefusalLetter, PreviousRefusalLetter
 from Accounts.models import ClientProfile
 from Documents.models import Document
 from django.views.generic import TemplateView, ListView
@@ -187,7 +189,7 @@ def download_documents_by_stage(request, pk, stage):
 
 
 @login_required
-def download_rejection_letters(request, pk):
+def download_refusal_letters(request, pk):
     # Get officer profile
     staff_profile = getattr(request.user, "staff_profile", None)
 
@@ -203,10 +205,10 @@ def download_rejection_letters(request, pk):
         )
     )
 
-    letters = application.rejection_letters.all()
+    letters = application.refusal_letter.all()
 
     if not letters.exists():
-        return HttpResponse("No rejection letters found", status=404)
+        return HttpResponse("No refusal letters found", status=404)
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as zipf:
@@ -214,13 +216,13 @@ def download_rejection_letters(request, pk):
             if letter.file:
                 zipf.write(
                     letter.file.path,
-                    arcname=f"Rejection_Letter_{i}{letter.file.path[-4:]}"
+                    arcname=f"Refusal_Letter_{i}{letter.file.path[-4:]}"
                 )
 
     buffer.seek(0)
     response = HttpResponse(buffer, content_type="application/zip")
     response["Content-Disposition"] = (
-        f'attachment; filename="{application.reference_no}_rejection_letters.zip"'
+        f'attachment; filename="{application.reference_no}_refusal_letters.zip"'
     )
     return response
 
@@ -280,8 +282,8 @@ def download_application_documents_zip(request, pk):
                 arcname=f"documents/{stage}/{filename}"
             )
 
-        # 📂 REJECTION LETTERS
-        for letter in application.rejection_letters.all():
+        # 📂 REFUSAL LETTERS
+        for letter in application.refusal_letter.all():
             if not letter.file:
                 continue
 
@@ -292,7 +294,7 @@ def download_application_documents_zip(request, pk):
 
             zip_file.write(
                 letter.file.path,
-                arcname=f"rejection_letters/{filename}"
+                arcname=f"refusal_letters/{filename}"
             )
 
     buffer.seek(0)
@@ -323,9 +325,9 @@ def download_application_documents_zipold(request, pk):
                 doc.file.read()
             )
 
-    for letter in application.rejection_letters.all():
+    for letter in application.refusal_letter.all():
         zip_file.writestr(
-            f"rejection_letters/letter_{letter.id}.pdf",
+            f"refusal_letters/letter_{letter.id}.pdf",
             letter.file.read()
         )
 
@@ -399,6 +401,15 @@ class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
             pk=self.kwargs["pk"]
         )
 
+        # 🔒 Locked pending Admin validation (see is_pending_admin_validation) -
+        # the assigned Case Officer can't review documents until Admin
+        # validates the auto-assignment or reassigns it to someone else.
+        if is_pending_admin_validation(application):
+            raise PermissionDenied(
+                "This application is pending Admin validation before you "
+                "can review its documents."
+            )
+
         # 🔹 Fetch documents with requirements
         documents = (
             application.documents
@@ -415,9 +426,9 @@ class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
             #stage = doc.requirement.stage if doc.requirement else "OTHER"
             grouped_documents[stage].append(doc)
 
-        # 🔹 Rejection letters
-        context["rejection_letters"] = (
-            RejectionLetter.objects
+        # 🔹 Refusal letters
+        context["refusal_letters"] = (
+            RefusalLetter.objects
             .filter(application=application)
             .order_by("-uploaded_at")
         )
@@ -454,8 +465,8 @@ class CaseOfficerApplicationDocumentsViewOld(LoginRequiredMixin, TemplateView):
             grouped_documents[stage].append(doc)
 
 
-        context["rejection_letters"] = (
-            RejectionLetter.objects
+        context["refusal_letters"] = (
+            RefusalLetter.objects
             .filter(application=application)
             .order_by("-uploaded_at")
         )
@@ -605,6 +616,13 @@ def application_documents(request, pk):
         VisaApplication,
         id=pk  
     )
+
+    if is_pending_admin_validation(application):
+        raise PermissionDenied(
+            "This application is pending Admin validation before you can "
+            "review its documents."
+        )
+
     client = application.client
     stage_sequence = application.get_stage_sequence()
     current_stage = application.stage
@@ -688,6 +706,12 @@ def upload_refusal_letters(request, pk):
 @login_required
 def form_filled_submission(request, pk):
     app = get_object_or_404(VisaApplication, pk=pk)
+
+    if is_pending_admin_validation(app):
+        raise PermissionDenied(
+            "This application is pending Admin validation before you can "
+            "continue processing it."
+        )
 
     try:
         form_filled = app.form_filled

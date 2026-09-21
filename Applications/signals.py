@@ -96,6 +96,13 @@ def auto_assign_officer(sender, instance, created, **kwargs):
             instance.created_by_officer = officer
             instance.save(update_fields=["created_by_officer"])
 
+        # 🔓 Officer-initiated applications skip the Admin-validation gate -
+        # there's no hand-off to validate, the creating officer already
+        # owns it.
+        if not instance.admin_validated:
+            instance.admin_validated = True
+            instance.save(update_fields=["admin_validated"])
+
         # ✅ Update workload
         officer.workload = officer.workload + 1
         officer.save(update_fields=["workload"])

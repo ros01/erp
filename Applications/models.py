@@ -147,13 +147,46 @@ class VisaApplication(BaseModel):
         blank=True,
         related_name="assigned_applications"   # ✅ add this
     )
+
+    # 🔒 Admin gatekeeping: while status == "ASSIGNED", the assigned Case
+    # Officer cannot review documents or continue processing this
+    # application until Admin either validates the auto-assignment or
+    # reassigns it to a different officer. Both actions set this True.
+    # Applications a Case Officer creates themselves (status "INITIATED")
+    # are exempt - see Applications.signals.
+    admin_validated = models.BooleanField(default=False)
+    validated_by = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="validated_applications",
+    )
+    validated_at = models.DateTimeField(null=True, blank=True)
+
+    # 🔒 Client-visibility gate: once a decision (status APPROVED/REJECTED)
+    # is recorded, the client can't see it until Admin explicitly clicks
+    # "Notify Client". Until then, client-facing serializers cap the
+    # visible status at "SUBMITTED" ("Awaiting Embassy Decision") - see
+    # VisaApplicationSerializer.to_representation and
+    # VisaApplicationDetailSerializer.to_representation in
+    # Applications.serializers.
+    client_notified = models.BooleanField(default=False)
+    notified_by = models.ForeignKey(
+        StaffProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notified_applications",
+    )
+    client_notified_at = models.DateTimeField(null=True, blank=True)
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="QUEUED")
     form_data = models.JSONField(blank=True, null=True)  # visa-specific form details
     visa_application_url = models.URLField(blank=True, null=True)
     submission_date = models.DateTimeField(blank=True, null=True)
     decision_date = models.DateTimeField(blank=True, null=True)
     reference_no = models.CharField(max_length=50, unique=True)
-    rejection_letter = models.FileField(upload_to="rejection_letters/", blank=True, null=True)
 
     # @property
     # def assigned_officer_name(self):
@@ -277,17 +310,17 @@ class VisaApplication(BaseModel):
 #     def __str__(self):
 #         return f"Refusal Letter for {self.application.reference_no} ({self.id})"
 
-class RejectionLetter(models.Model):
+class RefusalLetter(models.Model):
     application = models.ForeignKey(
         VisaApplication,
         on_delete=models.CASCADE,
-        related_name="rejection_letters"
+        related_name="refusal_letter"
     )
-    file = models.FileField(upload_to="rejection_letters/")
+    file = models.FileField(upload_to="refusal_letter/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Rejection Letter - {self.application.reference_no}"
+        return f"Refusal Letter - {self.application.reference_no}"
 
 
 class StudentApplicationPipeline(BaseModel):

@@ -47,6 +47,40 @@ def get_stage_sequence(country):
     return ["ADMISSION", "VISA"]
 
 
+def is_pending_admin_validation(application):
+    """
+    True while an auto-assigned application is locked, pending Admin
+    sign-off: the assigned Case Officer cannot review its documents or
+    otherwise continue processing it until an Admin validates the
+    assignment or reassigns it to a different officer.
+
+    Only "ASSIGNED" applications are ever locked this way - applications a
+    Case Officer creates themselves ("INITIATED") are marked
+    admin_validated=True at creation (see Applications.signals) and are
+    never subject to this gate, and any application past the ASSIGNED
+    status has already moved beyond needing this check.
+    """
+    return application.status == "ASSIGNED" and not application.admin_validated
+
+
+def enforce_officer_not_locked(application, user, message=None):
+    """
+    Raise a DRF PermissionDenied if `user` is a Case Officer trying to act
+    on an `application` that is still pending Admin validation. Admin,
+    Finance, Support, superusers, and the application's own client are
+    unaffected - only a Case Officer is gated.
+    """
+    from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+
+    if getattr(user, "role", None) == "Case Officer" and is_pending_admin_validation(application):
+        raise DRFPermissionDenied(
+            message or (
+                "This application is pending Admin validation before you can "
+                "review its documents or continue processing it."
+            )
+        )
+
+
 
 
 # def try_advance_stage(application):

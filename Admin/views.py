@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db.models import Q, Count
-from Applications.models import VisaApplication, RejectionLetter, PreviousRefusalLetter
+from Applications.models import VisaApplication, RefusalLetter, PreviousRefusalLetter
 from Accounts.models import ClientProfile
 from Documents.models import Document
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -53,7 +53,7 @@ def get_application_for_user(request, pk):
         return get_object_or_404(
             VisaApplication.objects.prefetch_related(
                 "documents__requirement",
-                "rejection_letters"
+                "refusal_letter"
             ),
             pk=pk
         )
@@ -103,14 +103,14 @@ def download_documents_by_stage(request, pk, stage):
 
 
 @login_required
-def download_rejection_letters(request, pk):
+def download_refusal_letters(request, pk):
 
     application = get_application_for_user(request, pk)
 
-    letters = application.rejection_letters.all()
+    letters = application.refusal_letter.all()
 
     if not letters.exists():
-        return HttpResponse("No rejection letters found", status=404)
+        return HttpResponse("No refusal letters found", status=404)
 
     buffer = BytesIO()
 
@@ -125,14 +125,14 @@ def download_rejection_letters(request, pk):
 
             zipf.write(
                 letter.file.path,
-                arcname=f"Rejection_Letter_{i}_{filename}"
+                arcname=f"Refusal_Letter_{i}_{filename}"
             )
 
     buffer.seek(0)
 
     response = HttpResponse(buffer, content_type="application/zip")
     response["Content-Disposition"] = (
-        f'attachment; filename="{application.reference_no}_rejection_letters.zip"'
+        f'attachment; filename="{application.reference_no}_refusal_letters.zip"'
     )
 
     return response
@@ -167,8 +167,8 @@ def download_application_documents_zip(request, pk):
                 arcname=f"documents/{stage}/{filename}"
             )
 
-        # 📂 REJECTION LETTERS
-        for letter in application.rejection_letters.all():
+        # 📂 REFUSAL LETTERS
+        for letter in application.refusal_letter.all():
             if not letter.file:
                 continue
             if not os.path.exists(letter.file.path):
@@ -178,7 +178,7 @@ def download_application_documents_zip(request, pk):
 
             zip_file.write(
                 letter.file.path,
-                arcname=f"rejection_letters/{filename}"
+                arcname=f"refusal_letters/{filename}"
             )
 
     buffer.seek(0)
@@ -286,7 +286,7 @@ class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
                 "assigned_officer"
             ).prefetch_related(
                 "documents__requirement",
-                "rejection_letters"
+                "refusal_letter"
             ),
             pk=self.kwargs["pk"]
         )
@@ -310,7 +310,7 @@ class CaseOfficerApplicationDocumentsView(LoginRequiredMixin, TemplateView):
 
         context["application"] = application
         context["grouped_documents"] = dict(grouped_documents)
-        context["rejection_letters"] = application.rejection_letters.all()
+        context["refusal_letters"] = application.refusal_letter.all()
         context["officer_id"] = officer.id   # ✅ REQUIRED for back button
         context["officer"] = officer
 
@@ -374,4 +374,19 @@ def submitted_applications_list(request):
 @login_required
 def finalized_applications_list(request):
     return render(request, "admin/finalized_applications_list.html")
+
+
+@login_required
+def notified_applications_list(request):
+    return render(request, "admin/notified_applications_list.html")
+
+
+@login_required
+def assigned_applications_list(request):
+    return render(request, "admin/assigned_applications_list.html")
+
+
+@login_required
+def all_applications_list(request):
+    return render(request, "admin/all_applications_list.html")
 

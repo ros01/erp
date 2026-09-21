@@ -1165,7 +1165,15 @@ let modalBody = document.querySelector("#applicationDetailModal #application-det
 modalBody.innerHTML = "<p class='text-muted'>Loading...</p>";
 
 fetch(`/api/applications/${appId}/`)
-  .then(res => res.json())
+  .then(res => {
+      if (res.status === 403) {
+          // 🔒 Auto-assigned application still pending Admin validation.
+          return res.json().then(data => {
+              throw new Error(data.detail || "contact admin to validate this application before you can proceed");
+          });
+      }
+      return res.json();
+  })
   .then(app => {
       // ✅ Officer row logic with fallback
       let officerRow = "";
@@ -1191,13 +1199,13 @@ fetch(`/api/applications/${appId}/`)
               </tr>
           `;
       }
-// ✅ Only include Rejection Letter row if present
-// let rejectionLetterRow = "";
-// if (app.rejection_letter) {
-// rejectionLetterRow = `
+// ✅ Only include Refusal Letter row if present
+// let refusalLetterRow = "";
+// if (app.refusal_letter) {
+// refusalLetterRow = `
 //   <tr>
-//       <th>Rejection Letter</th>
-//       <td><a href="${app.rejection_letter}" target="_blank">View Letter</a></td>
+//       <th>Refusal Letter</th>
+//       <td><a href="${app.refusal_letter}" target="_blank">View Letter</a></td>
 //   </tr>
 // `;
 // }
@@ -1235,11 +1243,11 @@ ${officerRow}
 </tr>
 
 <tr>
-      <th>Rejection Letters</th>
-      <td id="rejection-letter-cell">
+      <th>Refusal Letter(s)</th>
+      <td id="refusal-letter-cell">
         ${
-          Array.isArray(app.rejection_letters) && app.rejection_letters.length
-            ? app.rejection_letters
+          Array.isArray(app.refusal_letter) && app.refusal_letter.length
+            ? app.refusal_letter
                 .map((r, i) =>
                   r?.file
                     ? `
@@ -1250,7 +1258,7 @@ ${officerRow}
                         <a href="${r.file}"
                            target="_blank"
                            rel="noopener noreferrer">
-                          View Rejection Letter
+                          View Refusal Letter
                         </a>
                       </div>
                     `
@@ -1518,6 +1526,13 @@ else {
 // refusalsHtml += "</tbody></table>";
 
 modalBody.innerHTML = detailsHtml + docsHtml;
+})
+.catch(err => {
+    // 🔒 Blocked (e.g. pending Admin validation) - close the modal and alert.
+    let modalEl = document.getElementById("applicationDetailModal");
+    let modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modalInstance.hide();
+    alert(err.message || "contact admin to validate this application before you can proceed");
 });
 });
 

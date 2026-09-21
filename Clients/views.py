@@ -5,7 +5,7 @@ from django.middleware.csrf import get_token
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView, ListView
-from Applications.models import VisaApplication, StageDefinition, RejectionLetter
+from Applications.models import VisaApplication, StageDefinition, RefusalLetter
 from Documents.models import Document, DocumentRequirement
 from django.urls import reverse, reverse_lazy
 from django.db.models import Q
@@ -56,17 +56,17 @@ def download_documents_by_stage(request, pk, stage):
 
 
 @login_required
-def download_rejection_letters(request, pk):
+def download_refusal_letters(request, pk):
     application = get_object_or_404(
         VisaApplication,
         pk=pk,
         client__user=request.user
     )
 
-    letters = application.rejection_letters.all()
+    letters = application.refusal_letter.all()
 
     if not letters.exists():
-        return HttpResponse("No rejection letters found", status=404)
+        return HttpResponse("No refusal letters found", status=404)
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as zipf:
@@ -74,13 +74,13 @@ def download_rejection_letters(request, pk):
             if letter.file:
                 zipf.write(
                     letter.file.path,
-                    arcname=f"Rejection_Letter_{i}{letter.file.path[-4:]}"
+                    arcname=f"Refusal_Letter_{i}{letter.file.path[-4:]}"
                 )
 
     buffer.seek(0)
     response = HttpResponse(buffer, content_type="application/zip")
     response["Content-Disposition"] = (
-        f'attachment; filename="{application.reference_no}_rejection_letters.zip"'
+        f'attachment; filename="{application.reference_no}_refusal_letters.zip"'
     )
     return response
 
@@ -121,8 +121,8 @@ def download_application_documents_zip(request, pk):
                 arcname=f"documents/{filename}"
             )
 
-        # 📂 REJECTION LETTERS
-        for letter in application.rejection_letters.all():
+        # 📂 REFUSAL LETTERS
+        for letter in application.refusal_letter.all():
             if not letter.file:
                 continue
 
@@ -133,7 +133,7 @@ def download_application_documents_zip(request, pk):
 
             zip_file.write(
                 letter.file.path,
-                arcname=f"rejection_letters/{filename}"
+                arcname=f"refusal_letters/{filename}"
             )
 
     buffer.seek(0)
@@ -164,9 +164,9 @@ def download_application_documents_zipold(request, pk):
                 doc.file.read()
             )
 
-    for letter in application.rejection_letters.all():
+    for letter in application.refusal_letter.all():
         zip_file.writestr(
-            f"rejection_letters/letter_{letter.id}.pdf",
+            f"refusal_letters/letter_{letter.id}.pdf",
             letter.file.read()
         )
 
@@ -227,8 +227,8 @@ class ClientApplicationDocumentsView(LoginRequiredMixin, TemplateView):
             grouped_documents[stage].append(doc)
 
 
-        context["rejection_letters"] = (
-            RejectionLetter.objects
+        context["refusal_letters"] = (
+            RefusalLetter.objects
             .filter(application=application)
             .order_by("-uploaded_at")
         )
@@ -269,8 +269,8 @@ class ClientApplicationDocumentsViewOld(LoginRequiredMixin, TemplateView):
             .order_by("requirement__name")
         )
 
-        context["rejection_letters"] = (
-            RejectionLetter.objects
+        context["refusal_letters"] = (
+            RefusalLetter.objects
             .filter(application=application)
             .order_by("-uploaded_at")
         )
@@ -348,13 +348,18 @@ def client_dashboard_view(request):
     # ✅ All applications belonging to this client
     applications = VisaApplication.objects.filter(client=request.user.client_profile)
     # ✅ Status breakdown
+    # 🔒 Client-visibility gate: a decision (APPROVED/REJECTED) only
+    # counts as "completed" here once Admin has clicked "Notify Client"
+    # (VisaApplication.client_notified) - see
+    # Applications.serializers.VisaApplicationSerializer.to_representation
+    # for the matching per-application status masking. Until notified,
+    # the application still counts as pending.
     applications_count = applications.count()
-    approved_count = applications.filter(status="APPROVED").count()
-    rejected_count = applications.filter(status="REJECTED").count()
+    decided_and_notified = Q(status__in=["APPROVED", "REJECTED"], client_notified=True)
+    approved_count = applications.filter(status="APPROVED", client_notified=True).count()
+    rejected_count = applications.filter(status="REJECTED", client_notified=True).count()
     completed_count = approved_count + rejected_count
-    pending_count = applications.exclude(
-        Q(status="APPROVED") | Q(status="REJECTED")
-    ).count()
+    pending_count = applications.exclude(decided_and_notified).count()
 
     context = {
         "applications_count": applications_count,
