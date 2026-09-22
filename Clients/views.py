@@ -348,23 +348,23 @@ def client_dashboard_view(request):
     # ✅ All applications belonging to this client
     applications = VisaApplication.objects.filter(client=request.user.client_profile)
     # ✅ Status breakdown
-    # 🔒 Client-visibility gate: a decision (APPROVED/REJECTED) only
+    # 🔒 Client-visibility gate: a decision (APPROVED/REFUSED) only
     # counts as "completed" here once Admin has clicked "Notify Client"
     # (VisaApplication.client_notified) - see
     # Applications.serializers.VisaApplicationSerializer.to_representation
     # for the matching per-application status masking. Until notified,
     # the application still counts as pending.
     applications_count = applications.count()
-    decided_and_notified = Q(status__in=["APPROVED", "REJECTED"], client_notified=True)
+    decided_and_notified = Q(status__in=["APPROVED", "REFUSED"], client_notified=True)
     approved_count = applications.filter(status="APPROVED", client_notified=True).count()
-    rejected_count = applications.filter(status="REJECTED", client_notified=True).count()
-    completed_count = approved_count + rejected_count
+    refused_count = applications.filter(status="REFUSED", client_notified=True).count()
+    completed_count = approved_count + refused_count
     pending_count = applications.exclude(decided_and_notified).count()
 
     context = {
         "applications_count": applications_count,
         "approved_count": approved_count,
-        "rejected_count": rejected_count,
+        "refused_count": refused_count,
         "completed_count": completed_count,
         "pending_count": pending_count,
     }

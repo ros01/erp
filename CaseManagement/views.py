@@ -509,9 +509,9 @@ def case_officer_dashboard_view(request):
     ).select_related("assigned_officer", "created_by_officer")
     admin_review_count = applications.filter(status="ADMIN REVIEW").count()
     awaiting_decision_count = applications.filter(status="SUBMITTED").count()
-    # ✅ Applications that are complete (approved or rejected)
+    # ✅ Applications that are complete (approved or refused)
     complete_count = applications.filter(
-        Q(status="APPROVED") | Q(status="REJECTED")
+        Q(status="APPROVED") | Q(status="REFUSED")
     ).count()
 
     context = {
@@ -746,6 +746,11 @@ def finalize_application(request):
 @login_required
 def finalized_applications_list(request):
     return render(request, "case_officer/finalized_applications.html")
+
+
+@login_required
+def notified_applications_list(request):
+    return render(request, "case_officer/notified_applications_list.html")
 
 
 @login_required

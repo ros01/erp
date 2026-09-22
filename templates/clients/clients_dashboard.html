@@ -53,8 +53,8 @@
 <p class="text-muted mb-0">Approved</p>
 </div>
 <div class="col-6">
-<h5 class="font-size-15">{{ rejected_count }}</h5>
-<p class="text-muted mb-0">Rejected</p>
+<h5 class="font-size-15">{{ refused_count }}</h5>
+<p class="text-muted mb-0">Refused</p>
 </div>
 </div>
 <div class="mt-4">
@@ -332,6 +332,7 @@ $(document).ready(function () {
                     </tr>
                     <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                     <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                    <tr><th>Notification Date</th><td>${app.client_notified_at_display ?? '-'}</td></tr>
 
                     <tr>
                       <th>Refusal Letter(s)</th>

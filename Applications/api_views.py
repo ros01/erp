@@ -562,9 +562,9 @@ class ApplicationReapplyView(generics.RetrieveAPIView):
     def get(self, request, pk):
         application = self.get_queryset().get(pk=pk)
 
-        if application.status not in ["APPROVED", "REJECTED"]:
+        if application.status not in ["APPROVED", "REFUSED"]:
             return Response(
-                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                {"error": "Reapplication only allowed for APPROVED or REFUSED applications."},
                 status=400
             )
 
@@ -675,9 +675,9 @@ class ApplicationReapplyViewWL(generics.RetrieveAPIView):
     def get(self, request, pk):
         application = self.get_queryset().get(pk=pk)
 
-        if application.status not in ["APPROVED", "REJECTED"]:
+        if application.status not in ["APPROVED", "REFUSED"]:
             return Response(
-                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                {"error": "Reapplication only allowed for APPROVED or REFUSED applications."},
                 status=400
             )
 
@@ -754,9 +754,9 @@ class ApplicationReapplyViewW(generics.RetrieveAPIView):
     def get(self, request, pk):
         application = get_object_or_404(VisaApplication, pk=pk)
 
-        if application.status not in ["APPROVED", "REJECTED"]:
+        if application.status not in ["APPROVED", "REFUSED"]:
             return Response(
-                {"error": "Reapplication only allowed for APPROVED or REJECTED applications."},
+                {"error": "Reapplication only allowed for APPROVED or REFUSED applications."},
                 status=400
             )
 
@@ -876,14 +876,14 @@ class ApplicationCreateAPICaseView(generics.GenericAPIView):
 class AddVisaApplicationDecisionAPIView(APIView):
     """
     PATCH → approve / reject application
-    POST  → upload one or more refusal letters (REJECTED only)
+    POST  → upload one or more refusal letters (REFUSED only)
     """
 
     def patch(self, request, pk):
         application = get_object_or_404(VisaApplication, pk=pk)
 
         decision = request.data.get("status")
-        if decision not in ["APPROVED", "REJECTED"]:
+        if decision not in ["APPROVED", "REFUSED"]:
             return Response(
                 {"error": "Invalid decision"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -986,8 +986,8 @@ class CaseOfficerDashboardApplicationDetailAPIView(VisaApplicationDetailAPIView)
     # def post(self, request, pk):
     #     application = get_object_or_404(VisaApplication, pk=pk)
 
-    #     # 🚫 Safety: only allow uploads for REJECTED apps
-    #     if application.status != "REJECTED":
+    #     # 🚫 Safety: only allow uploads for REFUSED apps
+    #     if application.status != "REFUSED":
     #         return Response(
     #             {"error": "Rejection letters can only be uploaded for rejected applications"},
     #             status=status.HTTP_400_BAD_REQUEST
@@ -1027,7 +1027,7 @@ class AddVisaApplicationDecisionAPIView00(APIView):
             return Response({"error": "Application not found"}, status=404)
 
         decision = request.data.get("status")
-        if decision not in ["APPROVED", "REJECTED"]:
+        if decision not in ["APPROVED", "REFUSED"]:
             return Response({"error": "Invalid decision"}, status=400)
 
         # ✅ Update application decision
@@ -1347,7 +1347,8 @@ class DocumentReviewAPIView(generics.UpdateAPIView):
         )
         if not pending_docs.exists():
             app.status = "REVIEWED"
-            app.save(update_fields=["status"])
+            app.reviewed_at = timezone.now()
+            app.save(update_fields=["status", "reviewed_at"])
 
 
 
@@ -1753,7 +1754,7 @@ class SubmittedVisaApplicationListAPIView(generics.ListAPIView):
 
 class FinalizedVisaApplicationsListAPIView(generics.ListAPIView):
     """
-    Applications with a recorded decision (status APPROVED/REJECTED)
+    Applications with a recorded decision (status APPROVED/REFUSED)
     that Admin has NOT yet notified the client about. Backs the Admin
     dashboard's "Finalized Applications" list - once Admin clicks
     "Notify Client" (see NotifyClientAPIView), the application drops off
@@ -1781,7 +1782,7 @@ class FinalizedVisaApplicationsListAPIView(generics.ListAPIView):
 
         qs = qs.filter(
                         Q(status="APPROVED") |
-                        Q(status="REJECTED") 
+                        Q(status="REFUSED") 
                     ).filter(client_notified=False)
 
         # 🔹 sort by submission_date first, else created_at
@@ -1816,7 +1817,7 @@ class NotifiedApplicationsListAPIView(generics.ListAPIView):
 
         qs = qs.filter(
                         Q(status="APPROVED") |
-                        Q(status="REJECTED")
+                        Q(status="REFUSED")
                     ).filter(client_notified=True)
 
         return qs.order_by(Coalesce("client_notified_at", "submission_date", "created_at").desc())
@@ -1824,7 +1825,7 @@ class NotifiedApplicationsListAPIView(generics.ListAPIView):
 
 class NotifyClientAPIView(APIView):
     """
-    Admin notifies the client that a decision (APPROVED/REJECTED) has
+    Admin notifies the client that a decision (APPROVED/REFUSED) has
     been recorded. Until this fires, client-facing serializers cap the
     application's visible status at "SUBMITTED" ("Awaiting Embassy
     Decision") - see VisaApplicationSerializer.to_representation and
@@ -1842,9 +1843,9 @@ class NotifyClientAPIView(APIView):
 
         application = get_object_or_404(VisaApplication, pk=pk)
 
-        if application.status not in ("APPROVED", "REJECTED"):
+        if application.status not in ("APPROVED", "REFUSED"):
             return Response(
-                {"error": "Only applications with a recorded decision (Approved/Rejected) can be notified."},
+                {"error": "Only applications with a recorded decision (Approved/Refused) can be notified."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -2624,7 +2625,7 @@ class AddVisaApplicationDecision00APIView(APIView):
             return Response({"error": "Application not found"}, status=404)
 
         decision = request.data.get("status")
-        if decision not in ["APPROVED", "REJECTED"]:
+        if decision not in ["APPROVED", "REFUSED"]:
             return Response({"error": "Invalid decision"}, status=400)
 
         application.status = decision
@@ -2640,9 +2641,9 @@ class AddVisaApplicationDecisionsAPIView(APIView):
         application = get_object_or_404(VisaApplication, id=app_id)
 
         decision = request.data.get("status")
-        if decision not in ["APPROVED", "REJECTED"]:
+        if decision not in ["APPROVED", "REFUSED"]:
             return Response(
-                {"error": "Invalid status. Must be APPROVED or REJECTED."},
+                {"error": "Invalid status. Must be APPROVED or REFUSED."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -2948,7 +2949,7 @@ def _dashboard_monthly_output(applications, now):
     prev_year = now.year if now.month > 1 else now.year - 1
     prev_start, prev_end = _dashboard_month_bounds(prev_year, prev_month)
 
-    decided = applications.filter(status__in=["APPROVED", "REJECTED"])
+    decided = applications.filter(status__in=["APPROVED", "REFUSED"])
     this_month_count = decided.filter(decision_date__range=(this_start, this_end)).count()
     previous_month_count = decided.filter(decision_date__range=(prev_start, prev_end)).count()
 
@@ -2978,13 +2979,13 @@ def _dashboard_monthly_output(applications, now):
 
 def _dashboard_visa_applications_series(applications, now):
     """
-    Week / Month / Year stacked series (Approved / Rejected / Pending) of
+    Week / Month / Year stacked series (Approved / Refused / Pending) of
     `applications`, bucketed by created_at.
     """
     rows = list(applications.values("created_at", "status"))
 
     def build_series(labels, key_fn):
-        buckets = {label: {"Approved": 0, "Rejected": 0, "Pending": 0} for label in labels}
+        buckets = {label: {"Approved": 0, "Refused": 0, "Pending": 0} for label in labels}
         for row in rows:
             created = timezone.localtime(row["created_at"])
             key = key_fn(created)
@@ -2992,15 +2993,15 @@ def _dashboard_visa_applications_series(applications, now):
                 continue
             if row["status"] == "APPROVED":
                 buckets[key]["Approved"] += 1
-            elif row["status"] == "REJECTED":
-                buckets[key]["Rejected"] += 1
+            elif row["status"] == "REFUSED":
+                buckets[key]["Refused"] += 1
             else:
                 buckets[key]["Pending"] += 1
         return {
             "categories": labels,
             "series": [
                 {"name": "Approved", "data": [buckets[l]["Approved"] for l in labels]},
-                {"name": "Rejected", "data": [buckets[l]["Rejected"] for l in labels]},
+                {"name": "Refused", "data": [buckets[l]["Refused"] for l in labels]},
                 {"name": "Pending", "data": [buckets[l]["Pending"] for l in labels]},
             ],
         }
@@ -3061,12 +3062,13 @@ class CaseOfficerDashboardMetricsAPIView(APIView):
         officer, the month-over-month % change, and a radial "share of
         total caseload closed out this month" percentage.
       - visa_applications: Week / Month / Year stacked series (Approved /
-        Rejected / Pending) of the officer's own applications (assigned to
+        Refused / Pending) of the officer's own applications (assigned to
         or initiated by them), bucketed by created_at.
       - activity: the officer's last 4 real events - application
-        initiated, decision recorded, a task assigned to them, or a
-        reassignment to/from them - merged from VisaApplication /
-        TaskAssignment / ReassignmentLog and sorted by timestamp.
+        initiated, documents reviewed, sent for Admin Review, decision
+        recorded, a task assigned to them, or a reassignment to/from
+        them - merged from VisaApplication / TaskAssignment /
+        ReassignmentLog and sorted by timestamp.
       - trending_locations: system-wide top 3 destination countries by
         total application count.
     """
@@ -3106,16 +3108,29 @@ class CaseOfficerDashboardMetricsAPIView(APIView):
                 ),
             })
 
+        reviewed = applications.filter(status="REVIEWED", reviewed_at__isnull=False)
+        for app in reviewed:
+            events.append({
+                "timestamp": app.reviewed_at,
+                "description": f"You reviewed application {app.reference_no}",
+            })
+
+        sent_for_admin_review = applications.filter(
+            status="ADMIN REVIEW", admin_review_sent_at__isnull=False
+        )
+        for app in sent_for_admin_review:
+            events.append({
+                "timestamp": app.admin_review_sent_at,
+                "description": f"You sent application {app.reference_no} for Admin Review",
+            })
+
         decisions = applications.filter(
-            status__in=["APPROVED", "REJECTED"], decision_date__isnull=False
+            status__in=["APPROVED", "REFUSED"], decision_date__isnull=False
         )
         for app in decisions:
             events.append({
                 "timestamp": app.decision_date,
-                "description": (
-                    f"You recorded a decision ({app.get_status_display()}) "
-                    f"on {app.reference_no}"
-                ),
+                "description": f"You updated Visa Decision for application {app.reference_no}",
             })
 
         tasks = TaskAssignment.objects.filter(assigned_to=officer).select_related("application")
@@ -3167,7 +3182,7 @@ class AdminDashboardMetricsAPIView(APIView):
         count, the month-over-month % change, and a radial "share of all
         applications closed out this month" percentage.
       - visa_applications: Week / Month / Year stacked series (Approved /
-        Rejected / Pending) across every application, bucketed by
+        Refused / Pending) across every application, bucketed by
         created_at.
       - activity: the logged-in Admin's own last 4 actions, read from
         AuditLog (validate-assignment, reassign, notify-client - the

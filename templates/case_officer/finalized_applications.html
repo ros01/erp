@@ -134,8 +134,8 @@ $(document).ready(function () {
             {
                 data: "id",
                 render: function (id, type, row) {
-            // If status is APPROVED or REJECTED → show dropdown
-            if (row.status === "APPROVED" || row.status === "REJECTED") {
+            // If status is APPROVED or REFUSED → show dropdown
+            if (row.status === "APPROVED" || row.status === "REFUSED") {
                 return `
             <div class="dropdown">
                 <button class="btn btn-soft-primary btn-sm dropdown-toggle" type="button" id="actionDropdown-${id}" data-bs-toggle="dropdown" aria-expanded="false">
@@ -250,6 +250,7 @@ fetch(`/api/applications/${appId}/`)
           </tr>
          <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
          <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+         <tr><th>Notification Date</th><td>${app.client_notified_at_display ?? '-'}</td></tr>
 
       <tr>
       <th>Refusal Letter(s)</th>
@@ -285,8 +286,8 @@ fetch(`/api/applications/${appId}/`)
 
 let refusalUploadHtml = "";
 
-// ✅ If already rejected AND no refusal letter yet → allow upload
-if (app.status === "REJECTED" && (!Array.isArray(app.refusal_letter) || app.refusal_letter.length === 0)) {
+// ✅ If already refused AND no refusal letter yet → allow upload
+if (app.status === "REFUSED" && (!Array.isArray(app.refusal_letter) || app.refusal_letter.length === 0)) {
 
   refusalUploadHtml = `
     <div class="mt-4 p-3 border rounded bg-light">
@@ -309,7 +310,7 @@ detailsHtml += `
 <select id="decision-select-${app.id}" class="form-select d-inline w-auto me-2">
 <option value="">-- Select Decision --</option>
 <option value="APPROVED">✅ Approved</option>
-<option value="REJECTED">❌ Rejected</option>
+<option value="REFUSED">❌ Refused</option>
 </select>
 <button class="btn btn-primary" id="add-decision-btn" data-id="${app.id}">
 Save Decision
@@ -669,7 +670,7 @@ fetch(`/api/documents/${docId}/review/`, {
 // // get selected value from dropdown
 // let select = document.getElementById(`decision-select-${appId}`);
 // if (!select || !select.value) {
-// alert("Please select APPROVED or REJECTED first.");
+// alert("Please select APPROVED or REFUSED first.");
 // return;
 // }
 // let decision = select.value;
@@ -739,7 +740,7 @@ if (e.target.closest("#add-decision-btn")) {
     let appId = btn.dataset.id;
     let select = document.getElementById(`decision-select-${appId}`);
     if (!select || !select.value) {
-        alert("Please select APPROVED or REJECTED first.");
+        alert("Please select APPROVED or REFUSED first.");
         return;
     }
     let decision = select.value;
@@ -780,8 +781,8 @@ if (e.target.closest("#add-decision-btn")) {
         const decisionDateEl = document.getElementById("application-decision-date");
         if (decisionDateEl) decisionDateEl.textContent = updatedApp.decision_date ?? '-';
 
-        // ✅ If REJECTED → show upload form
-        if (decision === "REJECTED") {
+        // ✅ If REFUSED → show upload form
+        if (decision === "REFUSED") {
             let modalBody = document.querySelector("#applicationDetailModal #application-detail-content");
             modalBody.insertAdjacentHTML("beforeend", `
                 <div class="mt-4 p-3 border rounded bg-light">

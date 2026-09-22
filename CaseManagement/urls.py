@@ -16,6 +16,7 @@ urlpatterns = [
     path("applications/admin-review-submission-list/", admin_review_submission, name="admin-review-submission-list"),
     path("applications/applications-finalization-list/", finalize_application, name="applications-finalization-list"),
     path("applications/finalized-applications-list/", finalized_applications_list, name="finalized-applications-list"),
+    path("notified_applications_list/", notified_applications_list, name="notified_applications_list"),
 
     # path("applications/<uuid:pk>/form-filled/", form_filled_submission, name="form-filled"),
     path("applications/form-filled-submissions/", reviewed_applications_page, name="form-filled-submissions"),

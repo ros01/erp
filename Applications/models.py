@@ -106,7 +106,7 @@ class VisaApplication(BaseModel):
         ("ADMIN REVIEW", "Admin Review"),
         ("SUBMITTED", "Awaiting Embassy Decision"),
         ("APPROVED", "Approved"),
-        ("REJECTED", "Rejected"),
+        ("REFUSED", "Refused"),
     ]
 
     # client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="visa_applications")
@@ -164,7 +164,7 @@ class VisaApplication(BaseModel):
     )
     validated_at = models.DateTimeField(null=True, blank=True)
 
-    # 🔒 Client-visibility gate: once a decision (status APPROVED/REJECTED)
+    # 🔒 Client-visibility gate: once a decision (status APPROVED/REFUSED)
     # is recorded, the client can't see it until Admin explicitly clicks
     # "Notify Client". Until then, client-facing serializers cap the
     # visible status at "SUBMITTED" ("Awaiting Embassy Decision") - see
@@ -187,6 +187,16 @@ class VisaApplication(BaseModel):
     submission_date = models.DateTimeField(blank=True, null=True)
     decision_date = models.DateTimeField(blank=True, null=True)
     reference_no = models.CharField(max_length=50, unique=True)
+
+    # 📋 Case Officer dashboard "Activity" timeline timestamps - set the
+    # first (and each subsequent) time the application's status reaches
+    # these particular values, so the dashboard can report a real event
+    # date instead of relying on updated_at (which isn't refreshed by the
+    # status-only .save(update_fields=[...]) calls that make these
+    # transitions). See Applications.api_views.DocumentReviewAPIView and
+    # Applications.serializers.VisaApplicationUrlUpdateSerializer(000).
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    admin_review_sent_at = models.DateTimeField(blank=True, null=True)
 
     # @property
     # def assigned_officer_name(self):
@@ -423,7 +433,7 @@ class EmbassySubmission(BaseModel):
 class Decision(BaseModel):
     DECISION_CHOICES = [
         ("Approved", "Approved"),
-        ("Rejected", "Rejected"),
+        ("Refused", "Refused"),
         ("Pending", "Pending"),
     ]
 

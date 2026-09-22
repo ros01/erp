@@ -72,6 +72,48 @@ def force_password_reset(request):
 
 
 
+@login_required
+def change_password(request):
+    """
+    Self-service password change for an already-authenticated user, from
+    the "Change Password" item in the account dropdown (Clients / Case
+    Officer / Admin base templates). Unlike force_password_reset (used
+    for the mandatory pre-login reset flow), this requires the user's
+    current password and sends them back to their own role's dashboard.
+    """
+    if request.method == "POST":
+        old_password = request.POST.get("old_password", "")
+        new_password1 = request.POST.get("new_password1", "")
+        new_password2 = request.POST.get("new_password2", "")
+
+        role_dashboard = {
+            "Client": "Clients:client_dashboard",
+            "Case Officer": "CaseManagement:case_officer_dashboard",
+            "Admin": "Admin:admin_dashboard",
+        }.get(request.user.role, "Pages:index")
+
+        if not request.user.check_password(old_password):
+            messages.error(request, "Your current password is incorrect.")
+        elif new_password1 != new_password2:
+            messages.error(request, "New passwords do not match.")
+        elif len(new_password1) < 8:
+            messages.error(request, "New password must be at least 8 characters long.")
+        elif request.user.check_password(new_password1):
+            messages.error(request, "New password must be different from your current password.")
+        else:
+            user = request.user
+            user.set_password(new_password1)
+            user.save()
+
+            # Keep the user logged in after changing their own password
+            update_session_auth_hash(request, user)
+
+            messages.success(request, "Password changed successfully.")
+            return redirect(role_dashboard)
+
+    return render(request, "accounts/change_password.html")
+
+
 def login(request):
     if request.method == "POST":
         email = request.POST.get("email")

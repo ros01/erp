@@ -188,6 +188,7 @@ $(document).ready(function () {
                   </tr>
                  <tr><th>Submission Date</th><td>${app.submission_date ?? '-'}</td></tr>
                  <tr><th>Decision Date</th><td>${app.decision_date ?? '-'}</td></tr>
+                 <tr><th>Notification Date</th><td>${app.client_notified_at_display ?? '-'}</td></tr>
                 <tr>
                   <th>Refusal Letter(s)</th>
                   <td id="refusal-letter-cell">
@@ -226,7 +227,7 @@ $(document).ready(function () {
                         <select id="decision-select-${app.id}" class="form-select d-inline w-auto me-2">
                           <option value="">-- Select Decision --</option>
                           <option value="APPROVED">✅ Approved</option>
-                          <option value="REJECTED">❌ Rejected</option>
+                          <option value="REFUSED">❌ Refused</option>
                         </select>
                         <button class="btn btn-primary" id="add-decision-btn" data-id="${app.id}">
                           Save Decision
@@ -583,7 +584,7 @@ let appId = btn.dataset.id;
 // get selected value from dropdown
 let select = document.getElementById(`decision-select-${appId}`);
 if (!select || !select.value) {
-    alert("Please select APPROVED or REJECTED first.");
+    alert("Please select APPROVED or REFUSED first.");
     return;
 }
 let decision = select.value;

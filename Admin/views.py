@@ -345,7 +345,7 @@ def admin_dashboard_view(request):
     admin_review_count = applications.filter(status="ADMIN REVIEW").count()
     awaiting_decision_count = applications.filter(status="SUBMITTED").count()
     complete_count = applications.filter(
-        Q(status="APPROVED") | Q(status="REJECTED")
+        Q(status="APPROVED") | Q(status="REFUSED")
     ).count()
 
     context = {

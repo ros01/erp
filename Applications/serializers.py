@@ -3,6 +3,7 @@ from rest_framework import serializers
 from Documents.models import DocumentRequirement, Document
 from .models import VisaApplication, PreviousRefusalLetter, StudentApplicationPipeline, RefusalLetter
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from .services import is_pending_admin_validation
 # from Documents.serializers import DocumentRequirementSerializer, DocumentSerializer
 
@@ -170,7 +171,7 @@ class ReapplyApplicationSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "APPROVED": "badge-soft-success",
             "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
@@ -286,6 +287,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
     created_at = serializers.SerializerMethodField()
     decision_date = serializers.SerializerMethodField()
     submission_date = serializers.SerializerMethodField()
+    client_notified_at_display = serializers.SerializerMethodField()
     refusal_letter = RefusalLetterSerializer(many=True, read_only=True)
     country_display = serializers.CharField(source="get_country_display", read_only=True)
     visa_type_display = serializers.CharField(source="get_visa_type_display", read_only=True)
@@ -315,7 +317,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             "id", "client_name", "client_email", "reference_no", "country", "country_display", "passport_number",
             "visa_type", "visa_type_display", "status", "status_display", "assigned_officer", "created_by_officer",
             "status_badge", "assigned_officer_name", "created_by_officer_name", "created_at", "visa_application_url",
-            "submission_date", "decision_date", "documents",  "refusal_letter"
+            "submission_date", "decision_date", "client_notified_at_display", "documents",  "refusal_letter"
         ]
 
     def get_created_at(self, obj):
@@ -333,10 +335,15 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             return obj.submission_date.strftime("%d/%m/%Y, %H:%M:%S")
         return None
 
+    def get_client_notified_at_display(self, obj):
+        if obj.client_notified_at:
+            return obj.client_notified_at.strftime("%d/%m/%Y, %H:%M:%S")
+        return None
+
     def get_status_badge(self, obj):
         mapping = {
             "APPROVED": "badge-soft-success",
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "SUBMITTED": "badge-soft-warning",
             "REVIEWED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
@@ -349,7 +356,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # 🔒 Client-visibility gate: a Client can't see a recorded
-        # APPROVED/REJECTED decision until Admin clicks "Notify Client"
+        # APPROVED/REFUSED decision until Admin clicks "Notify Client"
         # (see VisaApplication.client_notified). Cap what they see at
         # "SUBMITTED" ("Awaiting Embassy Decision") until then - other
         # roles (Admin, Case Officer, Finance, Support) always see the
@@ -358,7 +365,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
         user = getattr(request, "user", None)
         if (
             getattr(user, "role", None) == "Client"
-            and instance.status in ("APPROVED", "REJECTED")
+            and instance.status in ("APPROVED", "REFUSED")
             and not instance.client_notified
         ):
             data["status"] = "SUBMITTED"
@@ -367,6 +374,7 @@ class VisaApplicationDetailSerializer(serializers.ModelSerializer):
             )
             data["status_badge"] = "badge-soft-warning"
             data["decision_date"] = None
+            data["client_notified_at_display"] = None
             data["refusal_letter"] = []
         return data
 
@@ -392,7 +400,7 @@ class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "APPROVED": "badge-soft-success",
             "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
@@ -409,7 +417,8 @@ class VisaApplicationUrlUpdateSerializer(serializers.ModelSerializer):
         )
         # ✅ force status change
         instance.status = "ADMIN REVIEW"
-        instance.save(update_fields=["visa_application_url", "status"])
+        instance.admin_review_sent_at = timezone.now()
+        instance.save(update_fields=["visa_application_url", "status", "admin_review_sent_at"])
         return instance
 
 class VisaApplicationUrlUpdateSerializer000(serializers.ModelSerializer):
@@ -425,7 +434,7 @@ class VisaApplicationUrlUpdateSerializer000(serializers.ModelSerializer):
     def get_status_badge(self, obj):
         mapping = {
             "APPROVED": "badge-soft-success",
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "ADMIN REVIEW": "badge-soft-info",
             "REVIEWED": "badge-soft-warning",
             "ASSIGNED": "badge-soft-primary",
@@ -437,7 +446,8 @@ class VisaApplicationUrlUpdateSerializer000(serializers.ModelSerializer):
         instance.visa_application_url = validated_data.get("visa_application_url", instance.visa_application_url)
         # ✅ force status change
         instance.status = "ADMIN REVIEW"
-        instance.save(update_fields=["visa_application_url", "status"])
+        instance.admin_review_sent_at = timezone.now()
+        instance.save(update_fields=["visa_application_url", "status", "admin_review_sent_at"])
         return instance
 
 
@@ -468,7 +478,7 @@ class VisaApplicationsSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "APPROVED": "badge-soft-success",
             "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
@@ -597,7 +607,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
 
     def get_status_badge(self, obj):
         mapping = {
-            "REJECTED": "badge-soft-danger",
+            "REFUSED": "badge-soft-danger",
             "APPROVED": "badge-soft-success",
             "SUBMITTED": "badge-soft-warning",
             "ADMIN REVIEW": "badge-soft-info",
@@ -611,7 +621,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # 🔒 Client-visibility gate: a Client can't see a recorded
-        # APPROVED/REJECTED decision until Admin clicks "Notify Client"
+        # APPROVED/REFUSED decision until Admin clicks "Notify Client"
         # (see VisaApplication.client_notified). Cap what they see at
         # "SUBMITTED" ("Awaiting Embassy Decision") until then - other
         # roles (Admin, Case Officer, Finance, Support) always see the
@@ -620,7 +630,7 @@ class VisaApplicationSerializer(serializers.ModelSerializer):
         user = getattr(request, "user", None)
         if (
             getattr(user, "role", None) == "Client"
-            and instance.status in ("APPROVED", "REJECTED")
+            and instance.status in ("APPROVED", "REFUSED")
             and not instance.client_notified
         ):
             data["status"] = "SUBMITTED"

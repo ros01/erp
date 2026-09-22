@@ -134,12 +134,12 @@ We will guide you through the next steps.
 
 — Suave ERP
 """
-    else:  # REJECTED
+    else:  # REFUSED
         subject = "Visa Application Decision Update"
         message = f"""
 Dear {user.get_full_name},
 
-We regret to inform you that your visa application has been REJECTED.
+We regret to inform you that your visa application has been REFUSED.
 
 Reference No: {application.reference_no}
 Country: {application.get_country_display()}
